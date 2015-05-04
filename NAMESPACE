@@ -1,0 +1,3 @@
+useDynLib(AFSEIR)
+exportPattern("^[[:alpha:]]+")
+import(methods, Rcpp)

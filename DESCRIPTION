@@ -1,0 +1,11 @@
+Package: AFSEIR
+Type: Package
+Title: Posterior approximation to fully Bayesian Spatial SEIR Models using the C++ Actor Framework
+Version: 0.1
+Date: 2015-04-28
+Author: Grant Brown
+Maintainer: Grant Brown <grant-brown@uiowa.edu>
+Description: Under development
+License: GPL (>= 3)
+Imports: methods, Rcpp (>= 0.11.5)
+LinkingTo: Rcpp, RcppEigen
