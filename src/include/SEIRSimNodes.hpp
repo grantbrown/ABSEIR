@@ -51,6 +51,13 @@ class SEIR_sim_node : public event_based_actor {
         std::vector<Eigen::MatrixXd> DM_vec;
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;
+        std::vector<double> E_to_I_prior;
+        std::vector<double> I_to_R_prior;
+        std::vector<double> exposure_precision;
+        std::vector<double> reinfection_precision;
+        std::vector<double> exposure_mean;
+        std::vector<double> reinfection_mean;
+        double phi;
         int sim_width;
         int seed;
         double value;

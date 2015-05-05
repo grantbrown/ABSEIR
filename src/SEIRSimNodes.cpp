@@ -25,7 +25,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              std::vector<double> rs_prec,
                              std::vector<double> se_mean,
                              std::vector<double> rs_mean,
-                             double phi,
+                             double ph,
                              actor pr
                              ) : sim_width(w),
                                  random_seed(sd),
@@ -37,6 +37,13 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  DM_vec(dmv),
                                  X(x),
                                  X_rs(x_rs),
+                                 E_to_I_prior(ei_prior),
+                                 I_to_R_prior(ir_prior),
+                                 exposure_precision(se_prec),
+                                 reinfection_precision(rs_prec),
+                                 exposure_mean(se_mean),
+                                 reinfection_mean(rs_mean),
+                                 phi(ph),
                                  parent(pr)
 {
     generator = new mt19937(sd);
