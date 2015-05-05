@@ -9,6 +9,13 @@ reinfectionModel::reinfectionModel(SEXP reinfectMode)
 {
      Rcpp::IntegerVector modeVec(reinfectMode);
      reinfectionMode = modeVec[0];
+     betaPriorPrecision = Eigen::VectorXd(2);
+     betaPriorMean = Eigen::VectorXd(2);
+     X_rs = Eigen::MatrixXd(1,1); X_rs(0,0) = -1.0;
+     betaPriorMean(0) = -1;
+     betaPriorMean(1) = -1;
+     betaPriorPrecision(0) = -1;
+     betaPriorPrecision(1) = -1;
 }
 
 int reinfectionModel::getModelComponentType()

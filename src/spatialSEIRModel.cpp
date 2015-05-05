@@ -112,12 +112,33 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
         }
     }
     
-
     std::vector<caf::actor> workers;
 
     auto worker_pool = actor_pool::make(actor_pool::round_robin{});
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
     unsigned int nrow =  (unsigned int) params.nrow();
+    
+    /*
+    auto tmp1 = samplingControlInstance -> simulation_width;
+    auto tmp2 = samplingControlInstance->random_seed;
+    auto tmp3 = initialValueContainerInstance -> S0;
+    auto tmp4 = initialValueContainerInstance -> E0;
+    auto tmp5 = initialValueContainerInstance -> I0;
+    auto tmp6 = initialValueContainerInstance -> R0;
+    auto tmp7 = exposureModelInstance -> offset;
+    auto tmp8 = dataModelInstance -> Y;
+    auto tmp9 = distanceModelInstance -> dm_list;
+    auto tmp10 = exposureModelInstance -> X;
+    auto tmp11 = reinfectionModelInstance -> X_rs;
+    auto tmp12 = transitionPriorsInstance -> gamma_ei_params;
+    auto tmp13 = transitionPriorsInstance -> gamma_ir_params;
+    auto tmp14 = exposureModelInstance -> betaPriorPrecision;
+    auto tmp15 = reinfectionModelInstance -> betaPriorPrecision; 
+    auto tmp16 = exposureModelInstance -> betaPriorMean;
+    auto tmp17 = reinfectionModelInstance -> betaPriorMean;
+    auto tmp18 = dataModelInstance -> phi;
+    */
+
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,

@@ -10,6 +10,7 @@ transitionPriors::transitionPriors()
 {
     gamma_ei_params = Eigen::VectorXd(2);
     gamma_ir_params = Eigen::VectorXd(2);
+    setUniformPriors();
 }
 
 int transitionPriors::getModelComponentType()
