@@ -9,7 +9,6 @@ reinfectionModel::reinfectionModel(SEXP reinfectMode)
 {
      Rcpp::IntegerVector modeVec(reinfectMode);
      reinfectionMode = modeVec[0];
-     betaPriorPrecision.push_back(-1); 
 }
 
 int reinfectionModel::getModelComponentType()
@@ -30,10 +29,13 @@ void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _pre
             ::Rf_error("Number of parameters, prior means, or precisions does not equal the number of supplied covariates.\n");
         }
         int i,j;
+        betaPriorPrecision = Eigen::VectorXd(inX.ncol());
+        betaPriorMean = Eigen::VectorXd(inX.ncol());
+
         for (i = 0; i < inX.ncol(); i++)
         {
-            betaPriorPrecision.push_back(inPrecision[i]);
-            betaPriorMean.push_back(priorMeans[i]);
+            betaPriorPrecision(i) = inPrecision[i];
+            betaPriorMean(i) = priorMeans[i];
         }
         X_rs = Eigen::MatrixXd(inX.nrow(), inX.ncol());
         for (i = 0; i < inX.nrow(); i++)

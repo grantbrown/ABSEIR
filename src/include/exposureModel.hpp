@@ -2,7 +2,6 @@
 #define SPATIALSEIR_EXPOSURE_MODEL
 #include <Rcpp.h>
 #include<modelComponent.hpp>
-#include<Eigen/Core>
 
 using namespace Rcpp;
 
@@ -15,12 +14,12 @@ class exposureModel : public modelComponent
         int getModelComponentType();
         virtual Rcpp::NumericVector getOffset();
         virtual void setOffset(Rcpp::NumericVector offs);
-        std::vector<double> offset;
         int nTpt;
         int nLoc;
         Eigen::MatrixXd X;
-        std::vector<double> betaPriorPrecision;
-        std::vector<double> betaPriorMean;
+        Eigen::VectorXd betaPriorPrecision;
+        Eigen::VectorXd betaPriorMean;
+        Eigen::VectorXd offset;
         ~exposureModel();
 };
 

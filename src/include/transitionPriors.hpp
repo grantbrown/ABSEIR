@@ -17,8 +17,8 @@ class transitionPriors : public modelComponent
                                SEXP priorAlpha_gammaIR, SEXP priorBeta_gammaIR);
         void summary();
 
-        std::vector<double> gamma_ei_params;
-        std::vector<double> gamma_ir_params;
+        Eigen::VectorXd gamma_ei_params;
+        Eigen::VectorXd gamma_ir_params;
         ~transitionPriors();
 };
 

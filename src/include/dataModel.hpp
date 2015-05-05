@@ -1,7 +1,6 @@
 #ifndef SPATIALSEIR_DATA_MODEL
 #define SPATIALSEIR_DATA_MODEL
 #include <Rcpp.h>
-#include <Eigen/Core>
 #include <modelComponent.hpp>
 
 using namespace Rcpp;

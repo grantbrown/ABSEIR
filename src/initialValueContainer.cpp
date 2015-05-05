@@ -28,11 +28,16 @@ void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP 
         ::Rf_error("Init compartment lengths do not match\n");
     }
     int i;
+    S0 = Eigen::VectorXi(E0_vec.length());
+    E0 = Eigen::VectorXi(E0_vec.length());
+    I0 = Eigen::VectorXi(E0_vec.length());
+    R0 = Eigen::VectorXi(E0_vec.length());
+
     for (i = 0; i < S0_vec.length(); i++){
-        S0.push_back(S0_vec[i]);
-        E0.push_back(E0_vec[i]);
-        I0.push_back(I0_vec[i]);
-        R0.push_back(R0_vec[i]);
+        S0(i) = S0_vec[i];
+        E0(i) = E0_vec[i];
+        I0(i) = I0_vec[i];
+        R0(i) = R0_vec[i];
     }
 }
 

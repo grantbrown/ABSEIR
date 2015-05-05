@@ -13,10 +13,10 @@ class initialValueContainer : public modelComponent
         initialValueContainer();
         void setInitialValues(SEXP S0, SEXP E0, SEXP I0, SEXP R0);
         int getModelComponentType();
-        std::vector<int> S0;
-        std::vector<int> E0;
-        std::vector<int> I0;
-        std::vector<int> R0;
+        Eigen::VectorXi S0;
+        Eigen::VectorXi E0;
+        Eigen::VectorXi I0;
+        Eigen::VectorXi R0;
         ~initialValueContainer();
 };
 

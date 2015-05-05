@@ -21,21 +21,21 @@ class SEIR_sim_node : public event_based_actor {
     public:
         SEIR_sim_node(int sim_width,
                       int random_seed,
-                      std::vector<int> S0,
-                      std::vector<int> E0,
-                      std::vector<int> I0,
-                      std::vector<int> R0,
-                      std::vector<double> offset,
+                      Eigen::VectorXi S0,
+                      Eigen::VectorXi E0,
+                      Eigen::VectorXi I0,
+                      Eigen::VectorXi R0,
+                      Eigen::VectorXd offset,
                       Eigen::MatrixXi I_star,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
                       Eigen::MatrixXd X_rs,
-                      std::vector<double> ei_prior,
-                      std::vector<double> ir_prior,
-                      std::vector<double> se_prec,
-                      std::vector<double> rs_prec,
-                      std::vector<double> se_mean,
-                      std::vector<double> rs_mean,
+                      Eigen::VectorXd ei_prior,
+                      Eigen::VectorXd ir_prior,
+                      Eigen::VectorXd se_prec,
+                      Eigen::VectorXd rs_prec,
+                      Eigen::VectorXd se_mean,
+                      Eigen::VectorXd rs_mean,
                       double phi,
                       actor parent);
         ~SEIR_sim_node();
@@ -44,20 +44,20 @@ class SEIR_sim_node : public event_based_actor {
         behavior make_behavior() override;
     private: 
         unsigned int random_seed;
-        std::vector<int> S0;
-        std::vector<int> E0;
-        std::vector<int> I0;
-        std::vector<int> R0;
+        Eigen::VectorXi S0;
+        Eigen::VectorXi E0;
+        Eigen::VectorXi I0;
+        Eigen::VectorXi R0;
         Eigen::MatrixXi I_star;
         std::vector<Eigen::MatrixXd> DM_vec;
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;
-        std::vector<double> E_to_I_prior;
-        std::vector<double> I_to_R_prior;
-        std::vector<double> exposure_precision;
-        std::vector<double> reinfection_precision;
-        std::vector<double> exposure_mean;
-        std::vector<double> reinfection_mean;
+        Eigen::VectorXd E_to_I_prior;
+        Eigen::VectorXd I_to_R_prior;
+        Eigen::VectorXd exposure_precision;
+        Eigen::VectorXd reinfection_precision;
+        Eigen::VectorXd exposure_mean;
+        Eigen::VectorXd reinfection_mean;
         double phi;
         int sim_width;
         int seed;

@@ -2,7 +2,6 @@
 #define SPATIALSEIR_REINFECTION_MODEL
 #include <Rcpp.h>
 #include<modelComponent.hpp>
-#include<Eigen/Core>
 
 using namespace Rcpp;
 
@@ -16,8 +15,8 @@ class reinfectionModel : public modelComponent
         virtual void buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _prec);
         int reinfectionMode;
         Eigen::MatrixXd X_rs;
-        std::vector<double> betaPriorPrecision;
-        std::vector<double> betaPriorMean;
+        Eigen::VectorXd betaPriorPrecision;
+        Eigen::VectorXd betaPriorMean;
         ~reinfectionModel();
 };
 

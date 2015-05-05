@@ -12,6 +12,7 @@
 
 
 #include <Rcpp.h>
+#include <Eigen/Core>
 
 
 using namespace Rcpp;

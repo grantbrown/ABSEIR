@@ -2,7 +2,6 @@
 #define SPATIALSEIR_DISTANCE_MODEL
 #include <Rcpp.h>
 #include<modelComponent.hpp>
-#include <Eigen/Core>
 
 using namespace Rcpp;
 RCPP_EXPOSED_CLASS(distanceModel)
