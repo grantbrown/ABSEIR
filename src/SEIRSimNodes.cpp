@@ -124,16 +124,10 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     double gamma_ir = params(params.size() - 1);
 
     Eigen::MatrixXd tmp = (X*beta).unaryExpr([](double elem){return(std::exp(elem));});
-    
-
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(tmp.data(), 
             I_star.rows(), I_star.cols());
-    
-    Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
-                            .unaryExpr([](double e){return(1-std::exp(e));});
-    
-    Eigen::VectorXd p_ir = (-1.0*gamma_ir*offset)
-                            .unaryExpr([](double e){return(1-std::exp(e));}); 
+
+    Eigen::VectorXi N = (S0 + E0 + I0 + R0);
 
     Eigen::MatrixXi current_S(sim_width, S0.size());
     Eigen::MatrixXi current_E(sim_width, S0.size());
@@ -165,6 +159,23 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
         previous_I.row(i) = I0;
         previous_R.row(i) = R0;
     }
+
+    p_se_components.row(0) = (p_se_components.row(0)).array() * (previous_I.row(0)).cast<double>().array() / N.cast<double>().array();
+    Eigen::VectorXd p_se = p_se_components.row(0);
+    if (has_spatial)
+    {
+        for (i = 0; i < DM_vec.size(); i++)
+        {
+            p_se += rho[i]*(DM_vec[i] * p_se_components.row(0));
+        }
+    }
+    p_se = (-1.0*p_se.array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
+    Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
+                            .unaryExpr([](double e){return(1-std::exp(e));});
+    
+    Eigen::VectorXd p_ir = (-1.0*gamma_ir*offset)
+                            .unaryExpr([](double e){return(1-std::exp(e));}); 
+
     
     for (time_idx = 1; time_idx < I_star.rows(); time_idx++)
     {
