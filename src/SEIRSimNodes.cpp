@@ -15,6 +15,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              std::vector<int> e,
                              std::vector<int> i,
                              std::vector<int> r,
+                             std::vector<double> offset,
                              Eigen::MatrixXi is,
                              std::vector<Eigen::MatrixXd> dmv,
                              Eigen::MatrixXd x,
@@ -68,6 +69,10 @@ behavior SEIR_sim_node::make_behavior(){
 
 double SEIR_sim_node::simulate(Eigen::VectorXd params)
 {
+
+    // Params is a vector made of:
+    // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]
+
     // Dummy workload. 
     return(params.size()*2.0);
 }

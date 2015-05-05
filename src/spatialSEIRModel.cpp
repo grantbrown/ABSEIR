@@ -126,6 +126,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
                                                                       initialValueContainerInstance -> E0,
                                                                       initialValueContainerInstance -> I0,
                                                                       initialValueContainerInstance -> R0,
+                                                                      exposureModelInstance -> offset,
                                                                       dataModelInstance -> Y,
                                                                       distanceModelInstance -> dm_list,
                                                                       exposureModelInstance -> X,

@@ -25,6 +25,7 @@ class SEIR_sim_node : public event_based_actor {
                       std::vector<int> E0,
                       std::vector<int> I0,
                       std::vector<int> R0,
+                      std::vector<double> offset,
                       Eigen::MatrixXi I_star,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
