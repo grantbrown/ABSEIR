@@ -29,10 +29,17 @@ class SEIR_sim_node : public event_based_actor {
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
                       Eigen::MatrixXd X_rs,
+                      std::vector<double> ei_prior,
+                      std::vector<double> ir_prior,
+                      std::vector<double> se_prec,
+                      std::vector<double> rs_prec,
+                      std::vector<double> se_mean,
+                      std::vector<double> rs_mean,
+                      double phi,
                       actor parent);
         ~SEIR_sim_node();
     protected:
-        double simulate(std::vector<double> param_vals);
+        double simulate(Eigen::VectorXd param_vals);
         behavior make_behavior() override;
     private: 
         unsigned int random_seed;
@@ -49,7 +56,7 @@ class SEIR_sim_node : public event_based_actor {
         double value;
         actor parent;
         scoped_actor* self;
-        std::mt19937* generator;
+        mt19937* generator;
         behavior    alive;
 };
 

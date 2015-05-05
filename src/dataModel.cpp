@@ -4,12 +4,15 @@
 
 using namespace Rcpp;
 
-dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment)
+dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
 {
     Rcpp::NumericMatrix input(_Y);
 
     nLoc = input.ncol();
     nTpt = input.nrow();
+    Rcpp::NumericVector in_phi(_phi);
+
+    phi = in_phi[0];
 
     Rcpp::StringVector inputType(type);
     Rcpp::StringVector inputCompartment(compartment);
@@ -52,21 +55,6 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment)
             Y(i,j) = input[i, j]; 
         }
     }
-}
-
-void dataModel::setOverdispersionParameters(SEXP priorAlpha, SEXP priorBeta)
-{
-    Rcpp::NumericVector alpha(priorAlpha);
-    Rcpp::NumericVector beta(priorBeta);
-    
-    int i;
-    for (i = 0; i < priorParameters.size(); i++)
-    {
-        priorParameters.pop_back();
-    }
-    priorParameters.push_back(alpha[0]);
-    priorParameters.push_back(beta[0]);
-
 }
 
 int dataModel::getModelComponentType()
@@ -117,9 +105,8 @@ RCPP_MODULE(mod_dataModel)
 {
     using namespace Rcpp;
     class_<dataModel>( "dataModel" )
-    .constructor<SEXP,SEXP,SEXP>()
-    .method("summary", &dataModel::summary)
-    .method("setOverdispersionParameters",&dataModel::setOverdispersionParameters);
+    .constructor<SEXP,SEXP,SEXP,SEXP>()
+    .method("summary", &dataModel::summary);
 }
 
 

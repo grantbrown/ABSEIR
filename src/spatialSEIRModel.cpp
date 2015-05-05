@@ -58,15 +58,22 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
     if ((dataModelInstance -> nLoc) != (exposureModelInstance -> nLoc))
     { 
-        ::Rf_error("Exposure model and data model imply different number of locations\n");
+        ::Rf_error(("Exposure model and data model imply different number of locations: " 
+                + std::to_string(dataModelInstance -> nLoc) + ", " 
+                + std::to_string(exposureModelInstance -> nLoc) + ".\n").c_str());
     }
     if ((dataModelInstance -> nTpt) != (exposureModelInstance -> nTpt))
     { 
-        ::Rf_error("Exposure model and data model imply different number of time points\n");  
+        ::Rf_error(("Exposure model and data model imply different number of time points:"
+                    + std::to_string(dataModelInstance -> nTpt) + ", "
+                    + std::to_string(exposureModelInstance -> nTpt) + ".\n").c_str());  
     }
     if ((dataModelInstance -> nLoc) != (distanceModelInstance -> numLocations))
     {       
-        ::Rf_error("Data model and distance model imply different number of locations\n");
+        ::Rf_error(("Data model and distance model imply different number of locations:"
+                    + std::to_string(dataModelInstance -> nLoc) + ", "
+                    + std::to_string(distanceModelInstance -> numLocations) + ".\n").c_str()
+                );
     }
     if ((dataModelInstance -> nLoc) != (initialValueContainerInstance -> S0.size())) 
     { 
@@ -83,11 +90,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
             ::Rf_error("Reinfection and data mode time points differ.\n");
         }
     }
-    if (*(transitionPriorsInstance -> gamma_ei) < 0 || 
-        *(transitionPriorsInstance -> gamma_ir) < 0)
-    { 
-        ::Rf_error("Transition priors haven't been populated (or have invalid values)\n");
-    }
     if ((reinfectionModelInstance -> reinfectionMode) > 2)
     {
         // pass
@@ -99,12 +101,25 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMatrix params)
 {
     self = new scoped_actor();
+    // Copy to Eigen matrix
+    unsigned int i, j;
+    Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
+    for (i = 0; i < params.nrow(); i++)
+    {
+        for (j = 0; j < params.ncol(); j++)
+        {
+            param_matrix(i,j) = params[i,j];
+        }
+    }
+    
 
     std::vector<caf::actor> workers;
-    size_t i;
-    for (i = 0; i < samplingControlInstance -> CPU_cores; i++)
-    {
 
+    auto worker_pool = actor_pool::make(actor_pool::round_robin{});
+    unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
+    unsigned int nrow =  (unsigned int) params.nrow();
+    for (i = 0; i < ncore; i++)
+    {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
                                                                       samplingControlInstance->random_seed,
                                                                       initialValueContainerInstance -> S0,
@@ -115,17 +130,53 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
                                                                       distanceModelInstance -> dm_list,
                                                                       exposureModelInstance -> X,
                                                                       reinfectionModelInstance -> X_rs,
+                                                                      transitionPriorsInstance -> gamma_ei_params,
+                                                                      transitionPriorsInstance -> gamma_ir_params,
+                                                                      exposureModelInstance -> betaPriorPrecision,
+                                                                      reinfectionModelInstance -> betaPriorPrecision, 
+                                                                      exposureModelInstance -> betaPriorMean,
+                                                                      reinfectionModelInstance -> betaPriorMean,
+                                                                      dataModelInstance -> phi,
                                                                       (*self)));
+        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]);
     }
-    // Dummy output
-    Rcpp::NumericVector out(0);
 
+    // Distribute jobs among workers
+    unsigned int outIdx;
+    Eigen::VectorXd outRow;
+
+    for (i = 0; i < nrow; i++)
+    {
+        unsigned int outIdx = i;
+        outRow = param_matrix.row(i);
+        (*self) -> send(worker_pool, sim_atom::value, outIdx, outRow); 
+    }
+
+    std::vector<int> result_idx;
+    std::vector<double> results;
+
+    i = 0;
+    (*self)->receive_for(i, nrow)(
+                     [&](unsigned int idx, double result) {
+                          results.push_back(result);
+                          result_idx.push_back(idx);
+                        });
+
+    (*self) -> send_exit(worker_pool, exit_reason::user_shutdown);
+    Rcpp::NumericVector out(nrow); 
+
+    for (i = 0; i < nrow; i++)
+    {
+        out[result_idx[i]] = results[i];
+    }
     delete self;
+    shutdown();
     return(out);
 }
 
 spatialSEIRModel::~spatialSEIRModel()
 {   
+    shutdown();
     dataModelInstance -> unprotect();
     exposureModelInstance -> unprotect();
     reinfectionModelInstance -> unprotect();
@@ -133,8 +184,6 @@ spatialSEIRModel::~spatialSEIRModel()
     transitionPriorsInstance -> unprotect();
     initialValueContainerInstance -> unprotect();
     samplingControlInstance -> unprotect();
-
-    delete self;
 }
 
 
@@ -149,7 +198,7 @@ RCPP_MODULE(mod_spatialSEIRModel)
                  transitionPriors&,
                  initialValueContainer&,
                  samplingControl&>()
-    .method("runGridSearch", &spatialSEIRModel::marginalPosteriorEstimates);
+    .method("marginalPosteriorEstimates", &spatialSEIRModel::marginalPosteriorEstimates);
 
 }
 

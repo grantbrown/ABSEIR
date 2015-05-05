@@ -23,23 +23,25 @@ void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _pre
     Rcpp::NumericVector inPrecision(_prec);
     Rcpp::NumericVector priorMeans(_priorMean);
 
-
-    if (priorMeans.length() != inPrecision.length() || inPrecision.length() != inX.ncol())
+    if (reinfectionMode != 3)
     {
-        ::Rf_error("Number of parameters, prior means, or precisions does not equal the number of supplied covariates.\n");
-    }
-    int i,j;
-    for (i = 0; i < inX.ncol(); i++)
-    {
-        betaPriorPrecision.push_back(inPrecision[i]);
-        betaPriorMean.push_back(priorMeans[i]);
-    }
-    X_rs = Eigen::MatrixXd(inX.nrow(), inX.ncol());
-    for (i = 0; i < inX.nrow(); i++)
-    {
-        for (j = 0; j < inX.ncol(); j++)
+        if (priorMeans.length() != inPrecision.length() || inPrecision.length() != inX.ncol())
         {
-           X_rs(i,j) = inX[i,j]; 
+            ::Rf_error("Number of parameters, prior means, or precisions does not equal the number of supplied covariates.\n");
+        }
+        int i,j;
+        for (i = 0; i < inX.ncol(); i++)
+        {
+            betaPriorPrecision.push_back(inPrecision[i]);
+            betaPriorMean.push_back(priorMeans[i]);
+        }
+        X_rs = Eigen::MatrixXd(inX.nrow(), inX.ncol());
+        for (i = 0; i < inX.nrow(); i++)
+        {
+            for (j = 0; j < inX.ncol(); j++)
+            {
+               X_rs(i,j) = inX[i,j]; 
+            }
         }
     }
 }

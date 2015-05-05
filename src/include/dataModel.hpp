@@ -9,17 +9,15 @@ RCPP_EXPOSED_CLASS(dataModel)
 class dataModel : public modelComponent
 {
     public:
-        dataModel(SEXP Y, SEXP type, SEXP compartment);
+        dataModel(SEXP Y, SEXP type, SEXP compartment, SEXP phi);
         virtual void summary();
-        virtual void setOverdispersionParameters(SEXP priorAlpha, SEXP priorBeta);
         Rcpp::IntegerVector* compartmentDimensions;
         int getModelComponentType();
-        std::vector<double> priorParameters;
-        std::vector<double> initialParameterValues;
         int nLoc;
         int nTpt;
         int dataModelType;
         int dataModelCompartment;
+        double phi;
         Eigen::MatrixXi Y;
         ~dataModel();
 };

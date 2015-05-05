@@ -13,6 +13,7 @@ class distanceModel : public modelComponent
         virtual void addDistanceMatrix(NumericMatrix distMat);
         int getModelComponentType();
         virtual void summary();
+        virtual void setPriorParameters(double alpha, double beta);
         virtual int getNumDistanceMatrices();
 
         int numLocations;

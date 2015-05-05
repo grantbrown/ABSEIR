@@ -14,6 +14,12 @@ int distanceModel::getModelComponentType()
     return(LSS_DISTANCE_MODEL_TYPE);
 }
 
+void distanceModel::setPriorParameters(double _priorAlpha, double _priorBeta)
+{
+   priorAlpha = _priorAlpha;
+   priorBeta = _priorBeta;
+}
+
 void distanceModel::addDistanceMatrix(NumericMatrix distMat)
 {
     if (distMat.nrow() != distMat.ncol())
@@ -62,6 +68,7 @@ RCPP_MODULE(mod_distanceModel)
     .constructor()
     .method("addDistanceMatrix", &distanceModel::addDistanceMatrix)
     .method("summary", &distanceModel::summary)
+    .method("setPriorParameters", &distanceModel::setPriorParameters)
     .property("numMatrices", &distanceModel::getNumDistanceMatrices, "Number of distict distance matrices.");
 }
 

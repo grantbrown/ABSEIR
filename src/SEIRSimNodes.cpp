@@ -19,6 +19,13 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              std::vector<Eigen::MatrixXd> dmv,
                              Eigen::MatrixXd x,
                              Eigen::MatrixXd x_rs,
+                             std::vector<double> ei_prior,
+                             std::vector<double> ir_prior,
+                             std::vector<double> se_prec,
+                             std::vector<double> rs_prec,
+                             std::vector<double> se_mean,
+                             std::vector<double> rs_mean,
+                             double phi,
                              actor pr
                              ) : sim_width(w),
                                  random_seed(sd),
@@ -32,10 +39,11 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  X_rs(x_rs),
                                  parent(pr)
 {
-    //generator = new std::mt19936(sd);
+    generator = new mt19937(sd);
     alive.assign(
-        [=](sim_atom, unsigned int param_idx, std::vector<double> param_vals)
+        [=](sim_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
         {
+            aout(this) << "Message Received!\n";
             double result = simulate(param_vals);
             send(parent, param_idx, result);
         },
@@ -51,7 +59,7 @@ behavior SEIR_sim_node::make_behavior(){
     return([=](wakeup_atom){become(alive);});
 }
 
-double SEIR_sim_node::simulate(std::vector<double> params)
+double SEIR_sim_node::simulate(Eigen::VectorXd params)
 {
     // Dummy workload. 
     return(params.size()*2.0);
