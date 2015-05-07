@@ -161,7 +161,9 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     }
 
     p_se_components.row(0) = (p_se_components.row(0)).array() * (previous_I.row(0)).cast<double>().array() / N.cast<double>().array();
+
     Eigen::VectorXd p_se = p_se_components.row(0);
+
     if (has_spatial)
     {
         for (i = 0; i < DM_vec.size(); i++)
@@ -169,12 +171,25 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
             p_se += rho[i]*(DM_vec[i] * p_se_components.row(0));
         }
     }
+
     p_se = (-1.0*p_se.array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
+
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));});
     
     Eigen::VectorXd p_ir = (-1.0*gamma_ir*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));}); 
+
+    Eigen::VectorXd p_rs;
+    if (has_reinfection)
+    {
+        p_rs = ((((X_rs*beta_rs).unaryExpr([](double e){return(std::exp(e));})).array() 
+                    * offset.array())).unaryExpr([](double e){return(1-std::exp(-e));});
+    }
+    else
+    {
+        p_rs = Eigen::VectorXd::Zero(I_star.rows());
+    }
 
     
     for (time_idx = 1; time_idx < I_star.rows(); time_idx++)
