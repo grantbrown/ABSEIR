@@ -22,9 +22,9 @@ samplingControl::samplingControl(SEXP width, SEXP seed, SEXP cores)
         ::Rf_error("Number of cores must be of length 1.");
     }
 
-    simulation_width = in_width[0];
-    random_seed = in_seed[0];
-    CPU_cores = in_cores[0];
+    simulation_width = in_width(0);
+    random_seed = in_seed(0);
+    CPU_cores = in_cores(0);
 }
 
 samplingControl::~samplingControl()

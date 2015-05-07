@@ -7,6 +7,7 @@ using namespace Rcpp;
 distanceModel::distanceModel()
 {
     numLocations=-1;
+    spatial_prior = Eigen::VectorXd(2);
 }
 
 int distanceModel::getModelComponentType()
@@ -16,8 +17,8 @@ int distanceModel::getModelComponentType()
 
 void distanceModel::setPriorParameters(double _priorAlpha, double _priorBeta)
 {
-   priorAlpha = _priorAlpha;
-   priorBeta = _priorBeta;
+    spatial_prior(0) = _priorAlpha;
+    spatial_prior(1) = _priorBeta;
 }
 
 void distanceModel::addDistanceMatrix(NumericMatrix distMat)
@@ -36,7 +37,7 @@ void distanceModel::addDistanceMatrix(NumericMatrix distMat)
     {
         for (j = 0; j < distMat.ncol(); j++)
         {
-            new_mat(i,j) = distMat[i,j];
+            new_mat(i,j) = distMat(i,j);
         }
 
     }

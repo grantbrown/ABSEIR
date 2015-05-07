@@ -35,7 +35,7 @@ class spatialSEIRModel
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
 
-        Rcpp::NumericVector marginalPosteriorEstimates(Rcpp::NumericMatrix params);
+        Rcpp::NumericVector marginalPosteriorEstimates(SEXP inParams);
         
         //Destructor
         ~spatialSEIRModel();

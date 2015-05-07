@@ -34,10 +34,10 @@ void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP 
     R0 = Eigen::VectorXi(E0_vec.length());
 
     for (i = 0; i < S0_vec.length(); i++){
-        S0(i) = S0_vec[i];
-        E0(i) = E0_vec[i];
-        I0(i) = I0_vec[i];
-        R0(i) = R0_vec[i];
+        S0(i) = S0_vec(i);
+        E0(i) = E0_vec(i);
+        I0(i) = I0_vec(i);
+        R0(i) = R0_vec(i);
     }
 }
 

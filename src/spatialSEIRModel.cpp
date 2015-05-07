@@ -98,8 +98,9 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 }
 
 
-Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMatrix params)
+Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
 {
+    Rcpp::NumericMatrix params(inParams);
     self = new scoped_actor();
     // Copy to Eigen matrix
     unsigned int i, j;
@@ -108,7 +109,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
     {
         for (j = 0; j < params.ncol(); j++)
         {
-            param_matrix(i,j) = params[i,j];
+            param_matrix(i,j) = params(i,j);
         }
     }
     
@@ -154,6 +155,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
                                                                       reinfectionModelInstance -> X_rs,
                                                                       transitionPriorsInstance -> gamma_ei_params,
                                                                       transitionPriorsInstance -> gamma_ir_params,
+                                                                      distanceModelInstance -> spatial_prior,
                                                                       exposureModelInstance -> betaPriorPrecision,
                                                                       reinfectionModelInstance -> betaPriorPrecision, 
                                                                       exposureModelInstance -> betaPriorMean,
@@ -189,7 +191,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(Rcpp::NumericMa
 
     for (i = 0; i < nrow; i++)
     {
-        out[result_idx[i]] = results[i];
+        out(result_idx[i]) = results[i];
     }
     delete self;
     shutdown();

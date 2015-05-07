@@ -20,10 +20,10 @@ int transitionPriors::getModelComponentType()
 
 void transitionPriors::setUniformPriors()
 {
-    gamma_ei_params[0] = 1.0; 
-    gamma_ei_params[1] = 1.0;
-    gamma_ir_params[0] = 1.0; 
-    gamma_ir_params[1] = 1.0;
+    gamma_ei_params(0) = 1.0; 
+    gamma_ei_params(1) = 1.0;
+    gamma_ir_params(0) = 1.0; 
+    gamma_ir_params(1) = 1.0;
 }
 
 void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, 
@@ -37,18 +37,18 @@ void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir,
     Rcpp::IntegerVector p_ei_ess_vec(p_ei_ess);
     Rcpp::IntegerVector p_ir_ess_vec(p_ir_ess);
 
-    pEI = p_ei_vec[0]; pIR = p_ir_vec[0];
-    pEIess = p_ei_ess_vec[0]; pIRess = p_ir_ess_vec[0];
+    pEI = p_ei_vec(0); pIR = p_ir_vec(0);
+    pEIess = p_ei_ess_vec(0); pIRess = p_ir_ess_vec(0);
 
 
     gamma_ei = -std::log(1-pEI);
     gamma_ir = -std::log(1-pIR);
 
-    gamma_ei_params[0] = pEIess;
-    gamma_ei_params[1] = pEIess/(gamma_ei);
+    gamma_ei_params(0) = pEIess;
+    gamma_ei_params(1) = pEIess/(gamma_ei);
 
-    gamma_ir_params[0] = pIRess;
-    gamma_ir_params[1] = pIRess/(gamma_ir); 
+    gamma_ir_params(0) = pIRess;
+    gamma_ir_params(1) = pIRess/(gamma_ir); 
 }
 
 void transitionPriors::setPriorsManually(SEXP priorAlpha_gammaEI, SEXP priorBeta_gammaEI,
@@ -59,18 +59,18 @@ void transitionPriors::setPriorsManually(SEXP priorAlpha_gammaEI, SEXP priorBeta
     Rcpp::NumericVector pA_gammaIR(priorAlpha_gammaIR);
     Rcpp::NumericVector pB_gammaIR(priorBeta_gammaIR);
 
-    gamma_ei_params[0] = (pA_gammaEI[0]); 
-    gamma_ei_params[1] = (pB_gammaEI[0]); 
+    gamma_ei_params(0) = (pA_gammaEI(0)); 
+    gamma_ei_params(1) = (pB_gammaEI(0)); 
 
-    gamma_ir_params[0] = (pA_gammaIR[0]); 
-    gamma_ir_params[1] = (pB_gammaIR[0]); 
+    gamma_ir_params(0) = (pA_gammaIR(0)); 
+    gamma_ir_params(1) = (pB_gammaIR(0)); 
 }
 
 void transitionPriors::summary()
 {
     if (gamma_ei_params.size() == 2){
-        Rcpp::Rcout << "gamma_ei parameters: " << gamma_ei_params[0] << ", " << 1/gamma_ei_params[1] << "\n";
-        Rcpp::Rcout << "gamma_ir parameters: " << gamma_ir_params[0] << ", " << 1/gamma_ir_params[1] << "\n";
+        Rcpp::Rcout << "gamma_ei parameters: " << gamma_ei_params(0) << ", " << 1/gamma_ei_params(1) << "\n";
+        Rcpp::Rcout << "gamma_ir parameters: " << gamma_ir_params(0) << ", " << 1/gamma_ir_params(1) << "\n";
     }
 }
 

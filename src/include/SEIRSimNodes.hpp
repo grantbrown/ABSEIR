@@ -32,6 +32,7 @@ class SEIR_sim_node : public event_based_actor {
                       Eigen::MatrixXd X_rs,
                       Eigen::VectorXd ei_prior,
                       Eigen::VectorXd ir_prior,
+                      Eigen::VectorXd sp_prior,
                       Eigen::VectorXd se_prec,
                       Eigen::VectorXd rs_prec,
                       Eigen::VectorXd se_mean,
@@ -55,6 +56,7 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::MatrixXd X_rs;
         Eigen::VectorXd E_to_I_prior;
         Eigen::VectorXd I_to_R_prior;
+        Eigen::VectorXd spatial_prior;
         Eigen::VectorXd exposure_precision;
         Eigen::VectorXd reinfection_precision;
         Eigen::VectorXd exposure_mean;

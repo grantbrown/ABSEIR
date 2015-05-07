@@ -8,7 +8,7 @@ using namespace Rcpp;
 reinfectionModel::reinfectionModel(SEXP reinfectMode)
 {
      Rcpp::IntegerVector modeVec(reinfectMode);
-     reinfectionMode = modeVec[0];
+     reinfectionMode = modeVec(0);
      betaPriorPrecision = Eigen::VectorXd(2);
      betaPriorMean = Eigen::VectorXd(2);
      X_rs = Eigen::MatrixXd(1,1); X_rs(0,0) = -1.0;
@@ -41,15 +41,15 @@ void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _pre
 
         for (i = 0; i < inX.ncol(); i++)
         {
-            betaPriorPrecision(i) = inPrecision[i];
-            betaPriorMean(i) = priorMeans[i];
+            betaPriorPrecision(i) = inPrecision(i);
+            betaPriorMean(i) = priorMeans(i);
         }
         X_rs = Eigen::MatrixXd(inX.nrow(), inX.ncol());
         for (i = 0; i < inX.nrow(); i++)
         {
             for (j = 0; j < inX.ncol(); j++)
             {
-               X_rs(i,j) = inX[i,j]; 
+               X_rs(i,j) = inX(i,j); 
             }
         }
     }

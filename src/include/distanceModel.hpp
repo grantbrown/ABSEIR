@@ -16,8 +16,7 @@ class distanceModel : public modelComponent
         virtual int getNumDistanceMatrices();
 
         int numLocations;
-        double priorAlpha;
-        double priorBeta;
+        Eigen::VectorXd spatial_prior;
         std::vector<Eigen::MatrixXd> dm_list;
 
         ~distanceModel();

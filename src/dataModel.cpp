@@ -12,16 +12,16 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
     nTpt = input.nrow();
     Rcpp::NumericVector in_phi(_phi);
 
-    phi = in_phi[0];
+    phi = in_phi(0);
 
     Rcpp::StringVector inputType(type);
     Rcpp::StringVector inputCompartment(compartment);
 
-    if (inputType[0] == "identity")
+    if (inputType(0) == "identity")
     {
         dataModelType = 0;
     }
-    else if (inputType[0] == "overdispersion")
+    else if (inputType(0) == "overdispersion")
     {
         dataModelType = 1;
     }
@@ -32,11 +32,11 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
         dataModelType = 0;
     }
 
-    if (inputCompartment[0] == "I_star")
+    if (inputCompartment(0) == "I_star")
     {
         dataModelCompartment = 0;
     }
-    else if (inputCompartment[0] == "R_star")
+    else if (inputCompartment(0) == "R_star")
     {
         dataModelCompartment = 1;
     }
@@ -52,7 +52,7 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
     {
         for (j = 0; j < (nLoc); j++)
         {
-            Y(i,j) = input[i, j]; 
+            Y(i,j) = input(i, j); 
         }
     }
 }

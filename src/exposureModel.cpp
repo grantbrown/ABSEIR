@@ -12,8 +12,8 @@ exposureModel::exposureModel(SEXP _X, SEXP _ntpt, SEXP _nloc, SEXP _priorMean, S
     Rcpp::NumericVector inPrecision(_prec);
     Rcpp::NumericVector priorMeans(_priorMean);
 
-    nTpt = inTpt[0];
-    nLoc = inLoc[0];
+    nTpt = inTpt(0);
+    nLoc = inLoc(0);
 
     X = Eigen::MatrixXd(inX.nrow(), inX.ncol());
     offset = Eigen::VectorXd(nTpt);
@@ -43,13 +43,13 @@ exposureModel::exposureModel(SEXP _X, SEXP _ntpt, SEXP _nloc, SEXP _priorMean, S
     {
         for (j = 0; j < X.cols(); j++)
         {
-            X(i,j) = inX[i,j];
+            X(i,j) = inX(i,j);
         }
     }
     for (i = 0; i < X.cols(); i++)
     {
-        betaPriorMean(i) = priorMeans[i];
-        betaPriorPrecision(i) = inPrecision[i];
+        betaPriorMean(i) = priorMeans(i);
+        betaPriorPrecision(i) = inPrecision(i);
     }
 }
 
@@ -69,7 +69,7 @@ void exposureModel::setOffset(NumericVector offsets)
     int i;
     for (i = 0; i < offsets.length(); i++)
     {
-        offset(i) = offsets[i];
+        offset(i) = offsets(i);
     }
 }
 
@@ -79,7 +79,7 @@ Rcpp::NumericVector exposureModel::getOffset()
     int i;
     for (i = 0; i < offset.size(); i++)
     {
-        out[i] = offset(i);
+        out(i) = offset(i);
     }
     return(out);
 }
