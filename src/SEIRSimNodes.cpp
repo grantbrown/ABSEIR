@@ -93,7 +93,7 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]
     
-    int time_idx, i;
+    int time_idx, i, j;
     
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
@@ -191,10 +191,68 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
         p_rs = Eigen::VectorXd::Zero(I_star.rows());
     }
 
+    // Initialize Random Draws
     
+    time_idx = 0;  
+    for (i = 0; i < I_star.cols(); i++)
+    {
+        for (j = 0; j<sim_width; j++)
+        {
+            std::binomial_distribution<int> S_star_gen(previous_S(j,i) ,p_rs(0));            
+            std::binomial_distribution<int> E_star_gen(previous_E(j,i) ,p_se(0));            
+            std::binomial_distribution<int> I_star_gen(previous_I(j,i) ,p_ei(0));            
+            std::binomial_distribution<int> R_star_gen(previous_R(j,i) ,p_ir(0));            
+
+            previous_S_star(j,i) = S_star_gen(*generator);
+            previous_E_star(j,i) = E_star_gen(*generator);
+            previous_I_star(j,i) = I_star_gen(*generator);
+            previous_R_star(j,i) = R_star_gen(*generator);
+        }
+    }
+
+    current_S = previous_S + previous_S_star - previous_E_star;
+    current_E = previous_E + previous_E_star - previous_I_star;
+    current_I = previous_I + previous_I_star - previous_R_star;
+    current_R = previous_R + previous_R_star - previous_S_star;
+
+    // Evaluate Distribution @ previous_S,...,previous_R, 
+    //                         previous_S_star, ..., previous_R_star
+
+    previous_S = current_S;
+    previous_E = current_E;
+    previous_I = current_I;
+    previous_R = current_R;
+
     for (time_idx = 1; time_idx < I_star.rows(); time_idx++)
     {
-    
+        for (i = 0; i < I_star.cols(); i++)
+        {
+            for (j = 0; j<sim_width; j++)
+            {
+                std::binomial_distribution<int> S_star_gen(previous_S(j,i) ,p_rs(0));            
+                std::binomial_distribution<int> E_star_gen(previous_E(j,i) ,p_se(0));            
+                std::binomial_distribution<int> I_star_gen(previous_I(j,i) ,p_ei(0));            
+                std::binomial_distribution<int> R_star_gen(previous_R(j,i) ,p_ir(0));            
+
+                previous_S_star(j,i) = S_star_gen(*generator);
+                previous_E_star(j,i) = E_star_gen(*generator);
+                previous_I_star(j,i) = I_star_gen(*generator);
+                previous_R_star(j,i) = R_star_gen(*generator);
+            }
+        }
+
+        current_S = previous_S + previous_S_star - previous_E_star;
+        current_E = previous_E + previous_E_star - previous_I_star;
+        current_I = previous_I + previous_I_star - previous_R_star;
+        current_R = previous_R + previous_R_star - previous_S_star;
+
+        // Evaluate Distribution @ previous_S,...,previous_R, 
+        //                         previous_S_star, ..., previous_R_star
+
+        previous_S = current_S;
+        previous_E = current_E;
+        previous_I = current_I;
+        previous_R = current_R;
     }
 
     // Dummy workload. 
