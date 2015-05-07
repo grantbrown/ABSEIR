@@ -193,15 +193,19 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
 
     // Initialize Random Draws
     
+    std::binomial_distribution<int> S_star_gen(previous_S(0,0) ,p_rs(0));            
+    std::binomial_distribution<int> E_star_gen(previous_E(0,0) ,p_se(0));            
+    std::binomial_distribution<int> I_star_gen(previous_I(0,0) ,p_ei(0));            
+    std::binomial_distribution<int> R_star_gen(previous_R(0,0) ,p_ir(0));            
     time_idx = 0;  
     for (i = 0; i < I_star.cols(); i++)
     {
         for (j = 0; j<sim_width; j++)
         {
-            std::binomial_distribution<int> S_star_gen(previous_S(j,i) ,p_rs(0));            
-            std::binomial_distribution<int> E_star_gen(previous_E(j,i) ,p_se(0));            
-            std::binomial_distribution<int> I_star_gen(previous_I(j,i) ,p_ei(0));            
-            std::binomial_distribution<int> R_star_gen(previous_R(j,i) ,p_ir(0));            
+            S_star_gen.param(std::binomial_distribution<>::param_type(previous_S(j,i) ,p_rs(0)));
+            E_star_gen.param(std::binomial_distribution<>::param_type(previous_E(j,i) ,p_se(0)));
+            I_star_gen.param(std::binomial_distribution<>::param_type(previous_I(j,i) ,p_ei(0)));
+            R_star_gen.param(std::binomial_distribution<>::param_type(previous_R(j,i) ,p_ir(0)));
 
             previous_S_star(j,i) = S_star_gen(*generator);
             previous_E_star(j,i) = E_star_gen(*generator);
@@ -229,10 +233,16 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
         {
             for (j = 0; j<sim_width; j++)
             {
+                /*
                 std::binomial_distribution<int> S_star_gen(previous_S(j,i) ,p_rs(0));            
                 std::binomial_distribution<int> E_star_gen(previous_E(j,i) ,p_se(0));            
                 std::binomial_distribution<int> I_star_gen(previous_I(j,i) ,p_ei(0));            
                 std::binomial_distribution<int> R_star_gen(previous_R(j,i) ,p_ir(0));            
+                */
+                S_star_gen.param(std::binomial_distribution<>::param_type(previous_S(j,i) ,p_rs(0)));
+                E_star_gen.param(std::binomial_distribution<>::param_type(previous_E(j,i) ,p_se(0)));
+                I_star_gen.param(std::binomial_distribution<>::param_type(previous_I(j,i) ,p_ei(0)));
+                R_star_gen.param(std::binomial_distribution<>::param_type(previous_R(j,i) ,p_ir(0)));
 
                 previous_S_star(j,i) = S_star_gen(*generator);
                 previous_E_star(j,i) = E_star_gen(*generator);
