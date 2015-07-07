@@ -40,6 +40,7 @@ class spatialSEIRModel
         //Destructor
         ~spatialSEIRModel();
     private:
+        int ncalls;
         dataModel* dataModelInstance;
         exposureModel* exposureModelInstance;
         reinfectionModel* reinfectionModelInstance;

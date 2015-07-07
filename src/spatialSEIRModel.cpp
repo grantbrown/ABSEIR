@@ -36,7 +36,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         ::Rf_error("Error: model components were not provided in the correct order. \n");
     }
 
-
+    ncalls = 0;
 
 
     int i;
@@ -100,6 +100,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
 Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
 {
+    ncalls += 1;
     Rcpp::NumericMatrix params(inParams);
     self = new scoped_actor();
     // Copy to Eigen matrix
@@ -143,7 +144,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
-                                                                      samplingControlInstance->random_seed,
+                                                                      samplingControlInstance->random_seed + 1000*i + ncalls,
                                                                       initialValueContainerInstance -> S0,
                                                                       initialValueContainerInstance -> E0,
                                                                       initialValueContainerInstance -> I0,
