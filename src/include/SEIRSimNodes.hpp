@@ -42,6 +42,7 @@ class SEIR_sim_node : public event_based_actor {
         ~SEIR_sim_node();
     protected:
         double simulate(Eigen::VectorXd param_vals);
+        double simul_eval(Eigen::VectorXd param_vals);
         behavior make_behavior() override;
     private: 
         unsigned int random_seed;

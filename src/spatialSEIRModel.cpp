@@ -195,7 +195,7 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
         out(result_idx[i]) = results[i];
     }
     delete self;
-    shutdown();
+    //shutdown();
     return(out);
 }
 
