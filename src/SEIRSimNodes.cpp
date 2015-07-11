@@ -67,18 +67,20 @@ SEIR_sim_node::SEIR_sim_node(int w,
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (I_star.cols() > 1);
     total_size = (has_reinfection && has_spatial 
-                  ? X.cols() + X_rs.cols() + DM_vec.size() + 2 
-                  : (has_reinfection 
+                      ? X.cols() + X_rs.cols() + DM_vec.size() + 2 
+               : (has_reinfection 
                       ? X.cols() + X_rs.cols() + 2 
-                      : X.cols() + 2));
+               : (has_spatial 
+                      ? X.cols() + DM_vec.size() + 2 
+               : X.cols() + 2)));
 
     alive.assign(
         [=](sim_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
         {
             if (total_size != param_vals.size())
             {
-                //aout(this) << "Invalid parameter vector of length " 
-                // << param_vals.size() <<  ", ignoring.\n";
+                aout(this) << "Invalid parameter vector of length " 
+                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
                 send(parent, param_idx, -2.0);
 
             }
@@ -287,7 +289,7 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
                 previous_E_star(j,i) = E_star_gen(*generator);
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
-                results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)/I_star.rows(); 
+                results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)/(I_star.rows()*I_star.cols()); 
             }
         }
 
@@ -358,6 +360,17 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
             });
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(tmp.data(), 
             I_star.rows(), I_star.cols());
+    
+    aout(this) << "X:\n";
+
+    for (int rw = 0; rw < 10; rw++)
+    {
+        for (int cl = 0; cl < p_se_components.cols(); cl++)
+        {
+            aout(this) << p_se_components(rw, cl) << ", ";
+        }
+        aout(this) << "\n";
+    }
 
     Eigen::VectorXi N = (S0 + E0 + I0 + R0);
     
