@@ -14,8 +14,11 @@ using namespace std;
 using namespace caf;
 
 using sim_atom = atom_constant<atom("sim")>;
+using sim_result_atom = atom_constant<atom("sim_rslt")>;
 using wakeup_atom = atom_constant<atom("wakeup")>;
 using exit_atom = atom_constant<atom("exit")>;
+
+struct simulationResultSet;
 
 class SEIR_sim_node : public event_based_actor {
     public:
@@ -42,7 +45,7 @@ class SEIR_sim_node : public event_based_actor {
         ~SEIR_sim_node();
     protected:
         double simulate(Eigen::VectorXd param_vals);
-        double simul_eval(Eigen::VectorXd param_vals);
+        simulationResultSet simulate_return(Eigen::VectorXd param_vals);
         behavior make_behavior() override;
     private: 
         unsigned int random_seed;

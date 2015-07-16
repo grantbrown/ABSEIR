@@ -11,6 +11,18 @@
 #include "./spatialSEIRModel.hpp"
 #include "./transitionPriors.hpp"
 
+struct simulationResultSet
+{
+    Rcpp::NumericMatrix S;
+    Rcpp::NumericMatrix E;
+    Rcpp::NumericMatrix I;
+    Rcpp::NumericMatrix R;
+    Rcpp::NumericMatrix S_star;
+    Rcpp::NumericMatrix E_star;
+    Rcpp::NumericMatrix I_star;
+    Rcpp::NumericMatrix R_star;
+    double result;
+};
 
 class dataModel;
 class exposureModel;
@@ -36,7 +48,7 @@ class spatialSEIRModel
                          samplingControl& samplingControl_);
 
         Rcpp::NumericVector marginalPosteriorEstimates(SEXP inParams);
-        
+        Rcpp::List simulate(SEXP inParams);
         //Destructor
         ~spatialSEIRModel();
     private:

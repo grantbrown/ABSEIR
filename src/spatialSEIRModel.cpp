@@ -97,8 +97,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
 }
 
-
-Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
+Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
 {
     ncalls += 1;
     Rcpp::NumericMatrix params(inParams);
@@ -119,28 +118,8 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
     auto worker_pool = actor_pool::make(actor_pool::round_robin{});
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
     unsigned int nrow =  (unsigned int) params.nrow();
-    
-    /*
-    auto tmp1 = samplingControlInstance -> simulation_width;
-    auto tmp2 = samplingControlInstance->random_seed;
-    auto tmp3 = initialValueContainerInstance -> S0;
-    auto tmp4 = initialValueContainerInstance -> E0;
-    auto tmp5 = initialValueContainerInstance -> I0;
-    auto tmp6 = initialValueContainerInstance -> R0;
-    auto tmp7 = exposureModelInstance -> offset;
-    auto tmp8 = dataModelInstance -> Y;
-    auto tmp9 = distanceModelInstance -> dm_list;
-    auto tmp10 = exposureModelInstance -> X;
-    auto tmp11 = reinfectionModelInstance -> X_rs;
-    auto tmp12 = transitionPriorsInstance -> gamma_ei_params;
-    auto tmp13 = transitionPriorsInstance -> gamma_ir_params;
-    auto tmp14 = exposureModelInstance -> betaPriorPrecision;
-    auto tmp15 = reinfectionModelInstance -> betaPriorPrecision; 
-    auto tmp16 = exposureModelInstance -> betaPriorMean;
-    auto tmp17 = reinfectionModelInstance -> betaPriorMean;
-    auto tmp18 = dataModelInstance -> phi;
-    */
 
+    
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
@@ -174,6 +153,121 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
     {
         unsigned int outIdx = i;
         outRow = param_matrix.row(i);
+        (*self) -> send(worker_pool, sim_result_atom::value, outIdx, outRow); 
+    }
+
+    std::vector<int> result_idx;
+    std::vector<simulationResultSet> results;
+
+    i = 0;
+    (*self)->receive_for(i, nrow)(
+                     [&](unsigned int idx, simulationResultSet result) {
+                          results.push_back(result);
+                          result_idx.push_back(idx);
+                        });
+
+    (*self) -> send_exit(worker_pool, exit_reason::user_shutdown); 
+
+    delete self;
+    //shutdown();
+    
+    Rcpp::List outList;
+    for (i = 0; i < nrow; i++)
+    {
+        Rcpp::List subList;
+        subList["S"] = results[i].S;
+        subList["E"] = results[i].E;
+        subList["I"] = results[i].I;
+        subList["R"] = results[i].R;
+
+        subList["S_star"] = results[i].S_star;
+        subList["E_star"] = results[i].E_star;
+        subList["I_star"] = results[i].I_star;
+        subList["R_star"] = results[i].R_star;
+
+        outList["test"] = subList;
+    }
+    return(outList);
+}
+
+
+
+Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
+{
+    ncalls += 1;
+    Rcpp::NumericMatrix params(inParams);
+    self = new scoped_actor();
+    // Copy to Eigen matrix
+    unsigned int i, j;
+    Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
+    for (i = 0; i < params.nrow(); i++)
+    {
+        for (j = 0; j < params.ncol(); j++)
+        {
+            param_matrix(i,j) = params(i,j);
+        }
+    }
+   
+    std::vector<caf::actor> workers;
+
+    auto worker_pool = actor_pool::make(actor_pool::round_robin{});
+    unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
+    unsigned int nrow =  (unsigned int) params.nrow();
+
+    for (i = 0; i < ncore; i++)
+    {
+        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
+                                                                      samplingControlInstance->random_seed + 1000*i + ncalls,
+                                                                      initialValueContainerInstance -> S0,
+                                                                      initialValueContainerInstance -> E0,
+                                                                      initialValueContainerInstance -> I0,
+                                                                      initialValueContainerInstance -> R0,
+                                                                      exposureModelInstance -> offset,
+                                                                      dataModelInstance -> Y,
+                                                                      distanceModelInstance -> dm_list,
+                                                                      exposureModelInstance -> X,
+                                                                      reinfectionModelInstance -> X_rs,
+                                                                      transitionPriorsInstance -> gamma_ei_params,
+                                                                      transitionPriorsInstance -> gamma_ir_params,
+                                                                      distanceModelInstance -> spatial_prior,
+                                                                      exposureModelInstance -> betaPriorPrecision,
+                                                                      reinfectionModelInstance -> betaPriorPrecision, 
+                                                                      exposureModelInstance -> betaPriorMean,
+                                                                      reinfectionModelInstance -> betaPriorMean,
+                                                                      dataModelInstance -> phi,
+                                                                      (*self)));
+/*
+        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(tmp1,
+                                                                      tmp2 + 1000*i + ncalls,
+                                                                      tmp3,
+                                                                      tmp4,
+                                                                      tmp5,
+                                                                      tmp6,
+                                                                      tmp7,
+                                                                      tmp8,
+                                                                      tmp9,
+                                                                      tmp10,
+                                                                      tmp11,
+                                                                      tmp12,
+                                                                      tmp13,
+                                                                      tmp13_1,
+                                                                      tmp14,
+                                                                      tmp15,
+                                                                      tmp16,
+                                                                      tmp17,
+                                                                      tmp18,
+                                                                      (*self)));
+*/
+        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]); 
+    }
+
+    // Distribute jobs among workers
+    unsigned int outIdx;
+    Eigen::VectorXd outRow(param_matrix.cols());
+    for (i = 0; i < param_matrix.rows(); i++)
+    {
+        outIdx = i;
+        outRow = param_matrix.row(i);
         (*self) -> send(worker_pool, sim_atom::value, outIdx, outRow); 
     }
 
@@ -185,15 +279,21 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
                      [&](unsigned int idx, double result) {
                           results.push_back(result);
                           result_idx.push_back(idx);
-                        });
+                        }
+                        
+                        
+                        );
+
 
     (*self) -> send_exit(worker_pool, exit_reason::user_shutdown);
     Rcpp::NumericVector out(nrow); 
+
 
     for (i = 0; i < nrow; i++)
     {
         out(result_idx[i]) = results[i];
     }
+
     delete self;
     //shutdown();
     return(out);
@@ -223,7 +323,9 @@ RCPP_MODULE(mod_spatialSEIRModel)
                  transitionPriors&,
                  initialValueContainer&,
                  samplingControl&>()
-    .method("marginalPosteriorEstimates", &spatialSEIRModel::marginalPosteriorEstimates);
+    .method("marginalPosteriorEstimates", &spatialSEIRModel::marginalPosteriorEstimates)
+    .method("simulate", &spatialSEIRModel::simulate);
+
 
 }
 

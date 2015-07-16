@@ -6,6 +6,7 @@
 #include <Rmath.h>
 #include "caf/all.hpp"
 #include "SEIRSimNodes.hpp"
+#include "spatialSEIRModel.hpp"
 
 using namespace Rcpp;
 using namespace std;
@@ -52,6 +53,28 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  phi(ph),
                                  parent(pr)
 {
+    /*
+    sim_width = w;
+    random_seed = sd;
+    S0 = s;
+    E0 = e;
+    I0 = i;
+    R0 = r;
+    offset = offs;
+    I_star = is;
+    DM_vec = dmv;
+    X = x;
+    X_rs = x_rs;
+    E_to_I_prior = ei_prior;
+    I_to_R_prior = ir_prior;
+    spatial_prior = sp_prior;
+    exposure_precision = se_prec;
+    reinfection_precision = rs_prec;
+    exposure_mean = se_mean;
+    reinfection_mean = rs_mean;
+    phi = ph;
+    parent = pr;
+    */
     try
     {
         std::minstd_rand0 lc_generator(sd);
@@ -91,8 +114,26 @@ SEIR_sim_node::SEIR_sim_node(int w,
                 send(parent, param_idx, result); 
             }
         },
+        [=](sim_result_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
+        {
+            if (total_size != param_vals.size())
+            {
+                aout(this) << "Invalid parameter vector of length " 
+                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
+                send(parent, param_idx, -2.0);
+
+            }
+            else 
+            {
+                //aout(this) << "Valid params observed, simulating result.\n";
+                simulationResultSet result = simulate_return(param_vals);
+                send(parent, param_idx, result); 
+            }
+        },
+
         [=](exit_atom)
         {
+            //aout(this) << "Node quitting.\n";
             quit();
         }
     );
@@ -106,13 +147,14 @@ behavior SEIR_sim_node::make_behavior(){
 double SEIR_sim_node::simulate(Eigen::VectorXd params)
 {
     // Params is a vector made of:
-    // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]   
+    // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
     int time_idx, i, j, k;
     Eigen::VectorXd results = Eigen::VectorXd::Zero(sim_width); 
     for (i = 0; i < sim_width; i++)
     {
        results(i) = 0.0; 
     }
+
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
     if (has_reinfection) 
@@ -145,11 +187,13 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
             {
                 return(std::exp(elem));
             });
-    Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(tmp.data(), 
-            I_star.rows(), I_star.cols());
 
-    Eigen::VectorXi N = (S0 + E0 + I0 + R0);
-    
+    Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(tmp.data(), 
+                I_star.rows(), I_star.cols());
+
+    Eigen::VectorXi N(S0.size());
+    N = (S0 + E0 + I0 + R0);
+
     Eigen::MatrixXd p_se_cache(sim_width, S0.size());
 
     Eigen::MatrixXi current_S(sim_width, S0.size());
@@ -168,6 +212,7 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     Eigen::MatrixXi previous_R_star(sim_width, S0.size()); 
 
     // Begin Simulation: Initial Case and Setup
+    Eigen::MatrixXd p_se_tmp(1,p_se_cache.cols());
     time_idx = 0;
     for (i = 0; i < sim_width; i++)
     {
@@ -176,8 +221,17 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
         previous_I.row(i) = I0;
         previous_R.row(i) = R0;
 
-        p_se_cache.row(i) = (p_se_components.row(0)).array() * (previous_I.row(i).cast<double>().array()) / N.cast<double>().array();
+        auto p_se_tmp2 = (((p_se_components.row(0)).array() 
+                       * (previous_I.row(i).cast<double>().array())) 
+                       * (((N.transpose().cast<double>().array()).unaryExpr([](double e)
+                        {
+                            return(1.0/e);
+                        })).array())).matrix();
+
+        p_se_tmp = p_se_tmp2; 
+        p_se_cache.row(i) = p_se_tmp;
     }
+
     // Calculate probabilities
     Eigen::MatrixXd p_se = 1*p_se_cache; 
     if (has_spatial)
@@ -190,11 +244,9 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
             }
         }
     }
-
     for (i = 0; i < p_se.rows(); i++)
     {
-        p_se.row(i) = (-1.0*p_se.row(i).array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
-        //p_se = (-1.0*p_se.array() * offset.array()).unaryExpr([](double e)
+        p_se.row(i) = (((-1.0*p_se.row(i).array()) * (offset(0)))).unaryExpr([](double e){return(1-std::exp(e));}); 
     }
 
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -208,12 +260,14 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     {
         // untested
         p_rs = ((((X_rs*beta_rs).unaryExpr([](double e){return(std::exp(e));})).array() 
-                    * offset.array())).unaryExpr([](double e){return(1-std::exp(-e));});
+                    * offset(0)).matrix()).unaryExpr([](double e){return(1-std::exp(-e));});
     }
     else
     {
         p_rs = Eigen::VectorXd::Zero(I_star.rows());
     }
+
+
 
     // Initialize Random Draws
     time_idx = 0;     
@@ -250,11 +304,19 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
     previous_R = current_R;
 
     // Simulation: iterative case
+
     for (time_idx = 1; time_idx < I_star.rows(); time_idx++)
     {
         for (i = 0; i < sim_width; i++)
         {
-            p_se_cache.row(i) = (p_se_components.row(time_idx)).array() * (previous_I.row(i).cast<double>().array()) / N.cast<double>().array();
+            auto p_se_tmp2 = (((p_se_components.row(0)).array() 
+                       * (previous_I.row(i).cast<double>().array())) 
+                       * (((N.transpose().cast<double>().array()).unaryExpr([](double e)
+                        {
+                            return(1.0/e);
+                        })).array())).matrix();
+            p_se_tmp = p_se_tmp2; 
+            p_se_cache.row(i) = p_se_tmp;
         }
         
         p_se = 1*p_se_cache; 
@@ -268,10 +330,9 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
                 }
             }
         }
-
         for (i = 0; i < sim_width; i++)
         {
-            p_se.row(i) = (-1.0*p_se.row(i).array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
+            p_se.row(i) = ((-1.0*p_se.row(i).array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
         }
  
         for (i = 0; i < I_star.cols(); i++)
@@ -292,7 +353,6 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
                 results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)/(I_star.rows()*I_star.cols()); 
             }
         }
-
         current_S = previous_S + previous_S_star - previous_E_star;
         current_E = previous_E + previous_E_star - previous_I_star;
         current_I = previous_I + previous_I_star - previous_R_star;
@@ -310,22 +370,32 @@ double SEIR_sim_node::simulate(Eigen::VectorXd params)
        resultVal += results(i); 
     }
     resultVal /= sim_width;
+
+
     return(resultVal);
 }
 
-
-double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
+simulationResultSet SEIR_sim_node::simulate_return(Eigen::VectorXd params)
 {
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]   
-    try
-    {
     int time_idx, i, j, k;
-    Eigen::VectorXd results = Eigen::VectorXd::Zero(sim_width); 
-    for (i = 0; i < sim_width; i++)
-    {
-       results(i) = 0.0; 
-    }
+    int oldSimWidth = sim_width;
+    sim_width = 1;
+
+    simulationResultSet results;
+    results.result = 0.0;
+    results.S = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.E = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.I = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.R = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+
+    results.S_star = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.E_star = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.I_star = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+    results.R_star = Rcpp::NumericMatrix(I_star.rows(), I_star.cols());
+
+
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
     if (has_reinfection) 
@@ -360,17 +430,6 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
             });
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(tmp.data(), 
             I_star.rows(), I_star.cols());
-    
-    aout(this) << "X:\n";
-
-    for (int rw = 0; rw < 10; rw++)
-    {
-        for (int cl = 0; cl < p_se_components.cols(); cl++)
-        {
-            aout(this) << p_se_components(rw, cl) << ", ";
-        }
-        aout(this) << "\n";
-    }
 
     Eigen::VectorXi N = (S0 + E0 + I0 + R0);
     
@@ -403,11 +462,6 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
         p_se_cache.row(i) = (p_se_components.row(0)).array() * (previous_I.row(i).cast<double>().array()) / N.cast<double>().array();
     }
     // Calculate probabilities
-    
-    //p_se_components.row(0) = (p_se_components.row(0)).array() *
-    //    (previous_I.row(0)).cast<double>().array() / N.cast<double>().array();
-
-
     Eigen::MatrixXd p_se = 1*p_se_cache; 
     if (has_spatial)
     {
@@ -422,8 +476,7 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
 
     for (i = 0; i < p_se.rows(); i++)
     {
-        p_se.row(i) = (-1.0*p_se.row(i).array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
-        //p_se = (-1.0*p_se.array() * offset.array()).unaryExpr([](double e)
+        p_se.row(i) = ((-1.0*p_se.row(i).array() * offset.array()).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
     }
 
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -437,13 +490,12 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
     {
         // untested
         p_rs = ((((X_rs*beta_rs).unaryExpr([](double e){return(std::exp(e));})).array() 
-                    * offset.array())).unaryExpr([](double e){return(1-std::exp(-e));});
+                    * offset.array()).matrix()).unaryExpr([](double e){return(1-std::exp(-e));});
     }
     else
     {
         p_rs = Eigen::VectorXd::Zero(I_star.rows());
     }
-
 
     // Initialize Random Draws
     time_idx = 0;     
@@ -464,16 +516,21 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
             previous_E_star(j,i) = E_star_gen(*generator);
             previous_I_star(j,i) = I_star_gen(*generator);
             previous_R_star(j,i) = R_star_gen(*generator);
-
-            if (has_reinfection)
-            {
-                results(j) += R::dbinom(previous_S_star(j,i), previous_R(j,i), p_rs(0), 1);
-            }
-            results(j) += R::dbinom(previous_E_star(j,i), previous_S(j,i), p_se(i), 1);
-            results(j) += R::dbinom(previous_I_star(j,i), previous_E(j,i), p_ei(0), 1);
-            results(j) += R::dbinom(previous_R_star(j,i), previous_I(j,i), p_ir(0), 1);
-            results(j) += R::dnorm(previous_I_star(j,i), I_star(0,i), 1.0/phi, 1);
         }
+    }
+
+    for (i = 0; i < S0.size(); i++)
+    {
+        results.S(time_idx, i) = S0(i);
+        results.E(time_idx, i) = E0(i);
+        results.I(time_idx, i) = I0(i);
+        results.R(time_idx, i) = R0(i);
+
+        results.S_star(time_idx, i) = previous_S_star(0,i);
+        results.E_star(time_idx, i) = previous_E_star(0,i);
+        results.I_star(time_idx, i) = previous_I_star(0,i);
+        results.R_star(time_idx, i) = previous_R_star(0,i);
+        //results.result += pow((previous_I_star(i) - I_star(0, i)), 2.0)/I_star.rows(); 
     }
 
     current_S = previous_S + previous_S_star - previous_E_star;
@@ -491,7 +548,9 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
     {
         for (i = 0; i < sim_width; i++)
         {
-            p_se_cache.row(i) = (p_se_components.row(time_idx)).array() * (previous_I.row(i).cast<double>().array()) / N.cast<double>().array();
+            p_se_cache.row(i) = (p_se_components.row(time_idx)).array() 
+                * (previous_I.row(i).cast<double>().array()) 
+                  / N.cast<double>().array();
         }
         
         p_se = 1*p_se_cache; 
@@ -508,15 +567,13 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
 
         for (i = 0; i < sim_width; i++)
         {
-            p_se.row(i) = (-1.0*p_se.row(i).array() * offset.array()).unaryExpr([](double e){return(1-std::exp(e));});
+            p_se.row(i) = ((-1.0*p_se.row(i).array() * offset.array()).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
         }
  
         for (i = 0; i < I_star.cols(); i++)
         {
             for (j = 0; j < sim_width; j++)
             {
-                double oldResults = results(j);
-                double newResult = 0.0;
                 S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(j,i) ,p_rs(time_idx)));
                 E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(j,i) ,p_se(j,i)));
                 I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(j,i) ,p_ei(time_idx)));
@@ -526,16 +583,22 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
                 previous_E_star(j,i) = E_star_gen(*generator);
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
-
-                if (has_reinfection)
-                {
-                    results(j) += R::dbinom(previous_S_star(j,i), previous_R(j,i), p_rs(time_idx), 1);
-                }
-                results(j) += R::dbinom(previous_E_star(j,i), previous_S(j,i), p_se(j,i), 1);
-                results(j) += R::dbinom(previous_I_star(j,i), previous_E(j,i), p_ei(time_idx), 1);
-                results(j) += R::dbinom(previous_R_star(j,i), previous_I(j,i), p_ir(time_idx), 1);
-                results(j) += R::dnorm(previous_I_star(j,i), I_star(time_idx,i), 1.0/phi, 1);
+                //results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)/(I_star.rows()*I_star.cols()); 
             }
+        }
+
+        for (i = 0; i < S0.size(); i++)
+        {
+            results.S(time_idx, i) = S0(i);
+            results.E(time_idx, i) = E0(i);
+            results.I(time_idx, i) = I0(i);
+            results.R(time_idx, i) = R0(i);
+
+            results.S_star(time_idx, i) = previous_S_star(0,i);
+            results.E_star(time_idx, i) = previous_E_star(0,i);
+            results.I_star(time_idx, i) = previous_I_star(0,i);
+            results.R_star(time_idx, i) = previous_R_star(0,i);
+            //results.result += pow((previous_I_star(i) - I_star(0, i)), 2.0)/I_star.rows(); 
         }
 
         current_S = previous_S + previous_S_star - previous_E_star;
@@ -549,50 +612,11 @@ double SEIR_sim_node::simul_eval(Eigen::VectorXd params)
         previous_R = current_R;
     }
 
-    // Evaluate Priors
-    double priorVal = 0.0;
-    double resultVal = 0.0;
-
-    for (j = 0; j < sim_width; j ++)
-    {
-        resultVal += results(j)/sim_width;
-    }
-
-    for (i = 0; i < beta.size(); i++)
-    {
-        priorVal += R::dnorm(beta(i), exposure_mean(i), 1.0/exposure_precision(i), 1);
-    }
-
-    if (has_reinfection)
-    {
-        for (i = 0; i < beta_rs.size(); i++)
-        {
-            priorVal += R::dnorm(beta_rs(i), reinfection_mean(i), 1.0/reinfection_precision(i), 1);
-        }
-    }
-
-    priorVal += R::dgamma(gamma_ei, E_to_I_prior(0), 1/E_to_I_prior(1), 1);
-    priorVal += R::dgamma(gamma_ir, I_to_R_prior(0), 1/I_to_R_prior(1), 1);
-    if (has_spatial)
-    {
-        for (i = 0; i < DM_vec.size(); i++)
-        {
-            priorVal += R::dbeta(rho(i), spatial_prior(0), spatial_prior(1), 1); 
-        }
-    }
-    resultVal += priorVal;
-    if (!std::isfinite(resultVal))
-    {
-        resultVal = -INFINITY;
-    }
-    return(resultVal);
-    }
-    catch (int e)
-    {
-        aout(this) << "Error encountered: " << e << "\n";
-        return(-INFINITY);
-    }
+    sim_width = oldSimWidth;
+    return(results);
 }
+
+
 
 SEIR_sim_node::~SEIR_sim_node()
 {
