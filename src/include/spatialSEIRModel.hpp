@@ -13,14 +13,20 @@
 
 struct simulationResultSet
 {
-    Rcpp::NumericMatrix S;
-    Rcpp::NumericMatrix E;
-    Rcpp::NumericMatrix I;
-    Rcpp::NumericMatrix R;
-    Rcpp::NumericMatrix S_star;
-    Rcpp::NumericMatrix E_star;
-    Rcpp::NumericMatrix I_star;
-    Rcpp::NumericMatrix R_star;
+    Eigen::MatrixXi S;
+    Eigen::MatrixXi E;
+    Eigen::MatrixXi I;
+    Eigen::MatrixXi R;
+    Eigen::MatrixXi S_star;
+    Eigen::MatrixXi E_star;
+    Eigen::MatrixXi I_star;
+    Eigen::MatrixXi R_star;
+    Eigen::MatrixXd X;
+    Eigen::MatrixXd p_se;
+    Eigen::MatrixXd p_ei;
+    Eigen::MatrixXd p_ir;
+    Eigen::MatrixXd rho;
+    Eigen::MatrixXd beta;
     double result;
 };
 

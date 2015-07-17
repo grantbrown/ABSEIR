@@ -14,6 +14,36 @@
 using namespace Rcpp;
 using namespace caf;
 
+Rcpp::IntegerMatrix createRcppIntFromEigen(Eigen::MatrixXi inMatrix)
+{
+    Rcpp::IntegerMatrix outMatrix(inMatrix.rows(), inMatrix.cols());
+    int i, j;
+    for (i = 0; i < inMatrix.cols(); i++)
+    {
+        for (j = 0; j < inMatrix.rows(); j++)
+        {
+            outMatrix(j,i) = inMatrix(j,i);
+        }
+    }
+    return(outMatrix);
+}
+
+Rcpp::NumericMatrix createRcppNumericFromEigen(Eigen::MatrixXd inMatrix)
+{
+    Rcpp::NumericMatrix outMatrix(inMatrix.rows(), inMatrix.cols());
+    int i, j;
+    for (i = 0; i < inMatrix.cols(); i++)
+    {
+        for (j = 0; j < inMatrix.rows(); j++)
+        {
+            outMatrix(j,i) = inMatrix(j,i);
+        }
+    }
+    return(outMatrix);
+}
+
+
+
 spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                                    exposureModel& exposureModel_,
                                    reinfectionModel& reinfectionModel_,
@@ -156,8 +186,15 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
         (*self) -> send(worker_pool, sim_result_atom::value, outIdx, outRow); 
     }
 
+    //std::chrono::milliseconds timespan(1000);                       
+    //Rcpp::Rcout << "All data sent to workers\n";
+    //Rcpp::Rcout << "dbg_2_a\n"; std::this_thread::sleep_for(timespan); 
+
     std::vector<int> result_idx;
+    //Rcpp::Rcout << "dbg_2_b\n"; std::this_thread::sleep_for(timespan); 
     std::vector<simulationResultSet> results;
+    //Rcpp::Rcout << "dbg_2_c\n"; std::this_thread::sleep_for(timespan); 
+
 
     i = 0;
     (*self)->receive_for(i, nrow)(
@@ -175,17 +212,25 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
     for (i = 0; i < nrow; i++)
     {
         Rcpp::List subList;
-        subList["S"] = results[i].S;
-        subList["E"] = results[i].E;
-        subList["I"] = results[i].I;
-        subList["R"] = results[i].R;
+        subList["S"] = createRcppIntFromEigen(results[i].S);
+        subList["E"] = createRcppIntFromEigen(results[i].E);
+        subList["I"] = createRcppIntFromEigen(results[i].I);
+        subList["R"] = createRcppIntFromEigen(results[i].R);
 
-        subList["S_star"] = results[i].S_star;
-        subList["E_star"] = results[i].E_star;
-        subList["I_star"] = results[i].I_star;
-        subList["R_star"] = results[i].R_star;
+        subList["S_star"] = createRcppIntFromEigen(results[i].S_star);
+        subList["E_star"] = createRcppIntFromEigen(results[i].E_star);
+        subList["I_star"] = createRcppIntFromEigen(results[i].I_star);
+        subList["R_star"] = createRcppIntFromEigen(results[i].R_star);
+        subList["p_se"] = createRcppNumericFromEigen(results[i].p_se);
+        subList["p_ei"] = createRcppNumericFromEigen(results[i].p_ei);
+        subList["p_ir"] = createRcppNumericFromEigen(results[i].p_ir);
+        subList["rho"] = createRcppNumericFromEigen(results[i].rho);
+        subList["beta"] = createRcppNumericFromEigen(results[i].beta);
+        subList["X"] = createRcppNumericFromEigen(results[i].X);
 
-        outList["test"] = subList;
+        subList["result"] = results[i].result;
+
+        outList[std::to_string(i)] = subList;
     }
     return(outList);
 }

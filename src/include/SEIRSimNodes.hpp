@@ -44,8 +44,7 @@ class SEIR_sim_node : public event_based_actor {
                       actor parent);
         ~SEIR_sim_node();
     protected:
-        double simulate(Eigen::VectorXd param_vals);
-        simulationResultSet simulate_return(Eigen::VectorXd param_vals);
+        simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
         behavior make_behavior() override;
     private: 
         unsigned int random_seed;
