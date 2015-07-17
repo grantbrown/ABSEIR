@@ -53,28 +53,6 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  phi(ph),
                                  parent(pr)
 {
-    /*
-    sim_width = w;
-    random_seed = sd;
-    S0 = s;
-    E0 = e;
-    I0 = i;
-    R0 = r;
-    offset = offs;
-    I_star = is;
-    DM_vec = dmv;
-    X = x;
-    X_rs = x_rs;
-    E_to_I_prior = ei_prior;
-    I_to_R_prior = ir_prior;
-    spatial_prior = sp_prior;
-    exposure_precision = se_prec;
-    reinfection_precision = rs_prec;
-    exposure_mean = se_mean;
-    reinfection_mean = rs_mean;
-    phi = ph;
-    parent = pr;
-    */
     try
     {
         std::minstd_rand0 lc_generator(sd);

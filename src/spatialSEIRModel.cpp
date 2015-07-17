@@ -186,15 +186,8 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
         (*self) -> send(worker_pool, sim_result_atom::value, outIdx, outRow); 
     }
 
-    //std::chrono::milliseconds timespan(1000);                       
-    //Rcpp::Rcout << "All data sent to workers\n";
-    //Rcpp::Rcout << "dbg_2_a\n"; std::this_thread::sleep_for(timespan); 
-
     std::vector<int> result_idx;
-    //Rcpp::Rcout << "dbg_2_b\n"; std::this_thread::sleep_for(timespan); 
     std::vector<simulationResultSet> results;
-    //Rcpp::Rcout << "dbg_2_c\n"; std::this_thread::sleep_for(timespan); 
-
 
     i = 0;
     (*self)->receive_for(i, nrow)(
@@ -206,7 +199,6 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
     (*self) -> send_exit(worker_pool, exit_reason::user_shutdown); 
 
     delete self;
-    //shutdown();
     
     Rcpp::List outList;
     for (i = 0; i < nrow; i++)
@@ -281,28 +273,6 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
                                                                       reinfectionModelInstance -> betaPriorMean,
                                                                       dataModelInstance -> phi,
                                                                       (*self)));
-/*
-        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(tmp1,
-                                                                      tmp2 + 1000*i + ncalls,
-                                                                      tmp3,
-                                                                      tmp4,
-                                                                      tmp5,
-                                                                      tmp6,
-                                                                      tmp7,
-                                                                      tmp8,
-                                                                      tmp9,
-                                                                      tmp10,
-                                                                      tmp11,
-                                                                      tmp12,
-                                                                      tmp13,
-                                                                      tmp13_1,
-                                                                      tmp14,
-                                                                      tmp15,
-                                                                      tmp16,
-                                                                      tmp17,
-                                                                      tmp18,
-                                                                      (*self)));
-*/
         (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]); 
     }
 
@@ -340,7 +310,6 @@ Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
     }
 
     delete self;
-    //shutdown();
     return(out);
 }
 
