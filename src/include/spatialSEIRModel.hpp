@@ -52,13 +52,14 @@ class spatialSEIRModel
                          transitionPriors& transitionPriors_,
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
-
-        Rcpp::NumericVector marginalPosteriorEstimates(SEXP inParams);
-        Rcpp::List simulate(SEXP inParams);
+        Rcpp::List sample(SEXP nSample, SEXP rejectionFraction);
+        Rcpp::List evaluate(SEXP inParams);
+        Rcpp::List simulate_given(SEXP inParams);
         //Destructor
         ~spatialSEIRModel();
     private:
         int ncalls;
+        Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
         dataModel* dataModelInstance;
         exposureModel* exposureModelInstance;
         reinfectionModel* reinfectionModelInstance;

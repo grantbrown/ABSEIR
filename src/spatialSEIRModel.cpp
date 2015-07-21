@@ -127,11 +127,17 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
 }
 
-Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
+Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP rejectionFraction)
 {
-    ncalls += 1;
+    // yada, create param_matrix
+    Eigen::MatrixXd param_matrix(10, 10);
+    Rcpp::List outList = this -> simulate(param_matrix, sample_atom::value);
+    return(outList);
+}
+
+Rcpp::List spatialSEIRModel::evaluate(SEXP inParams)
+{
     Rcpp::NumericMatrix params(inParams);
-    self = new scoped_actor();
     // Copy to Eigen matrix
     unsigned int i, j;
     Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
@@ -142,14 +148,47 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
             param_matrix(i,j) = params(i,j);
         }
     }
-    
+    return(this -> simulate(param_matrix, sim_atom::value));
+}
+
+Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
+{
+    Rcpp::NumericMatrix params(inParams);
+    // Copy to Eigen matrix
+    unsigned int i, j;
+    Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
+    for (i = 0; i < params.nrow(); i++)
+    {
+        for (j = 0; j < params.ncol(); j++)
+        {
+            param_matrix(i,j) = params(i,j);
+        }
+    }
+    return(this -> simulate(param_matrix, sim_result_atom::value));
+}
+
+Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix, 
+                                      caf::atom_value sim_type_atom)
+{
+    if (!(sim_type_atom == sim_atom::value || 
+         sim_type_atom == sim_result_atom::value || 
+         sim_type_atom == sample_atom::value))
+    {
+        Rcpp::Rcout << "Invalid simulation type requested\n";
+        Rcpp::List outList;
+        outList["error"] = true;
+        return(outList);
+    }
+
+    self = new scoped_actor();
+    ncalls += 1;    
     std::vector<caf::actor> workers;
 
     auto worker_pool = actor_pool::make(actor_pool::round_robin{});
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
-    unsigned int nrow =  (unsigned int) params.nrow();
+    unsigned int nrow =  (unsigned int) param_matrix.rows(); 
+    unsigned int i;
 
-    
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
@@ -179,138 +218,90 @@ Rcpp::List spatialSEIRModel::simulate(SEXP inParams)
     unsigned int outIdx;
     Eigen::VectorXd outRow;
 
+    // Send simulation orders
     for (i = 0; i < nrow; i++)
     {
-        unsigned int outIdx = i;
         outRow = param_matrix.row(i);
-        (*self) -> send(worker_pool, sim_result_atom::value, outIdx, outRow); 
+        (*self) -> send(worker_pool, sim_type_atom, i, outRow); 
     }
 
     std::vector<int> result_idx;
-    std::vector<simulationResultSet> results;
+    // Having two results containers is kinda ugly, better solution?
+    std::vector<simulationResultSet> results_complete;
+    std::vector<double> results_double;
+
 
     i = 0;
-    (*self)->receive_for(i, nrow)(
-                     [&](unsigned int idx, simulationResultSet result) {
-                          results.push_back(result);
+    if (sim_type_atom == sim_result_atom::value)
+    {
+        (*self)->receive_for(i, nrow)(
+                         [&](unsigned int idx, simulationResultSet result) {
+                              results_complete.push_back(result);
+                              result_idx.push_back(idx);
+                            });
+    }
+    else if (sim_type_atom == sim_atom::value || sim_type_atom == sample_atom::value)
+    {
+        (*self)->receive_for(i, nrow)(
+                     [&](unsigned int idx, double result) {
+                          results_double.push_back(result);
                           result_idx.push_back(idx);
                         });
+    }
 
     (*self) -> send_exit(worker_pool, exit_reason::user_shutdown); 
-
-    delete self;
     
+    // Todo: keep an eye on this object handling. It may have unreasonable
+    // overhead, and is kind of complex.  
     Rcpp::List outList;
-    for (i = 0; i < nrow; i++)
+
+    if (sim_type_atom == sim_result_atom::value)
     {
-        Rcpp::List subList;
-        subList["S"] = createRcppIntFromEigen(results[i].S);
-        subList["E"] = createRcppIntFromEigen(results[i].E);
-        subList["I"] = createRcppIntFromEigen(results[i].I);
-        subList["R"] = createRcppIntFromEigen(results[i].R);
-
-        subList["S_star"] = createRcppIntFromEigen(results[i].S_star);
-        subList["E_star"] = createRcppIntFromEigen(results[i].E_star);
-        subList["I_star"] = createRcppIntFromEigen(results[i].I_star);
-        subList["R_star"] = createRcppIntFromEigen(results[i].R_star);
-        subList["p_se"] = createRcppNumericFromEigen(results[i].p_se);
-        subList["p_ei"] = createRcppNumericFromEigen(results[i].p_ei);
-        subList["p_ir"] = createRcppNumericFromEigen(results[i].p_ir);
-        subList["rho"] = createRcppNumericFromEigen(results[i].rho);
-        subList["beta"] = createRcppNumericFromEigen(results[i].beta);
-        subList["X"] = createRcppNumericFromEigen(results[i].X);
-
-        subList["result"] = results[i].result;
-
-        outList[std::to_string(i)] = subList;
-    }
-    return(outList);
-}
-
-
-
-Rcpp::NumericVector spatialSEIRModel::marginalPosteriorEstimates(SEXP inParams)
-{
-    ncalls += 1;
-    Rcpp::NumericMatrix params(inParams);
-    self = new scoped_actor();
-    // Copy to Eigen matrix
-    unsigned int i, j;
-    Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
-    for (i = 0; i < params.nrow(); i++)
-    {
-        for (j = 0; j < params.ncol(); j++)
+        // keep_samples indicates a debug mode, so don't worry if we can't make
+        // a regular data frame from the list.
+        for (i = 0; i < nrow; i++)
         {
-            param_matrix(i,j) = params(i,j);
+            Rcpp::List subList;
+            subList["S"] = createRcppIntFromEigen(results_complete[i].S);
+            subList["E"] = createRcppIntFromEigen(results_complete[i].E);
+            subList["I"] = createRcppIntFromEigen(results_complete[i].I);
+            subList["R"] = createRcppIntFromEigen(results_complete[i].R);
+
+            subList["S_star"] = createRcppIntFromEigen(results_complete[i].S_star);
+            subList["E_star"] = createRcppIntFromEigen(results_complete[i].E_star);
+            subList["I_star"] = createRcppIntFromEigen(results_complete[i].I_star);
+            subList["R_star"] = createRcppIntFromEigen(results_complete[i].R_star);
+            subList["p_se"] = createRcppNumericFromEigen(results_complete[i].p_se);
+            subList["p_ei"] = createRcppNumericFromEigen(results_complete[i].p_ei);
+            subList["p_ir"] = createRcppNumericFromEigen(results_complete[i].p_ir);
+            subList["rho"] = createRcppNumericFromEigen(results_complete[i].rho);
+            subList["beta"] = createRcppNumericFromEigen(results_complete[i].beta);
+            subList["X"] = createRcppNumericFromEigen(results_complete[i].X);
+            subList["result"] = results_complete[i].result;
+            outList[std::to_string(i)] = subList;
         }
     }
-   
-    std::vector<caf::actor> workers;
-
-    auto worker_pool = actor_pool::make(actor_pool::round_robin{});
-    unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
-    unsigned int nrow =  (unsigned int) params.nrow();
-
-    for (i = 0; i < ncore; i++)
+    else if (sim_type_atom == sim_atom::value)
     {
-        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
-                                                                      samplingControlInstance->random_seed + 1000*i + ncalls,
-                                                                      initialValueContainerInstance -> S0,
-                                                                      initialValueContainerInstance -> E0,
-                                                                      initialValueContainerInstance -> I0,
-                                                                      initialValueContainerInstance -> R0,
-                                                                      exposureModelInstance -> offset,
-                                                                      dataModelInstance -> Y,
-                                                                      distanceModelInstance -> dm_list,
-                                                                      exposureModelInstance -> X,
-                                                                      reinfectionModelInstance -> X_rs,
-                                                                      transitionPriorsInstance -> gamma_ei_params,
-                                                                      transitionPriorsInstance -> gamma_ir_params,
-                                                                      distanceModelInstance -> spatial_prior,
-                                                                      exposureModelInstance -> betaPriorPrecision,
-                                                                      reinfectionModelInstance -> betaPriorPrecision, 
-                                                                      exposureModelInstance -> betaPriorMean,
-                                                                      reinfectionModelInstance -> betaPriorMean,
-                                                                      dataModelInstance -> phi,
-                                                                      (*self)));
-        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]); 
+        Rcpp::NumericVector outResults(nrow);
+        for (i = 0; i < nrow; i++)
+        {
+            outResults(result_idx[i]) = results_double[i];
+        }
+        outList["result"] = outResults;
     }
-
-    // Distribute jobs among workers
-    unsigned int outIdx;
-    Eigen::VectorXd outRow(param_matrix.cols());
-    for (i = 0; i < param_matrix.rows(); i++)
+    else if (sim_type_atom == sample_atom::value)
     {
-        outIdx = i;
-        outRow = param_matrix.row(i);
-        (*self) -> send(worker_pool, sim_atom::value, outIdx, outRow); 
+        Rcpp::NumericVector outResults(nrow);
+        for (i = 0; i < nrow; i++)
+        {
+            outResults(result_idx[i]) = results_double[i];
+        }
+        // Todo: add param_matrix results here. 
+        outList["result"] = outResults;
     }
-
-    std::vector<int> result_idx;
-    std::vector<double> results;
-
-    i = 0;
-    (*self)->receive_for(i, nrow)(
-                     [&](unsigned int idx, double result) {
-                          results.push_back(result);
-                          result_idx.push_back(idx);
-                        }
-                        
-                        
-                        );
-
-
-    (*self) -> send_exit(worker_pool, exit_reason::user_shutdown);
-    Rcpp::NumericVector out(nrow); 
-
-
-    for (i = 0; i < nrow; i++)
-    {
-        out(result_idx[i]) = results[i];
-    }
-
     delete self;
-    return(out);
+    return(outList);
 }
 
 spatialSEIRModel::~spatialSEIRModel()
@@ -337,9 +328,9 @@ RCPP_MODULE(mod_spatialSEIRModel)
                  transitionPriors&,
                  initialValueContainer&,
                  samplingControl&>()
-    .method("marginalPosteriorEstimates", &spatialSEIRModel::marginalPosteriorEstimates)
-    .method("simulate", &spatialSEIRModel::simulate);
-
+    .method("evaluate", &spatialSEIRModel::evaluate)
+    .method("sample", &spatialSEIRModel::sample)
+    .method("simulate", &spatialSEIRModel::simulate_given);
 
 }
 

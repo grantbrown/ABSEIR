@@ -15,6 +15,7 @@ using namespace caf;
 
 using sim_atom = atom_constant<atom("sim")>;
 using sim_result_atom = atom_constant<atom("sim_rslt")>;
+using sample_atom = atom_constant<atom("sample")>;
 using wakeup_atom = atom_constant<atom("wakeup")>;
 using exit_atom = atom_constant<atom("exit")>;
 
