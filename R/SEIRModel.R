@@ -43,16 +43,17 @@ SpatialSEIRModel = function(dataModelInstance,
                    class(samplingControlInstance)))
     }
 
+    modelResults = list()
     modelComponents = list()
-    if (verbose){cat(paste("Initializing Model Components", sep = ""))}
+    if (verbose){cat("Initializing Model Components\n")}
     result = tryCatch({
-        if (verbose) cat(paste("...Building data model", sep = ""))
+        if (verbose) cat("...Building data model\n")
         modelComponents[["dataModel"]] = new(dataModel, dataModelInstance$Y,
                                             dataModelInstance$type,
                                             dataModelInstance$compartment,
                                             dataModelInstance$phi)
 
-        if (verbose) cat(paste("...Building distance model", sep = ""))
+        if (verbose) cat("...Building distance model\n")
         modelComponents[["distanceModel"]] = new(distanceModel)
         for (i in 1:length(distanceModelInstance$distanceList))
         {
@@ -65,7 +66,7 @@ SpatialSEIRModel = function(dataModelInstance,
             distanceModelInstance$priorBeta
         )
 
-        if (verbose) cat(paste("...Building exposure model", sep = ""))
+        if (verbose) cat("...Building exposure model\n")
         modelComponents[["exposureModel"]] = new(
             exposureModel, 
             exposureModelInstance$X,
@@ -81,7 +82,7 @@ SpatialSEIRModel = function(dataModelInstance,
             )
         }
 
-        if (verbose) cat(paste("...Building initial value container", sep = ""))
+        if (verbose) cat("...Building initial value container\n")
         modelComponents[["initialValueContainer"]] = new(initialValueContainer)
         modelComponents[["initialValueContainer"]]$setInitialValues(
             initialValueContainerInstance$S0,
@@ -90,7 +91,7 @@ SpatialSEIRModel = function(dataModelInstance,
             initialValueContainerInstance$R0
         )
 
-        if (verbose) cat(paste("...Building reinfection model", sep = "")) 
+        if (verbose) cat("...Building reinfection model\n") 
         modelComponents[["reinfectionModel"]] = new(
             reinfectionModel, 
             reinfectionModelInstance$integerMode
@@ -104,7 +105,7 @@ SpatialSEIRModel = function(dataModelInstance,
         );
         }
 
-        if (verbose) cat(paste("...Building sampling control model", sep = "")) 
+        if (verbose) cat("...Building sampling control model\n") 
         modelComponents[["samplingControl"]] = new (
             samplingControl, 
             samplingControlInstance$sim_width,
@@ -112,7 +113,7 @@ SpatialSEIRModel = function(dataModelInstance,
             samplingControlInstance$n_cores
         )
 
-        if (verbose) cat(paste("...Building transition priors", sep = "")) 
+        if (verbose) cat("...Building transition priors\n") 
         modelComponents[["transitionPriors"]] = new(transitionPriors)
         modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
             transitionPriorsInstance$p_ei,
@@ -121,7 +122,7 @@ SpatialSEIRModel = function(dataModelInstance,
             transitionPriorsInstance$p_ir_ess
         )
 
-        if (verbose) cat(paste("...Preparing model object", sep = ""))
+        if (verbose) cat("...Preparing model object\n")
         modelComponents[["SEIR_model"]] = new( 
             spatialSEIRModel, 
             modelComponents[["dataModel"]],
@@ -132,18 +133,18 @@ SpatialSEIRModel = function(dataModelInstance,
             modelComponents[["initialValueContainer"]],
             modelComponents[["samplingControl"]]
         )
-        if (verbose) cat(paste("Running main simulation", sep = ""))
-        modelComponents[["SEIR_model"]]$sample(samples, acceptFraction, batchSize)
-        if (verbose) cat(paste("Simulation complete", sep = ""))
+        if (verbose) cat("Running main simulation\n")
+        modelResults[["results"]] = modelComponents[["SEIR_model"]]$sample(samples, acceptFraction, batchSize)
+        if (verbose) cat("Simulation complete\n")
     },
     warning=function(w)
     {
-        cat(paste("Warnings generated:", sep = ""))
+        cat("Warnings generated:\n")
         print(w)
     },
     error=function(e)
     {
-        cat(paste("Errors generated:", sep = ""))
+        cat("Errors generated:\n")
         print(e)
         if (exists("modelComponents"))
         {
@@ -157,6 +158,6 @@ SpatialSEIRModel = function(dataModelInstance,
             rm(modelComponents)
         }
     })
-    return(structure(result, class = "SpatialSEIRModel"))
+    return(structure(modelResults[["results"]], class = "SpatialSEIRModel"))
 }
 
