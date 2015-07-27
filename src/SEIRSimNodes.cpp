@@ -92,6 +92,22 @@ SEIR_sim_node::SEIR_sim_node(int w,
                 send(parent, param_idx, result); 
             }
         },
+        [=](sample_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
+        {
+            if (total_size != param_vals.size())
+            {
+                aout(this) << "Invalid parameter vector of length " 
+                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
+                send(parent, param_idx, -2.0);
+
+            }
+            else 
+            {
+                //aout(this) << "Valid params observed, simulating.\n";
+                double result = simulate(param_vals, false).result;
+                send(parent, param_idx, result); 
+            }
+        },
         [=](sim_result_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
         {
             if (total_size != param_vals.size())
@@ -124,7 +140,6 @@ behavior SEIR_sim_node::make_behavior(){
 
 simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCompartments)
 {
-    std::chrono::milliseconds timespan(1000);
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
     int oldWidth = this -> sim_width;
@@ -178,8 +193,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     Eigen::VectorXi N(S0.size());
     N = (S0 + E0 + I0 + R0);
-
-
 
     Eigen::MatrixXd p_se_cache(sim_width, S0.size());
 

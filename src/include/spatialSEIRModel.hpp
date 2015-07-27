@@ -11,6 +11,12 @@
 #include "./spatialSEIRModel.hpp"
 #include "./transitionPriors.hpp"
 
+struct samplingResultSet
+{
+    Rcpp::NumericVector result;
+    Rcpp::NumericMatrix params;
+};
+
 struct simulationResultSet
 {
     Eigen::MatrixXi S;
@@ -52,7 +58,7 @@ class spatialSEIRModel
                          transitionPriors& transitionPriors_,
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
-        Rcpp::List sample(SEXP nSample, SEXP rejectionFraction);
+        Rcpp::List sample(SEXP nSample, SEXP rejectionFraction, SEXP batchSize);
         Rcpp::List evaluate(SEXP inParams);
         Rcpp::List simulate_given(SEXP inParams);
         //Destructor
@@ -60,6 +66,10 @@ class spatialSEIRModel
     private:
         int ncalls;
         Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
+        samplingResultSet combineResults(Rcpp::NumericVector currentResults, 
+                                  Rcpp::NumericMatrix currentParams,
+                                  Rcpp::NumericVector newResults,
+                                  Eigen::MatrixXd newParams);
         dataModel* dataModelInstance;
         exposureModel* exposureModelInstance;
         reinfectionModel* reinfectionModelInstance;
@@ -68,6 +78,7 @@ class spatialSEIRModel
         initialValueContainer* initialValueContainerInstance;
         samplingControl* samplingControlInstance;
         scoped_actor* self;
+        std::mt19937* generator;
 };
 
 #endif

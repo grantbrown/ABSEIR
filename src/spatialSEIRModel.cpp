@@ -1,5 +1,6 @@
 #include <Rcpp.h>
 #include <cmath>
+#include <math.h>
 #include <spatialSEIRModel.hpp>
 #include <dataModel.hpp>
 #include <exposureModel.hpp>
@@ -13,6 +14,19 @@
 
 using namespace Rcpp;
 using namespace caf;
+
+
+std::vector<size_t> sort_indexes(Rcpp::NumericVector inVec)
+{
+    vector<size_t> idx(inVec.size());
+    for (size_t i = 0; i < idx.size(); i++)
+    {
+        idx[i] = i;
+    }
+    std::sort(idx.begin(), idx.end(),
+         [&inVec](size_t i1, size_t i2){return(inVec(i1) < inVec(i2));});
+    return(idx);    
+}
 
 Rcpp::IntegerMatrix createRcppIntFromEigen(Eigen::MatrixXi inMatrix)
 {
@@ -41,8 +55,6 @@ Rcpp::NumericMatrix createRcppNumericFromEigen(Eigen::MatrixXd inMatrix)
     }
     return(outMatrix);
 }
-
-
 
 spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                                    exposureModel& exposureModel_,
@@ -125,13 +137,167 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         // pass
     }
 
+    // Set up random number provider 
+    std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
+    std::uint_least32_t seed_data[std::mt19937::state_size];
+    std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator));
+    std::seed_seq q(std::begin(seed_data), std::end(seed_data));
+    generator = new std::mt19937{q};   
 }
 
-Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP rejectionFraction)
+samplingResultSet spatialSEIRModel::combineResults(Rcpp::NumericVector currentResults, 
+                                            Rcpp::NumericMatrix currentParams,
+                                            Rcpp::NumericVector newResults,
+                                            Eigen::MatrixXd newParams)
 {
-    // yada, create param_matrix
-    Eigen::MatrixXd param_matrix(10, 10);
-    Rcpp::List outList = this -> simulate(param_matrix, sample_atom::value);
+    Rcpp::NumericVector outResults = Rcpp::clone(currentResults);
+    Rcpp::NumericMatrix outParams = Rcpp::clone(currentParams);
+    std::vector<size_t> currentIndex = sort_indexes(currentResults);
+    std::vector<size_t> newIndex = sort_indexes(newResults);
+    size_t idx1 = 0;
+    size_t idx2 = 0;
+    size_t i, j;
+    size_t outputSize = currentIndex.size();
+
+    // Zipper merge
+    for (i = 0; i < currentIndex.size(); i++)
+    {
+        if (currentResults(currentIndex[idx1]) > newResults(newIndex[idx2]))
+        {
+            outResults(i) = newResults(newIndex[idx2]);
+            for (j = 0; j < currentParams.ncol(); j++)
+            {
+                outParams(i,j) = newParams(newIndex[idx2], j);
+            } 
+            idx2++;
+        }
+        else if (currentResults(currentIndex[idx1]) >= newResults(newIndex[idx2]))
+        {
+            outResults(i) = currentResults(currentIndex[idx1]);
+            for (j = 0; j < currentParams.ncol(); j++)
+            {
+                outParams(i,j) = currentResults(currentIndex[idx1], j);
+            }
+            idx1++;
+        }
+    }
+    samplingResultSet output;
+    output.result = outResults;
+    output.params = outParams;
+    return(output);
+}
+
+Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP acceptanceFraction, 
+                                    SEXP batchSize)
+{
+    Rcpp::IntegerVector nSamp(nSamples);
+    Rcpp::NumericVector acceptFraction(acceptanceFraction);
+    Rcpp::IntegerVector bSize(batchSize);
+
+    bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
+    bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+
+    int batchNum;
+    int N = nSamp(0);
+    double r = acceptFraction(0);
+    int bs = bSize(0);
+    int i, j;
+    int nBeta = (exposureModelInstance -> X).cols();
+    int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    int nParams = nBeta + nBetaRS + nRho + 2;
+
+    int nBatches = std::ceil(((1.0*N)/r)/bs);
+    Rcpp::List tmpList, outList;
+
+    Rcpp::NumericVector outputValues(N);
+    for (i = 0; i < N; i++)
+    {
+        outputValues(i) = std::numeric_limits<double>::infinity(); 
+    }
+
+    Rcpp::NumericMatrix outputParams(nSamp(0), nParams);
+
+    samplingResultSet currentSamples;
+    currentSamples.result = outputValues;
+    currentSamples.params = outputParams;
+
+    Eigen::MatrixXd param_matrix(bs, nParams);
+    // Set up random samplers 
+
+    // beta, beta_RS
+    std::normal_distribution<> standardNormal(0,1); 
+    // rho  
+    std::gamma_distribution<> rhoDist(
+            (distanceModelInstance -> spatial_prior)(0),
+        1.0/(distanceModelInstance -> spatial_prior)(1));
+    // gamma_ei 
+    std::gamma_distribution<> gammaEIDist(
+            (transitionPriorsInstance -> gamma_ei_params)(0),
+        1.0/(transitionPriorsInstance -> gamma_ei_params)(1)); 
+    // gamma_ir
+    std::gamma_distribution<> gammaIRDist(
+            (transitionPriorsInstance -> gamma_ir_params)(0),
+        1.0/(transitionPriorsInstance -> gamma_ir_params)(1)); 
+
+    double minDist = std::numeric_limits<double>::infinity();
+    for (batchNum = 0; batchNum < nBatches; batchNum ++)
+    {
+        // If this is too slow, consider column-wise operations
+        double rhoTot = 0.0;
+        int rhoItrs = 0;
+        for (i = 0; i < bs; i++)
+        {
+            // Draw beta
+            for (j = 0; j < nBeta; j++)
+            {
+                param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
+                                     standardNormal(*generator) /
+                                     (exposureModelInstance -> betaPriorPrecision(j));
+            }
+            if (hasReinfection)
+            {
+                for (j = nBeta; j < nBeta + nBetaRS; j++)
+                {
+                    param_matrix(i, j) = 
+                        (reinfectionModelInstance -> betaPriorMean(j)) + 
+                         standardNormal(*generator) /
+                        (reinfectionModelInstance -> betaPriorPrecision(j));           
+                }
+            }
+
+            if (hasSpatial)
+            {
+                rhoTot = 2.0; 
+                rhoItrs = 0;
+                while (rhoTot > 1.0 && rhoItrs < 100)
+                {
+                    rhoTot = 0.0;
+                    for (j = nBeta + nBetaRS; j < nBeta + nBetaRS + nRho; j++)
+                    {
+                       param_matrix(i, j) = rhoDist(*generator); 
+                       rhoTot += param_matrix(i,j);
+                    }
+                    rhoItrs++;
+                }
+                if (rhoTot > 1.0)
+                {
+                    Rcpp::Rcout << "Error, valid rho value not obtained\n";
+                }
+            }
+
+            param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
+        }
+
+        tmpList = this -> simulate(param_matrix, sample_atom::value);
+        currentSamples = combineResults(currentSamples.result, 
+                                        currentSamples.params,
+                                        as<NumericVector>(tmpList["result"]),
+                                        param_matrix);
+    }
+    outList["result"] = currentSamples.result;
+    outList["params"] = currentSamples.params;
     return(outList);
 }
 
@@ -192,7 +358,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
-                                                                      samplingControlInstance->random_seed + 1000*i + ncalls,
+                                                                      samplingControlInstance->random_seed + 1000*(i + 1) + ncalls,
                                                                       initialValueContainerInstance -> S0,
                                                                       initialValueContainerInstance -> E0,
                                                                       initialValueContainerInstance -> I0,
@@ -297,7 +463,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         {
             outResults(result_idx[i]) = results_double[i];
         }
-        // Todo: add param_matrix results here. 
         outList["result"] = outResults;
     }
     delete self;
@@ -307,6 +472,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
 spatialSEIRModel::~spatialSEIRModel()
 {   
     shutdown();
+    delete generator;
     dataModelInstance -> unprotect();
     exposureModelInstance -> unprotect();
     reinfectionModelInstance -> unprotect();
