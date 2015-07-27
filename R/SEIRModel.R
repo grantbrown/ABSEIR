@@ -134,8 +134,15 @@ SpatialSEIRModel = function(dataModelInstance,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        modelResults[["results"]] = modelComponents[["SEIR_model"]]$sample(samples, acceptFraction, batchSize)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, acceptFraction, batchSize)
         if (verbose) cat("Simulation complete\n")
+
+        epsilon = rslt$result
+        params = rslt$params
+
+        # add names here 
+        
+        modelResults[["results"]] = rslt
     },
     warning=function(w)
     {
