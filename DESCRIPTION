@@ -1,4 +1,4 @@
-Package: AFSEIR
+Package: ABSEIR
 Type: Package
 Title: Posterior approximation to fully Bayesian Spatial SEIR Models using the C++ Actor Framework
 Version: 0.1
