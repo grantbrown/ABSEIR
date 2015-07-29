@@ -1,127 +1,127 @@
 # SEIRModel module helper function
-SpatialSEIRModel = function(dataModelInstance,
-                          exposureModelInstance,
-                          reinfectionModelInstance,
-                          distanceModelInstance,
-                          transitionPriorsInstance,
-                          initialValueContainerInstance,
-                          samplingControlInstance,
+SpatialSEIRModel = function(data_model,
+                          exposure_model,
+                          reinfection_model,
+                          distance_model,
+                          transition_priors,
+                          initial_value_container,
+                          sampling_control,
                           samples=100,
-                          acceptFraction=1e-4,
-                          batchSize=50000,
+                          accept_fraction=1e-4,
+                          batch_size=50000,
                           verbose=FALSE)
 {
 
-    if (class(dataModelInstance) != "DataModel")
+    if (class(data_model) != "DataModel")
     {
         stop(paste("Expected: DataModel. Received: ", 
-                   class(dataModelInstance)))
+                   class(data_model)))
     }
-    if (class(exposureModelInstance) != "ExposureModel")
+    if (class(exposure_model) != "ExposureModel")
     {
         stop(paste("Expected: ExposureModel Received: ", 
-                   class(exposureModelInstance)))
+                   class(exposure_model)))
     }
-    if (class(reinfectionModelInstance) != "ReinfectionModel")
+    if (class(reinfection_model) != "ReinfectionModel")
     {
         stop(paste("Expected: ReinfectionModel Received: ", 
-                   class(reinfectionModelInstance)))
+                   class(reinfection_model)))
     }
-    if (class(distanceModelInstance) != "DistanceModel")
+    if (class(distance_model) != "DistanceModel")
     {
         stop(paste("Expected: DistanceModel Received: ", 
-                   class(distanceModelInstance)))
+                   class(distance_model)))
     }
-    if (class(transitionPriorsInstance) != "TransitionPriors")
+    if (class(transition_priors) != "TransitionPriors")
     {
         stop(paste("Expected: TransitionPriors Received: ", 
-                   class(transitionPriorsInstance)))
+                   class(transition_priors)))
     }
-    if (class(samplingControlInstance) != "SamplingControl")
+    if (class(sampling_control) != "SamplingControl")
     {
         stop(paste("Expected: SamplingControl Received: ", 
-                   class(samplingControlInstance)))
+                   class(sampling_control)))
     }
 
     modelResults = list()
     modelComponents = list()
     if (verbose){cat("Initializing Model Components\n")}
-    hasSpatial = (ncol(dataModelInstance$Y) > 1) 
-    hasReinfection = (reinfectionModelInstance$integerMode != 3) 
+    hasSpatial = (ncol(data_model$Y) > 1) 
+    hasReinfection = (reinfection_model$integerMode != 3) 
     result = tryCatch({
         if (verbose) cat("...Building data model\n")
-        modelComponents[["dataModel"]] = new(dataModel, dataModelInstance$Y,
-                                            dataModelInstance$type,
-                                            dataModelInstance$compartment,
-                                            dataModelInstance$phi)
+        modelComponents[["dataModel"]] = new(dataModel, data_model$Y,
+                                            data_model$type,
+                                            data_model$compartment,
+                                            data_model$phi)
 
         if (verbose) cat("...Building distance model\n")
         modelComponents[["distanceModel"]] = new(distanceModel)
-        for (i in 1:length(distanceModelInstance$distanceList))
+        for (i in 1:length(distance_model$distanceList))
         {
             modelComponents[["distanceModel"]]$addDistanceMatrix(
-                distanceModelInstance$distanceList[[i]]
+                distance_model$distanceList[[i]]
             )
         }
         modelComponents[["distanceModel"]]$setPriorParameters(
-            distanceModelInstance$priorAlpha,
-            distanceModelInstance$priorBeta
+            distance_model$priorAlpha,
+            distance_model$priorBeta
         )
 
         if (verbose) cat("...Building exposure model\n")
         modelComponents[["exposureModel"]] = new(
             exposureModel, 
-            exposureModelInstance$X,
-            exposureModelInstance$nTpt,
-            exposureModelInstance$nLoc,
-            exposureModelInstance$betaPriorMean,
-            exposureModelInstance$betaPriorPrecision
+            exposure_model$X,
+            exposure_model$nTpt,
+            exposure_model$nLoc,
+            exposure_model$betaPriorMean,
+            exposure_model$betaPriorPrecision
         )
-        if (!all(is.na(exposureModelInstance$offset)))
+        if (!all(is.na(exposure_model$offset)))
         {
             modelComponents[["exposureModel"]]$offsets = (
-                exposureModelInstance$offset
+                exposure_model$offset
             )
         }
 
         if (verbose) cat("...Building initial value container\n")
         modelComponents[["initialValueContainer"]] = new(initialValueContainer)
         modelComponents[["initialValueContainer"]]$setInitialValues(
-            initialValueContainerInstance$S0,
-            initialValueContainerInstance$E0,
-            initialValueContainerInstance$I0,
-            initialValueContainerInstance$R0
+            initial_value_container$S0,
+            initial_value_container$E0,
+            initial_value_container$I0,
+            initial_value_container$R0
         )
 
         if (verbose) cat("...Building reinfection model\n") 
         modelComponents[["reinfectionModel"]] = new(
             reinfectionModel, 
-            reinfectionModelInstance$integerMode
+            reinfection_model$integerMode
         )
-        if (reinfectionModelInstance$integerMode != 3)
+        if (reinfection_model$integerMode != 3)
         {
             modelComponents[["reinfectionModel"]]$buildReinfectionModel(
-                reinfectionModelInstance$X_prs, 
-                reinfectionModelInstance$priorMean, 
-                reinfectionModelInstance$priorPrecision
+                reinfection_model$X_prs, 
+                reinfection_model$priorMean, 
+                reinfection_model$priorPrecision
         );
         }
 
         if (verbose) cat("...Building sampling control model\n") 
         modelComponents[["samplingControl"]] = new (
             samplingControl, 
-            samplingControlInstance$sim_width,
-            samplingControlInstance$seed,
-            samplingControlInstance$n_cores
+            sampling_control$sim_width,
+            sampling_control$seed,
+            sampling_control$n_cores
         )
 
         if (verbose) cat("...Building transition priors\n") 
         modelComponents[["transitionPriors"]] = new(transitionPriors)
         modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
-            transitionPriorsInstance$p_ei,
-            transitionPriorsInstance$p_ir,
-            transitionPriorsInstance$p_ei_ess,
-            transitionPriorsInstance$p_ir_ess
+            transition_priors$p_ei,
+            transition_priors$p_ir,
+            transition_priors$p_ei_ess,
+            transition_priors$p_ir_ess
         )
 
         if (verbose) cat("...Preparing model object\n")
@@ -136,19 +136,19 @@ SpatialSEIRModel = function(dataModelInstance,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, acceptFraction, 
-                                                      batchSize)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, accept_fraction, 
+                                                      batch_size)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result
         params = rslt$params
 
         cnames = paste("Beta_SE_", 
-                       1:ncol(exposureModelInstance$X), sep = "")
+                       1:ncol(exposure_model$X), sep = "")
         if (hasReinfection)
         {
             cnames = c(cnames, paste("Beta_RS_", 
-                                     1:ncol(reinfectionModelInstance$X_prs), 
+                                     1:ncol(reinfection_model$X_prs), 
                                      sep = "")
             )
         }
@@ -156,7 +156,7 @@ SpatialSEIRModel = function(dataModelInstance,
         {
             cnames = c(cnames, 
                        paste("rho_", 
-                            1:length(distanceModelInstance$distanceList), 
+                            1:length(distance_model$distanceList), 
                              sep = "")
             )
         }
@@ -166,13 +166,13 @@ SpatialSEIRModel = function(dataModelInstance,
         modelResults[["param.samples"]] = params
         modelResults[["epsilon"]] = epsilon
         modelResults[["modelComponents"]] = list(
-                     data_model = dataModelInstance,
-                     exposure_model = exposureModelInstance,
-                     reinfection_model = reinfectionModelInstance,
-                     distance_model = distanceModelInstance,
-                     transition_priors = transitionPriorsInstance,
-                     initial_value_container = initialValueContainerInstance,
-                     sampling_control = samplingControlInstance
+                     data_model = data_model,
+                     exposure_model = exposure_model,
+                     reinfection_model = reinfection_model,
+                     distance_model = distance_model,
+                     transition_priors = transition_priors,
+                     initial_value_container = initial_value_container,
+                     sampling_control = sampling_control
         ) 
     },
     warning=function(w)
@@ -195,70 +195,71 @@ SpatialSEIRModel = function(dataModelInstance,
     return(structure(modelResults, class = "SpatialSEIRModel"))
 }
 
-plot.SpatialSEIRModel = function(modelObject)
+plot.SpatialSEIRModel = function(x, ...)
 {
-    for (i in 1:ncol(modelObject$param.samples))
+    for (i in 1:ncol(x$param.samples))
     {
         cat ("Press return to see next plot:")
-        hist(modelObject$param.samples[,i], 
-             main = colnames(modelObject$param.samples)[i],
+        hist(x$param.samples[,i], 
+             main = colnames(x$param.samples)[i],
              xlab = "Parameter Value",
              ylab = "MPD",
-             freq=FALSE
+             freq=FALSE,
+             ...
              )
-        if (i != ncol(modelObject$param.samples)) line <- readline()
+        if (i != ncol(x$param.samples)) line <- readline()
     }
 
 
 }
 
-summary.SpatialSEIRModel = function(modelObject)
+summary.SpatialSEIRModel = function(object, ...)
 {
-    nLoc = ncol(modelObject$modelComponents$data_model$Y)
-    nTpt = nrow(modelObject$modelComponents$data_model$Y)
+    nLoc = ncol(object$modelComponents$data_model$Y)
+    nTpt = nrow(object$modelComponents$data_model$Y)
 
-    hasSpatial = (modelObject$modelComponents$exposure_model$nLoc > 1) 
+    hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
-        (modelObject$modelComponents$reinfection_model$integerMode != 3) 
+        (object$modelComponents$reinfection_model$integerMode != 3) 
 
-    qtiles = t(apply(modelObject$param.samples, 2, quantile, 
+    qtiles = t(apply(object$param.samples, 2, quantile, 
                    probs = c(0.025, 0.975)))
 
-    means = apply(modelObject$param.samples, 2, mean)
-    sds = apply(modelObject$param.samples, 2, sd)
+    means = apply(object$param.samples, 2, mean)
+    sds = apply(object$param.samples, 2, sd)
 
     outMatrix = cbind(means, sds, qtiles)
-    rownames(outMatrix) = colnames(modelObject$param.samples)
+    rownames(outMatrix) = colnames(object$param.samples)
     colnames(outMatrix) = c("Mean", "SD", "95% LB", "95% UB")
-    structure(list(modelComponents=modelObject$modelComponents,
+    structure(list(modelComponents=object$modelComponents,
        parameterEstimates=outMatrix,
        nLoc = nLoc,
        nTpt = nTpt,
-       exposureParams = ncol(modelObject$modelComponents$exposure_model$X),
+       exposureParams = ncol(object$modelComponents$exposure_model$X),
        reinfectionParams = ifelse(hasReinfection, 
-            ncol(modelObject$modelComponents$reinfection_model$X_prs), 
+            ncol(object$modelComponents$reinfection_model$X_prs), 
             0),
        spatialParams = ifelse(hasSpatial, 
-            length(modelObject$modelComponents$distance_model$distanceList),
+            length(object$modelComponents$distance_model$distanceList),
             0)
        ), class = "summary.SpatialSEIRModel")
 }
 
 
-print.summary.SpatialSEIRModel = function(summaryObject)
+print.summary.SpatialSEIRModel = function(x, ...)
 {
     nl = "\n\n"
     cat(paste("Summary: SEIR Model", nl)) 
-    cat(paste("Locations: ", summaryObject$nLoc, "\n",
-              "Time Points: ", summaryObject$nTpt,"\n", sep = ""))
+    cat(paste("Locations: ", x$nLoc, "\n",
+              "Time Points: ", x$nTpt,"\n", sep = ""))
     cat(paste("Exposure Process Parameters: ", 
-              summaryObject$exposureParams, "\n", sep = ""))
+              x$exposureParams, "\n", sep = ""))
     cat(paste("Reinfection Model Parameters: ", 
-             (summaryObject$reinfectionParams), "\n", sep = ""))
+             (x$reinfectionParams), "\n", sep = ""))
     cat(paste("Spatial Parameters: ", 
-              (summaryObject$spatialParams), "\n", sep = ""))
+              (x$spatialParams), "\n", sep = ""))
     cat(nl)
     cat("Parameter Estimates:\n")
-    print(round(summaryObject$parameterEstimates, 3))
+    print(round(x$parameterEstimates, 3))
     cat("\n") 
 }
