@@ -350,7 +350,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     ncalls += 1;    
     std::vector<caf::actor> workers;
 
-    auto worker_pool = actor_pool::make(actor_pool::round_robin{});
+    auto worker_pool = actor_pool::make(actor_pool::round_robin());
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
     unsigned int nrow =  (unsigned int) param_matrix.rows(); 
     unsigned int i;

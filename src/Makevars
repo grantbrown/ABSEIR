@@ -1,2 +1,1 @@
-PKG_CPPFLAGS+= -std=c++11 -I./include -O2
-PKG_LIBS = -lcaf_core -lcaf_io 
+PKG_CPPFLAGS+= -std=c++11 -I./include -I./libcaf_core -I./libcaf_io -O2

@@ -1,7 +1,6 @@
 #include <Rcpp.h>
 #include <Rmath.h>
 #include <transitionPriors.hpp>
-#include <DistanceMatrix.hpp>
 
 
 using namespace Rcpp;
