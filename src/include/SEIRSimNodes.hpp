@@ -48,6 +48,7 @@ class SEIR_sim_node : public event_based_actor {
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
         behavior make_behavior() override;
     private: 
+        int sim_width;
         unsigned int random_seed;
         Eigen::VectorXi S0;
         Eigen::VectorXi E0;
@@ -66,7 +67,6 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::VectorXd exposure_mean;
         Eigen::VectorXd reinfection_mean;
         double phi;
-        int sim_width;
         int seed;
         double value;
         bool has_spatial;

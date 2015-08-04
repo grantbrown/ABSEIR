@@ -80,8 +80,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
     ncalls = 0;
 
-
-    int i;
     dataModelInstance = &dataModel_;
     exposureModelInstance = &exposureModel_;
     reinfectionModelInstance = &reinfectionModel_;
@@ -157,7 +155,6 @@ samplingResultSet spatialSEIRModel::combineResults(Rcpp::NumericVector currentRe
     size_t idx1 = 0;
     size_t idx2 = 0;
     size_t i, j;
-    size_t outputSize = currentIndex.size();
 
     // Zipper merge
     for (i = 0; i < currentIndex.size(); i++)
@@ -165,7 +162,7 @@ samplingResultSet spatialSEIRModel::combineResults(Rcpp::NumericVector currentRe
         if (currentResults(currentIndex[idx1]) > newResults(newIndex[idx2]))
         {
             outResults(i) = newResults(newIndex[idx2]);
-            for (j = 0; j < currentParams.ncol(); j++)
+            for (j = 0; j < (size_t) currentParams.ncol(); j++)
             {
                 outParams(i,j) = newParams(newIndex[idx2], j);
             } 
@@ -174,7 +171,7 @@ samplingResultSet spatialSEIRModel::combineResults(Rcpp::NumericVector currentRe
         else if (currentResults(currentIndex[idx1]) >= newResults(newIndex[idx2]))
         {
             outResults(i) = currentResults(currentIndex[idx1]);
-            for (j = 0; j < currentParams.ncol(); j++)
+            for (j = 0; j < (size_t) currentParams.ncol(); j++)
             {
                 outParams(i,j) = currentResults(currentIndex[idx1], j);
             }
@@ -240,7 +237,6 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP acceptanceFraction,
             (transitionPriorsInstance -> gamma_ir_params)(0),
         1.0/(transitionPriorsInstance -> gamma_ir_params)(1)); 
 
-    double minDist = std::numeric_limits<double>::infinity();
     for (batchNum = 0; batchNum < nBatches; batchNum ++)
     {
         // If this is too slow, consider column-wise operations
@@ -305,7 +301,7 @@ Rcpp::List spatialSEIRModel::evaluate(SEXP inParams)
 {
     Rcpp::NumericMatrix params(inParams);
     // Copy to Eigen matrix
-    unsigned int i, j;
+    int i, j;
     Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
     for (i = 0; i < params.nrow(); i++)
     {
@@ -321,7 +317,7 @@ Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
 {
     Rcpp::NumericMatrix params(inParams);
     // Copy to Eigen matrix
-    unsigned int i, j;
+    int i, j;
     Eigen::MatrixXd param_matrix(params.nrow(), params.ncol());
     for (i = 0; i < params.nrow(); i++)
     {
@@ -381,7 +377,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     }
 
     // Distribute jobs among workers
-    unsigned int outIdx;
     Eigen::VectorXd outRow;
 
     // Send simulation orders

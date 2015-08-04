@@ -153,8 +153,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
 
     simulationResultSet compartmentResults;
-    
-    int time_idx, i, j, k;
+    unsigned int idx; 
+    int time_idx, i, j;
     Eigen::VectorXd results = Eigen::VectorXd::Zero(sim_width); 
     for (i = 0; i < sim_width; i++)
     {
@@ -241,11 +241,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXd p_se = 1*p_se_cache; 
     if (has_spatial)
     {
-        for (i = 0; i < DM_vec.size(); i++)
+        for (idx = 0; idx < DM_vec.size(); idx++)
         {
             for (j = 0; j < sim_width; j++)
             {
-                p_se.row(j) += rho[i]*(DM_vec[i] * (p_se_cache.row(j).transpose()));
+                p_se.row(j) += rho[idx]*(DM_vec[idx] * (p_se_cache.row(j).transpose()));
             }
         }
     }
@@ -376,11 +376,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         p_se = 1*p_se_cache; 
         if (has_spatial)
         {
-            for (i = 0; i < DM_vec.size(); i++)
+            for (idx = 0; idx < DM_vec.size(); idx++)
             {
                 for (j = 0; j < sim_width; j++)
                 {
-                    p_se.row(j) += rho[i]*(DM_vec[i] * p_se_cache.row(j).transpose());
+                    p_se.row(j) += rho[idx]*(DM_vec[idx] * p_se_cache.row(j).transpose());
                 }
             }
         }
