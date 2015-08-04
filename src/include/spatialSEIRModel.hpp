@@ -1,6 +1,7 @@
 #ifndef SPATIALSEIR_MODEL_INC
 #define SPATIALSEIR_MODEL_INC
 #include <Rcpp.h>
+#include <RcppCAF.h>
 #include "caf/all.hpp"
 #include "./dataModel.hpp"
 #include "./distanceModel.hpp"

@@ -7,5 +7,6 @@ Author: Grant Brown
 Maintainer: Grant Brown <grant-brown@uiowa.edu>
 Description: This package is under heavy development, but will eventually provide fast, approximate Bayesian inference for a broad class of stochastic spatial SEIR(S) epidemic model.  
 License: GPL (>= 3)
+Depends: RcppCAF
 Imports: methods, Rcpp (>= 0.11.5), RcppCAF
 LinkingTo: Rcpp, RcppEigen, RcppCAF
