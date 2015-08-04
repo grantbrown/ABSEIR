@@ -1,6 +1,5 @@
 #ifndef ACTOR_SEIRSIM_HEADER
 #define ACTOR_SEIRSIM_HEADER
-#include <RcppCAF.h>
 #include <map>
 #include <vector>
 #include <random>
