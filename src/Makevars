@@ -1,15 +1,11 @@
 $(info LDFLAGS is $(LDFLAGS))
 EXT_PKGDR=`$(R_HOME)/bin/Rscript -e "RcppCAF:::LdFlags()"`
 PKG_CPPFLAGS= -std=c++11 -Wall -pedantic -pthread -fPIC -O2 -g -I./include -I./libcaf_core -I./libcaf_io
-LDFLAGS += -whole_archive
 PKG_LIBS=  -lm -L$(EXT_PKGDR) -lcaf_main
 LIBS+=-L$(EXT_PKGDR)
 
 SOURCES = $(wildcard ./*.cpp)
 OBJECTS = $(SOURCES:.cpp=.o)
-
-
-$(info Objects: $(OBJECTS))
 
 $(SHLIB): $(OBJECTS)
 
