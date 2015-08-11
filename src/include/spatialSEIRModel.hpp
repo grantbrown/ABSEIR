@@ -58,14 +58,25 @@ class spatialSEIRModel
                          transitionPriors& transitionPriors_,
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
-        Rcpp::List sample(SEXP nSample, SEXP rejectionFraction, SEXP batchSize);
+        //Rcpp::List sample(SEXP nSample, SEXP rejectionFraction, SEXP batchSize);
+        Rcpp::List sample(SEXP nSample);
         Rcpp::List evaluate(SEXP inParams);
         Rcpp::List simulate_given(SEXP inParams);
         //Destructor
         ~spatialSEIRModel();
     private:
+        int batchNum;
         int ncalls;
+        void updateParams();
+        void updateParams_prior();
+        void updateParams_SMC();
+        void updateWeights();
         Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
+        Eigen::MatrixXd param_matrix;
+        Eigen::VectorXd tau;
+        Eigen::VectorXd weights;
+        samplingResultSet previousSamples;
+        samplingResultSet currentSamples;
         samplingResultSet combineResults(Rcpp::NumericVector currentResults, 
                                   Rcpp::NumericMatrix currentParams,
                                   Rcpp::NumericVector newResults,

@@ -184,44 +184,76 @@ samplingResultSet spatialSEIRModel::combineResults(Rcpp::NumericVector currentRe
     return(output);
 }
 
-Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP acceptanceFraction, 
-                                    SEXP batchSize)
+void spatialSEIRModel::updateParams()
 {
-    Rcpp::IntegerVector nSamp(nSamples);
-    Rcpp::NumericVector acceptFraction(acceptanceFraction);
-    Rcpp::IntegerVector bSize(batchSize);
+    if (batchNum == 0 || ((samplingControlInstance -> algorithm) == ALG_BasicABC))
+    {
+        updateParams_prior();
+    }
+    else if ((samplingControlInstance -> algorithm) == ALG_ModifiedBeaumont2009)
+    {
+        updateParams_SMC();
+    }
+    else
+    {
+       ::Rf_error("Unknown algorithm number");
+    }
+}
 
-    bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
-    bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+void spatialSEIRModel::updateParams_SMC()
+{
+    int i,j;
+    // Back up current results for later weight calculation.
+    previousSamples.params = Rcpp::clone(currentSamples.params);
+    previousSamples.result = Rcpp::clone(currentSamples.result);
 
-    int batchNum;
-    int N = nSamp(0);
-    double r = acceptFraction(0);
-    int bs = bSize(0);
-    int i, j;
+    Eigen::VectorXd newValues(currentSamples.params.nrow());
+    std::uniform_real_distribution<double> runif(0.0,1.0);
+    std::vector<std::normal_distribution<double>> K;
+
+    for (i = 0; i < currentSamples.params.ncol(); i++)
+    {
+        tau(i) = 2.0*Rcpp::sd(currentSamples.params( _, i));
+        K.push_back(std::normal_distribution<double>(0.0, tau(i)));
+    }
+
+    // Calculate cumulative weights for resampling. 
+    std::vector<double> cumulativeWeights(currentSamples.params.nrow());
+    cumulativeWeights[0] = weights(0);
+    for (i = 1; i < currentSamples.params.rows(); i++)
+    {
+        cumulativeWeights[i] = cumulativeWeights[i-1] + weights(i);
+    }
+
+    int up;
+    for (i = 0; i < currentSamples.params.nrow(); i++)
+    {
+        up = std::upper_bound(cumulativeWeights.begin(), 
+                              cumulativeWeights.end(), runif(*generator)) 
+            - cumulativeWeights.begin();
+
+        newValues(i) = currentSamples.result(up);
+        for (j = 0; j < param_matrix.cols(); j ++)
+        {
+            param_matrix(i, j) = currentSamples.params(up, j) + 
+                K[j](*generator);
+        }
+    }
+}
+    
+void spatialSEIRModel::updateParams_prior()
+{
+    const bool hasReinfection = (reinfectionModelInstance -> 
+            betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+
     int nBeta = (exposureModelInstance -> X).cols();
     int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    int nParams = nBeta + nBetaRS + nRho + 2;
+    int bs = samplingControlInstance -> batch_size;
+    int i, j;
 
-    int nBatches = std::ceil(((1.0*N)/r)/bs);
-    Rcpp::List tmpList, outList;
-
-    Rcpp::NumericVector outputValues(N);
-    for (i = 0; i < N; i++)
-    {
-        outputValues(i) = std::numeric_limits<double>::infinity(); 
-    }
-
-    Rcpp::NumericMatrix outputParams(nSamp(0), nParams);
-
-    samplingResultSet currentSamples;
-    currentSamples.result = outputValues;
-    currentSamples.params = outputParams;
-
-    Eigen::MatrixXd param_matrix(bs, nParams);
     // Set up random samplers 
-
     // beta, beta_RS
     std::normal_distribution<> standardNormal(0,1); 
     // rho  
@@ -237,60 +269,156 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP acceptanceFraction,
             (transitionPriorsInstance -> gamma_ir_params)(0),
         1.0/(transitionPriorsInstance -> gamma_ir_params)(1)); 
 
-    for (batchNum = 0; batchNum < nBatches; batchNum ++)
+    // If this is too slow, consider column-wise operations
+    double rhoTot = 0.0;
+    int rhoItrs = 0;
+    for (i = 0; i < bs; i++)
     {
-        // If this is too slow, consider column-wise operations
-        double rhoTot = 0.0;
-        int rhoItrs = 0;
+        // Draw beta
+        for (j = 0; j < nBeta; j++)
+        {
+            param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
+                                 standardNormal(*generator) /
+                                 (exposureModelInstance -> betaPriorPrecision(j));
+        }
+        // Draw gamma_ei
+        param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
+        // Draw gamma_ir
+        param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
+    }
+    // Draw reinfection parameters
+    if (hasReinfection)
+    {
         for (i = 0; i < bs; i++)
         {
-            // Draw beta
-            for (j = 0; j < nBeta; j++)
+            for (j = nBeta; j < nBeta + nBetaRS; j++)
             {
-                param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
-                                     standardNormal(*generator) /
-                                     (exposureModelInstance -> betaPriorPrecision(j));
+                param_matrix(i, j) = 
+                    (reinfectionModelInstance -> betaPriorMean(j)) + 
+                     standardNormal(*generator) /
+                    (reinfectionModelInstance -> betaPriorPrecision(j));           
             }
-            if (hasReinfection)
+        }
+    }
+    // Draw rho
+    if (hasSpatial)
+    {
+        for (i = 0; i < bs; i++)
+        {
+            rhoTot = 2.0; 
+            rhoItrs = 0;
+            while (rhoTot > 1.0 && rhoItrs < 100)
             {
-                for (j = nBeta; j < nBeta + nBetaRS; j++)
+                rhoTot = 0.0;
+                for (j = nBeta + nBetaRS; j < nBeta + nBetaRS + nRho; j++)
                 {
-                    param_matrix(i, j) = 
-                        (reinfectionModelInstance -> betaPriorMean(j)) + 
-                         standardNormal(*generator) /
-                        (reinfectionModelInstance -> betaPriorPrecision(j));           
+                   param_matrix(i, j) = rhoDist(*generator); 
+                   rhoTot += param_matrix(i,j);
                 }
+                rhoItrs++;
             }
+            if (rhoTot > 1.0)
+            {
+                Rcpp::Rcout << "Error, valid rho value not obtained\n";
+            }
+        }
+    }
+}
 
-            if (hasSpatial)
+void spatialSEIRModel::updateWeights()
+{
+    if ((samplingControlInstance -> algorithm) 
+            == ALG_ModifiedBeaumont2009 && batchNum > 0)
+    {
+        int i,j,k;
+        int N = currentSamples.params.nrow();
+        int nParams = currentSamples.params.ncol();
+        double tmpWeight;
+        double totalWeight = 0.0;
+        Eigen::VectorXd newWeights(N);
+        for (i = 0; i < N; i++)
+        {
+            newWeights(i) = 0.0;
+            for (j = 0; j < N; j++) 
             {
-                rhoTot = 2.0; 
-                rhoItrs = 0;
-                while (rhoTot > 1.0 && rhoItrs < 100)
+                tmpWeight = 0.0;
+                for (k = 0; k < nParams; k++)
                 {
-                    rhoTot = 0.0;
-                    for (j = nBeta + nBetaRS; j < nBeta + nBetaRS + nRho; j++)
-                    {
-                       param_matrix(i, j) = rhoDist(*generator); 
-                       rhoTot += param_matrix(i,j);
-                    }
-                    rhoItrs++;
+                    tmpWeight += pow(currentSamples.params(i, k) 
+                            - currentSamples.params(j, k), 2)/(2.0*tau[k]);
                 }
-                if (rhoTot > 1.0)
-                {
-                    Rcpp::Rcout << "Error, valid rho value not obtained\n";
-                }
+                newWeights(i) += weights(j)*std::exp(-1.0*tmpWeight);
             }
-
-            param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
-            param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
+            totalWeight += newWeights(i);
         }
 
+        for (i = 0; i < N; i++)
+        {
+            newWeights(i) /= totalWeight;
+            weights(i) = newWeights(i);
+        }
+    }
+
+}
+
+Rcpp::List spatialSEIRModel::sample(SEXP nSamples)
+{
+    Rcpp::Rcout << "Sampling\n";
+    Rcpp::IntegerVector nSamp(nSamples);
+
+    bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
+    bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+
+    int N = nSamp(0);
+    double r = samplingControlInstance -> accept_fraction;
+    int bs = samplingControlInstance -> batch_size;
+    int i;
+    int nBeta = (exposureModelInstance -> X).cols();
+    int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    int nParams = nBeta + nBetaRS + nRho + 2;
+
+    int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
+                        std::ceil(((1.0*N)/r)/bs) :  
+                        (samplingControlInstance -> epochs));
+
+    tau = Eigen::VectorXd(nParams);
+
+    batchNum = 0;
+
+    if (samplingControlInstance -> algorithm == ALG_ModifiedBeaumont2009)
+    {
+        weights = Eigen::VectorXd(N);
+        for (i = 0; i < N; i++)
+        {
+            weights(i) = 1.0/N;
+        }
+    }
+
+
+    Rcpp::List tmpList, outList;
+
+    Rcpp::NumericVector outputValues(N);
+    for (i = 0; i < N; i++)
+    {
+        outputValues(i) = std::numeric_limits<double>::infinity(); 
+    }
+
+    Rcpp::NumericMatrix outputParams(nSamp(0), nParams);
+
+    currentSamples.result = outputValues;
+    currentSamples.params = outputParams;
+
+    param_matrix = Eigen::MatrixXd(bs, nParams);
+    for (batchNum = 0; batchNum < nBatches; batchNum ++)
+    {
+        updateParams();
         tmpList = this -> simulate(param_matrix, sample_atom::value);
         currentSamples = combineResults(currentSamples.result, 
                                         currentSamples.params,
                                         as<NumericVector>(tmpList["result"]),
                                         param_matrix);
+        updateWeights();
     }
     outList["result"] = currentSamples.result;
     outList["params"] = currentSamples.params;
