@@ -363,7 +363,6 @@ void spatialSEIRModel::updateWeights()
 
 Rcpp::List spatialSEIRModel::sample(SEXP nSamples)
 {
-    Rcpp::Rcout << "Sampling\n";
     Rcpp::IntegerVector nSamp(nSamples);
 
     bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
@@ -381,6 +380,11 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples)
     int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
                         std::ceil(((1.0*N)/r)/bs) :  
                         (samplingControlInstance -> epochs));
+
+    if (bs < N)
+    {
+        Rcpp::stop("Simulation batch size must be at least as large as final sample size\n");
+    }
 
     tau = Eigen::VectorXd(nParams);
 
