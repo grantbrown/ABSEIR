@@ -33,7 +33,7 @@ void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _pre
     {
         if (priorMeans.length() != inPrecision.length() || inPrecision.length() != inX.ncol())
         {
-            ::Rf_error("Number of parameters, prior means, or precisions does not equal the number of supplied covariates.\n");
+            Rcpp::stop("Number of parameters, prior means, or precisions does not equal the number of supplied covariates.\n");
         }
         int i,j;
         betaPriorPrecision = Eigen::VectorXd(inX.ncol());
@@ -58,7 +58,7 @@ void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _pre
 reinfectionModel::~reinfectionModel()
 {
     if (prot !=0 ){
-        ::Rf_error("can't delete reinfectionModel, still being used.\n");
+        Rcpp::stop("can't delete reinfectionModel, still being used.\n");
     }
 }
 

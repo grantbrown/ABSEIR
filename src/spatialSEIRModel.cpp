@@ -75,7 +75,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
     if (err != 0)
     { 
-        ::Rf_error("Error: model components were not provided in the correct order. \n");
+        Rcpp::stop("Error: model components were not provided in the correct order. \n");
     }
 
     ncalls = 0;
@@ -98,26 +98,26 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
     if ((dataModelInstance -> nLoc) != (exposureModelInstance -> nLoc))
     { 
-        ::Rf_error(("Exposure model and data model imply different number of locations: " 
+        Rcpp::stop(("Exposure model and data model imply different number of locations: " 
                 + std::to_string(dataModelInstance -> nLoc) + ", " 
                 + std::to_string(exposureModelInstance -> nLoc) + ".\n").c_str());
     }
     if ((dataModelInstance -> nTpt) != (exposureModelInstance -> nTpt))
     { 
-        ::Rf_error(("Exposure model and data model imply different number of time points:"
+        Rcpp::stop(("Exposure model and data model imply different number of time points:"
                     + std::to_string(dataModelInstance -> nTpt) + ", "
                     + std::to_string(exposureModelInstance -> nTpt) + ".\n").c_str());  
     }
     if ((dataModelInstance -> nLoc) != (distanceModelInstance -> numLocations))
     {       
-        ::Rf_error(("Data model and distance model imply different number of locations:"
+        Rcpp::stop(("Data model and distance model imply different number of locations:"
                     + std::to_string(dataModelInstance -> nLoc) + ", "
                     + std::to_string(distanceModelInstance -> numLocations) + ".\n").c_str()
                 );
     }
     if ((dataModelInstance -> nLoc) != (initialValueContainerInstance -> S0.size())) 
     { 
-        ::Rf_error("Data model and initial value container have different dimensions\n");
+        Rcpp::stop("Data model and initial value container have different dimensions\n");
     }
     if ((reinfectionModelInstance -> reinfectionMode) == 3)
     {
@@ -127,7 +127,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     {
         if (((reinfectionModelInstance -> X_rs).rows()) != (dataModelInstance -> nTpt))
         { 
-            ::Rf_error("Reinfection and data mode time points differ.\n");
+            Rcpp::stop("Reinfection and data mode time points differ.\n");
         }
     }
     if ((reinfectionModelInstance -> reinfectionMode) > 2)
@@ -196,7 +196,7 @@ void spatialSEIRModel::updateParams()
     }
     else
     {
-       ::Rf_error("Unknown algorithm number");
+        Rcpp::stop("Unknown algorithm number");
     }
 }
 

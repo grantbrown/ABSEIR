@@ -25,11 +25,11 @@ void distanceModel::addDistanceMatrix(NumericMatrix distMat)
 {
     if (distMat.nrow() != distMat.ncol())
     {
-        ::Rf_error("Distance matrix must be square.\n");
+        Rcpp::stop("Distance matrix must be square.\n");
     }
     else if (numLocations != -1 && distMat.nrow() != (numLocations))
     {
-        ::Rf_error("Dimension does not match previously added distance matrix\n");
+        Rcpp::stop("Dimension does not match previously added distance matrix\n");
     }
     Eigen::MatrixXd new_mat(distMat.nrow(), distMat.ncol());
     int i,j;
@@ -53,7 +53,7 @@ void distanceModel::summary()
 distanceModel::~distanceModel()
 {
     if (prot !=0 ){
-        ::Rf_error("can't delete distanceModel, still being used.\n");
+        Rcpp::stop("can't delete distanceModel, still being used.\n");
     }
 }
 

@@ -25,7 +25,7 @@ void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP 
         E0_vec.length() != I0_vec.length() ||
         I0_vec.length() != R0_vec.length())
     {
-        ::Rf_error("Init compartment lengths do not match\n");
+        Rcpp::stop("Init compartment lengths do not match\n");
     }
     int i;
     S0 = Eigen::VectorXi(E0_vec.length());
@@ -45,7 +45,7 @@ void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP 
 initialValueContainer::~initialValueContainer()
 {
     if (prot !=0 ){
-        ::Rf_error("can't delete initialValueContainer, still being used.\n");
+        Rcpp::stop("can't delete initialValueContainer, still being used.\n");
     }
 }
 

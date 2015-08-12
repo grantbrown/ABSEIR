@@ -76,7 +76,7 @@ void transitionPriors::summary()
 transitionPriors::~transitionPriors()
 {
     if (prot !=0 ){
-        ::Rf_error("can't delete transitionPriors, still being used.\n");
+        Rcpp::stop("can't delete transitionPriors, still being used.\n");
     }
 }
 

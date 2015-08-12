@@ -97,7 +97,7 @@ void dataModel::summary()
 dataModel::~dataModel()
 {
     if (prot !=0 ){
-        ::Rf_error("can't delete dataModel, still being used.\n");
+        Rcpp::stop("can't delete dataModel, still being used.\n");
     }
 }
 

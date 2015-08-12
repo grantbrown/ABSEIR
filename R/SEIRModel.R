@@ -7,8 +7,6 @@ SpatialSEIRModel = function(data_model,
                           initial_value_container,
                           sampling_control,
                           samples=100,
-                          accept_fraction=1e-4,
-                          batch_size=50000,
                           verbose=FALSE)
 {
 
@@ -112,7 +110,11 @@ SpatialSEIRModel = function(data_model,
             samplingControl, 
             sampling_control$sim_width,
             sampling_control$seed,
-            sampling_control$n_cores
+            sampling_control$n_cores,
+            sampling_control$acceptance_fraction,
+            sampling_control$batch_size,
+            sampling_control$algorithm,
+            sampling_control$epochs
         )
 
         if (verbose) cat("...Building transition priors\n") 
@@ -136,8 +138,7 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, accept_fraction, 
-                                                      batch_size)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result

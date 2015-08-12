@@ -82,7 +82,11 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
             samplingControl, 
             samplingControlInstance$sim_width,
             samplingControlInstance$seed,
-            samplingControlInstance$n_cores
+            samplingControlInstance$n_cores,
+            samplingControlInstance$acceptance_fraction,
+            samplingControlInstance$batch_size,
+            samplingControlInstance$algorithm,
+            samplingControlInstance$epochs
         )
 
         if (verbose) cat("...building transition priors\n") 
