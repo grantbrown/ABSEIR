@@ -4,55 +4,32 @@
 
 using namespace Rcpp;
 
-samplingControl::samplingControl(SEXP width, SEXP seed, SEXP cores, 
-                                 SEXP frac, SEXP batch, SEXP alg,
-                                 SEXP n_epochs)
+samplingControl::samplingControl(SEXP integerParameters,
+                                 SEXP numericParameters)
 {
-    Rcpp::IntegerVector in_width(width); 
-    Rcpp::IntegerVector in_seed(seed);
-    Rcpp::IntegerVector in_cores(cores);
-    Rcpp::IntegerVector in_algorithm(alg);
-    Rcpp::NumericVector in_frac(frac);
-    Rcpp::IntegerVector in_batch(batch);
-    Rcpp::IntegerVector in_epochs(n_epochs);
+    Rcpp::IntegerVector inIntegerParams(integerParameters);
+    Rcpp::NumericVector inNumericParams(numericParameters);
 
-    if (in_width.length() != 1)
+    if (inIntegerParams.size() != 6 ||
+        inNumericParams.size() != 2)
     {
-        Rcpp::stop("Simulation width must be of length 1.");
+        Rcpp::stop("Exactly 8 parameters are required.");
     }
-    if (in_seed.length() != 1)
-    {
-        Rcpp::stop("Simulation seed must be of length 1.");
-    }
-    if (in_cores.length() != 1)
-    {
-        Rcpp::stop("Number of cores must be of length 1.");
-    }
-    if (in_algorithm.length() != 1 || (in_algorithm(0) != ALG_BasicABC && 
-                in_algorithm(0) != ALG_ModifiedBeaumont2009))
+
+    simulation_width = inIntegerParams(0);
+    random_seed = inIntegerParams(1); 
+    CPU_cores = inIntegerParams(2); 
+    algorithm = inIntegerParams(3);
+    batch_size = inIntegerParams(4);
+    epochs = inIntegerParams(5);
+
+    accept_fraction = inNumericParams(0);
+    shrinkage = inNumericParams(1);
+
+    if (algorithm != ALG_BasicABC && algorithm != ALG_ModifiedBeaumont2009)
     {
         Rcpp::stop("Algorithm specification must be of length 1 and equal to 1 or 2.");
     }
-    if (in_batch.length() != 1)
-    {
-        Rcpp::stop("Batch size must be of length 1.");
-    }
-    if (in_frac.length() != 1)
-    {
-        Rcpp::stop("Acceptance fraction must be of length 1.");
-    }
-    if (in_epochs.length() != 1)
-    {
-        Rcpp::stop("Epochs must be of length 1.");
-    }
-
-    simulation_width = in_width(0);
-    random_seed = in_seed(0);
-    CPU_cores = in_cores(0);
-    algorithm = in_algorithm(0);
-    accept_fraction = in_frac(0);
-    batch_size = in_batch(0);
-    epochs = in_epochs(0);
 }
 
 samplingControl::~samplingControl()
@@ -71,7 +48,7 @@ RCPP_MODULE(mod_samplingControl)
 {
     using namespace Rcpp;
     class_<samplingControl>( "samplingControl" )
-    .constructor<SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP>();
+    .constructor<SEXP, SEXP>();
 }
 
 

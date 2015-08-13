@@ -50,7 +50,7 @@ using namespace caf;
 class spatialSEIRModel
 {
     public: 
-        //Constructor
+        /** Constructor */
         spatialSEIRModel(dataModel& dataModel_,
                          exposureModel& exposureModel_,
                          reinfectionModel& reinfectionModel_,
@@ -58,37 +58,106 @@ class spatialSEIRModel
                          transitionPriors& transitionPriors_,
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
-        //Rcpp::List sample(SEXP nSample, SEXP rejectionFraction, SEXP batchSize);
-        Rcpp::List sample(SEXP nSample);
+        /** The main ABC function - draw nSample samples from the approximated
+         * posterior, and optionally set verbose to a nonzero integer for additional
+         * output.*/ 
+        Rcpp::List sample(SEXP nSample, SEXP verbose);
+        /** Accept a matrix of parameters, simulate epidemics, and return the 
+         * euclidean distance from the outcome. */
         Rcpp::List evaluate(SEXP inParams);
+        /** Simulate epdiemics based on the matrix of parameters inParams,
+         * return the simulated epidemic quantities.  
+         */
         Rcpp::List simulate_given(SEXP inParams);
-        //Destructor
+        double evalPrior(Rcpp::NumericVector param_values);
+        /** Destructor */
         ~spatialSEIRModel();
+
     private:
+        /** Simulated epidemics are processed in batches for parallelizeability. 
+         * This applies both to the BasicABC and Beaumont2009 algorithms.*/
         int batchNum;
+        /** An indicator as to whether or not reweighting is required 
+         * (Beaumont2009)*/
+        int reweight;
+        /** A counter of how many times this object has been asked to simulate
+         * data. This is not currently used much, as we destroy objects after
+         * use and recreate them as needed.*/
         int ncalls;
+        /** The fraction of the current estimates which was replaced by new 
+         * draws in the latest batch (BasicABC)*/
+        double updateFraction;
+        /** The minimum distance estimate currently accepted*/
+        double minEps;
+        /** The maximum distance estimate currently accepted*/
+        double maxEps;
+        /** The currently enforced uppder bound on distance*/
+        double currentEps;
+        /** Generic function to propose new parameters. */
         void updateParams();
+        /** Function to propose new parameters from the prior distribution*/
         void updateParams_prior();
+        /** Function to propose new parameters accordin to the weights from
+         * Beaumont 2009*/
         void updateParams_SMC();
+        /** Function to compute new weights from Beaumont 2009*/
         void updateWeights();
-        Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
+        /** Storage vector for accepted parameters during repeated sampling.*/
+        std::vector<Eigen::VectorXd> currentAccepted;
+        /** Storage vector for accepted parameter distances 
+         * during repeated sampling.*/
+        std::vector<double> currentAcceptedResult;
+        /** Matrix from which parameters are sent to the workers. */
         Eigen::MatrixXd param_matrix;
+        /** Vector of Gaussian standard deviations used in forward SMC kernel*/
         Eigen::VectorXd tau;
+        /** The current resampling weights (Beaumont 2009) */
         Eigen::VectorXd weights;
-        samplingResultSet previousSamples;
+        /** A data structure containing current epoch parameter values and 
+         * distances.*/
         samplingResultSet currentSamples;
+        /** A data structure containing previous epoch parameter values and 
+         * distances, used in weight computation.*/
+        samplingResultSet previousSamples;
+
+        /** Main simulation function. */
+        Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
+
+        /** General function to take new samples and use them to update the 
+         * currently accepted ones. */
         samplingResultSet combineResults(Rcpp::NumericVector currentResults, 
                                   Rcpp::NumericMatrix currentParams,
                                   Rcpp::NumericVector newResults,
                                   Eigen::MatrixXd newParams);
+
+        /** Parameter update function for BasicABC rejection algorithm */
+        samplingResultSet combineResults_basic(Rcpp::NumericVector currentResults, 
+                                  Rcpp::NumericMatrix currentParams,
+                                  Rcpp::NumericVector newResults,
+                                  Eigen::MatrixXd newParams);
+        /** Parameter update function for Beaumont2009 algorithm */
+        samplingResultSet combineResults_SMC(
+                                  Rcpp::NumericVector newResults,
+                                  Eigen::MatrixXd newParams);
+
+        /** Pointer to a dataModel object*/
         dataModel* dataModelInstance;
+        /** Pointer to an exposureModel object*/
         exposureModel* exposureModelInstance;
+        /** Pointer to a reinfectionModel object*/
         reinfectionModel* reinfectionModelInstance;
+        /** Pointer to a distanceModel object*/
         distanceModel* distanceModelInstance;
+        /** Pointer to a transitionPriors object*/
         transitionPriors* transitionPriorsInstance;
+        /** Pointer to initialValueContainer object*/
         initialValueContainer* initialValueContainerInstance;
+        /** Pointer to a samplingControl object.*/
         samplingControl* samplingControlInstance;
+        /** Pointer to a scoped_actor object - can't we delete this?*/
         scoped_actor* self;
+        /** A persistant pointer to a properly initialized random 
+         * number generator.*/
         std::mt19937* generator;
 };
 

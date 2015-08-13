@@ -108,13 +108,10 @@ SpatialSEIRModel = function(data_model,
         if (verbose) cat("...Building sampling control model\n") 
         modelComponents[["samplingControl"]] = new (
             samplingControl, 
-            sampling_control$sim_width,
-            sampling_control$seed,
-            sampling_control$n_cores,
-            sampling_control$acceptance_fraction,
-            sampling_control$batch_size,
-            sampling_control$algorithm,
-            sampling_control$epochs
+            c(sampling_control$sim_width, sampling_control$seed,
+              sampling_control$n_cores,sampling_control$algorithm, 
+              sampling_control$batch_size,sampling_control$epochs),
+            c(sampling_control$acceptance_fraction, sampling_control$shrinkage)
         )
 
         if (verbose) cat("...Building transition priors\n") 
@@ -138,7 +135,7 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, verbose*1)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result

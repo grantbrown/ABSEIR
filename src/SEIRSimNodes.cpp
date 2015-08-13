@@ -329,7 +329,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             previous_I_star(j,i) = I_star_gen(*generator);
             previous_R_star(j,i) = R_star_gen(*generator);
 
-            results(j) += pow((previous_I_star(j,i) - I_star(0, i)), 2.0)/I_star.rows(); 
+            results(j) += pow((previous_I_star(j,i) - I_star(0, i)), 2.0); 
         }
     }
 
@@ -402,7 +402,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 previous_E_star(j,i) = E_star_gen(*generator);
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
-                results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)/(I_star.rows()*I_star.cols()); 
+                results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0); 
             }
         }
 
@@ -438,7 +438,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     double resultVal = 0.0;
     for (i = 0; i < sim_width; i++)
     {
-       resultVal += results(i); 
+       resultVal += std::sqrt(results(i)); 
     }
     resultVal /= sim_width;
     if (keepCompartments)
