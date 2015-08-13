@@ -19,14 +19,16 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             params = list(acceptance_fraction = -1,
                  batch_size = 5000,
                  epochs = 100, 
-                 shrinkage = 0.9)
+                 shrinkage = 0.9,
+                 max_batches = 20)
         }
         else
         {
             params = list(acceptance_fraction = 0.01,
                  batch_size = 10000,
                  epochs = 1,
-                 shrinkage = 1)
+                 shrinkage = 1,
+                 max_batches = 1)
         }
     }
     else if (class(params) == "list")
@@ -45,6 +47,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 1
             }
+            if (!("max_batches" %in% names(params))) {
+                params[["max_batches"]] = 20
+            }
         }
         else if (algorithm == "BasicABC")
         {
@@ -59,6 +64,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 0.01
+            }
+            if (!("max_batches" %in% names(params))) {
+                params[["max_batches"]] = 1
             }
         }
         else
@@ -75,7 +83,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "batch_size" = params$batch_size,
                    "algorithm" = alg,
                    "epochs" = params$epochs,
-                   "shrinkage" = params$shrinkage
+                   "shrinkage" = params$shrinkage,
+                   "max_batches" = params$max_batches
                    ), class = "SamplingControl")
 }
 

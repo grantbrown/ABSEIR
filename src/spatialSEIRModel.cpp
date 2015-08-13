@@ -472,7 +472,7 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
 void spatialSEIRModel::updateWeights()
 {
     if ((samplingControlInstance -> algorithm) 
-            == ALG_ModifiedBeaumont2009 && batchNum > 0 
+            == ALG_ModifiedBeaumont2009 
             && reweight == 1)
     {
         reweight = 0;
@@ -568,8 +568,11 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
     currentSamples.result = outputValues;
     currentSamples.params = outputParams;
 
+    int incompleteBatches = 0;
     param_matrix = Eigen::MatrixXd(bs, nParams);
-    for (batchNum = 0; batchNum < nBatches; batchNum ++)
+    batchNum = 0;
+    while (batchNum < nBatches && incompleteBatches < 
+            (samplingControlInstance -> max_batches))
     {
         updateParams();
         tmpList = this -> simulate(param_matrix, sample_atom::value);
@@ -577,19 +580,44 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
                                         currentSamples.params,
                                         as<NumericVector>(tmpList["result"]),
                                         param_matrix);
-        if (verbose)
+
+        if (((samplingControlInstance -> algorithm) 
+                == ALG_ModifiedBeaumont2009) && reweight == 0
+                && batchNum != 0)
         {
-            if (currentAccepted.size() == 0)
+            incompleteBatches++;
+        }
+        else 
+        {
+            incompleteBatches = 0;
+            batchNum++;
+        }
+
+        if (verbose && (samplingControlInstance -> algorithm) 
+                == ALG_ModifiedBeaumont2009)
+        {
+            if (reweight != 0 || batchNum == 1)
             {
-                Rcpp::Rcout << "Completed batch " << batchNum + 1 << " of " << 
+                Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
                     nBatches << ". Upd: " << updateFraction << ". Eps: [" << 
-                    minEps << ", " << maxEps << "] < " << currentEps/(samplingControlInstance -> shrinkage) << "\n";
+                    minEps << ", " << maxEps << "] < " << 
+                    currentEps/(samplingControlInstance -> shrinkage) << "\n";
             }
             else
             {
-                Rcpp::Rcout << "Incomplete batch, current size: " << currentAccepted.size() 
-                    << " of " << N << ".\n"; 
+                Rcpp::Rcout << "Incomplete batch number: " 
+                    << incompleteBatches
+                    << " of max " << (samplingControlInstance -> max_batches)
+                    << ". Current size: " 
+                    << currentAccepted.size() << " of " << N << ".\n"; 
             }
+        }
+        else if (verbose)
+        {
+            Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
+                nBatches << ". Upd: " << updateFraction << ". Eps: [" << 
+                minEps << ", " << maxEps << "]\n";
+
         }
         updateWeights();
     }

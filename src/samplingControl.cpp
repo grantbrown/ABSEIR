@@ -10,10 +10,10 @@ samplingControl::samplingControl(SEXP integerParameters,
     Rcpp::IntegerVector inIntegerParams(integerParameters);
     Rcpp::NumericVector inNumericParams(numericParameters);
 
-    if (inIntegerParams.size() != 6 ||
+    if (inIntegerParams.size() != 7 ||
         inNumericParams.size() != 2)
     {
-        Rcpp::stop("Exactly 8 parameters are required.");
+        Rcpp::stop("Exactly 9 samplingControl parameters are required.");
     }
 
     simulation_width = inIntegerParams(0);
@@ -22,6 +22,7 @@ samplingControl::samplingControl(SEXP integerParameters,
     algorithm = inIntegerParams(3);
     batch_size = inIntegerParams(4);
     epochs = inIntegerParams(5);
+    max_batches = inIntegerParams(6);
 
     accept_fraction = inNumericParams(0);
     shrinkage = inNumericParams(1);
@@ -29,6 +30,10 @@ samplingControl::samplingControl(SEXP integerParameters,
     if (algorithm != ALG_BasicABC && algorithm != ALG_ModifiedBeaumont2009)
     {
         Rcpp::stop("Algorithm specification must be of length 1 and equal to 1 or 2.");
+    }
+    if (max_batches <= 0)
+    {
+        Rcpp::stop("max_batches must be greater than zero.");
     }
 }
 

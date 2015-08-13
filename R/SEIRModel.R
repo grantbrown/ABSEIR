@@ -110,7 +110,8 @@ SpatialSEIRModel = function(data_model,
             samplingControl, 
             c(sampling_control$sim_width, sampling_control$seed,
               sampling_control$n_cores,sampling_control$algorithm, 
-              sampling_control$batch_size,sampling_control$epochs),
+              sampling_control$batch_size,sampling_control$epochs, 
+              sampling_control$max_batches),
             c(sampling_control$acceptance_fraction, sampling_control$shrinkage)
         )
 
