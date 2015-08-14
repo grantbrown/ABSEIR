@@ -4,9 +4,11 @@
 
 using namespace Rcpp;
 
-dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
+dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi, 
+        SEXP _na_mask)
 {
     Rcpp::NumericMatrix input(_Y);
+    Rcpp::IntegerMatrix input_na_mask(_na_mask);
 
     nLoc = input.ncol();
     nTpt = input.nrow();
@@ -47,12 +49,14 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi)
         dataModelCompartment = 0;
     }
     Y = Eigen::MatrixXi(nTpt, nLoc);
+    na_mask = MatrixXb(nTpt, nLoc);
     int i,j;
     for (i = 0; i < (nTpt); i++)
     {
         for (j = 0; j < (nLoc); j++)
         {
             Y(i,j) = input(i, j); 
+            na_mask(i, j) = (input_na_mask(i, j) == 1); 
         }
     }
 }
@@ -105,7 +109,7 @@ RCPP_MODULE(mod_dataModel)
 {
     using namespace Rcpp;
     class_<dataModel>( "dataModel" )
-    .constructor<SEXP,SEXP,SEXP,SEXP>()
+    .constructor<SEXP,SEXP,SEXP,SEXP,SEXP>()
     .method("summary", &dataModel::summary);
 }
 

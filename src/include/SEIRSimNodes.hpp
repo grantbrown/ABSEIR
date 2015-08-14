@@ -4,12 +4,11 @@
 #include <vector>
 #include <random>
 #include <sstream>
-#include <Rcpp.h>
 #include <iostream>
 #include <Eigen/Core>
+#include <dataModel.hpp>
 #include "caf/all.hpp"
 
-using namespace Rcpp;
 using namespace std;
 using namespace caf;
 
@@ -31,6 +30,7 @@ class SEIR_sim_node : public event_based_actor {
                       Eigen::VectorXi R0,
                       Eigen::VectorXd offset,
                       Eigen::MatrixXi I_star,
+                      MatrixXb na_mask,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
                       Eigen::MatrixXd X_rs,
@@ -56,6 +56,7 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
         Eigen::MatrixXi I_star;
+        MatrixXb na_mask;
         std::vector<Eigen::MatrixXd> DM_vec;
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;

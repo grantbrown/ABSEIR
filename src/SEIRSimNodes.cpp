@@ -1,4 +1,3 @@
-#include <Rcpp.h>
 #include <iostream>
 #include <sstream>
 #include <random>
@@ -8,7 +7,6 @@
 #include "SEIRSimNodes.hpp"
 #include "spatialSEIRModel.hpp"
 
-using namespace Rcpp;
 using namespace std;
 using namespace caf;
 
@@ -20,6 +18,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              Eigen::VectorXi r,
                              Eigen::VectorXd offs,
                              Eigen::MatrixXi is,
+                             MatrixXb nm,
                              std::vector<Eigen::MatrixXd> dmv,
                              Eigen::MatrixXd x,
                              Eigen::MatrixXd x_rs,
@@ -40,6 +39,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  R0(r),
                                  offset(offs),
                                  I_star(is),
+                                 na_mask(nm),
                                  DM_vec(dmv),
                                  X(x),
                                  X_rs(x_rs),
@@ -63,7 +63,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
     }
     catch (int e)
     {
-        aout(this) << "Error in constructor: "<<e << "\n";
+        aout(this) << "Error in constructor: " << e << "\n";
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (I_star.cols() > 1);
@@ -151,7 +151,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         this -> sim_width = 1;
     }
 
-
     simulationResultSet compartmentResults;
     unsigned int idx; 
     int time_idx, i, j;
@@ -186,7 +185,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         rho = Eigen::VectorXd(1.0);
     }
-
 
     double gamma_ei = params(params.size() - 2);
     double gamma_ir = params(params.size() - 1);
@@ -329,7 +327,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             previous_I_star(j,i) = I_star_gen(*generator);
             previous_R_star(j,i) = R_star_gen(*generator);
 
-            results(j) += pow((previous_I_star(j,i) - I_star(0, i)), 2.0); 
+            results(j) += (na_mask(0,i) ? 0 : 
+                    pow((previous_I_star(j,i) - I_star(0, i)), 2.0)); 
         }
     }
 
@@ -402,7 +401,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 previous_E_star(j,i) = E_star_gen(*generator);
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
-                results(j) += pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0); 
+                results(j) += (na_mask(time_idx, i) ? 0 : 
+                        pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)); 
             }
         }
 

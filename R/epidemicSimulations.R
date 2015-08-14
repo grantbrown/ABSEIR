@@ -23,7 +23,9 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
         modelCache[["dataModel"]] = new(dataModel, dataModelInstance$Y,
                                             dataModelInstance$type,
                                             dataModelInstance$compartment,
-                                            dataModelInstance$phi)
+                                            dataModelInstance$phi,
+                                            dataModelInstance$na_mask)
+
 
         if (verbose) cat("...Building distance model\n")
         modelCache[["distanceModel"]] = new(distanceModel)
@@ -80,13 +82,12 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
         if (verbose) cat("...Building sampling control model\n") 
         modelCache[["samplingControl"]] = new (
             samplingControl, 
-            samplingControlInstance$sim_width,
-            samplingControlInstance$seed,
-            samplingControlInstance$n_cores,
-            samplingControlInstance$acceptance_fraction,
-            samplingControlInstance$batch_size,
-            samplingControlInstance$algorithm,
-            samplingControlInstance$epochs
+            c(samplingControlInstance$sim_width, samplingControlInstance$seed,
+              samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
+              samplingControlInstance$batch_size,samplingControlInstance$epochs, 
+              samplingControlInstance$max_batches),
+            c(samplingControlInstance$acceptance_fraction, 
+              samplingControlInstance$shrinkage)
         )
 
         if (verbose) cat("...building transition priors\n") 

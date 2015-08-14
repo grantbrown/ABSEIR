@@ -1,6 +1,12 @@
 # dataModel module helper function
 DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star"), phi = NA)
 {
+    if (compartment != "I_star")
+    {
+        stop(paste("Currently, only the I_star compartment is supported.", 
+             " Alternate models are planned, so if you find yourself",
+             " in need of such features, please email grant-brown@uiowa.edu"))
+    }
     if (class(Y) != "matrix")
     {
         Y = as.matrix(Y)
@@ -18,9 +24,12 @@ DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c(
     {
         stop("Non identy data model currently requires a single overdispersion parameter") 
     }
+    na_mask = is.na(Y)
+    Y[na_mask] = -Inf
     structure(list("Y"=Y, 
                    "type"=type,
                    "compartment"=compartment,
-                   "phi"=phi), class = "DataModel")
+                   "phi"=phi,
+                   "na_mask" = na_mask), class = "DataModel")
 }
 
