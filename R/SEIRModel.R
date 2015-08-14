@@ -195,6 +195,10 @@ SpatialSEIRModel = function(data_model,
     return(structure(modelResults, class = "SpatialSEIRModel"))
 }
 
+#' Plot a graphical summary of the marginal posterior distribution of SEIR model parameters
+#' @param x a \code{\link{SpatialSEIRModel}} object
+#' @param \dots additional arguments to be passed to plotting functions. 
+#' @examples \dontrun{plot(modelObject)}
 plot.SpatialSEIRModel = function(x, ...)
 {
     for (i in 1:ncol(x$param.samples))
@@ -213,6 +217,10 @@ plot.SpatialSEIRModel = function(x, ...)
 
 }
 
+#' Produce a summary of the results of fitting a SEIR model
+#' @param object a \code{\link{SpatialSEIRModel}} object
+#' @param \dots not used 
+#' @return a summary.SpatialSEIRModel object
 summary.SpatialSEIRModel = function(object, ...)
 {
     nLoc = ncol(object$modelComponents$data_model$Y)
@@ -245,7 +253,9 @@ summary.SpatialSEIRModel = function(object, ...)
        ), class = "summary.SpatialSEIRModel")
 }
 
-
+#' Print a \code{summary.SpatialSEIRModel} object
+#' @param x a \code{summary.SpatialSEIRModel} object
+#' @param \dots not used
 print.summary.SpatialSEIRModel = function(x, ...)
 {
     nl = "\n\n"

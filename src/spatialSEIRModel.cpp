@@ -619,6 +619,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
                 minEps << ", " << maxEps << "]\n";
 
         }
+        Rcpp::checkUserInterrupt();
         updateWeights();
     }
     outList["result"] = currentSamples.result;

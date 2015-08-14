@@ -1,4 +1,20 @@
-# dataModel module helper function
+#' Create a DataModel object, describing the relationship of your data to the SEIR model
+#' 
+#' @param Y a matrix with T rows and n columns, for time points and spatial locations respectively.
+#' @param type a string equal to "identity" or "overdispersion"
+#' @param compartment a string equal to "I_star" or "R_star" 
+#' @param phi optional overdispersion parameter
+#' @return an object of type \code{\link{DataModel}} 
+#' @details
+#'  A fundamental task in building hierarchical models is to describe the way in which
+#'  the observed data relates to the underlying model. Here, we assume that the 
+#'  matrix of observed values, \code{Y}, is related to one of two epidemic compartments:
+#'  I_star or R_star. In the notation of Brown, Porter, and Oleson 2015, these correspond
+#'  to the $I^*$ and $R^*$ compartments, which catalog the newly infectious and recovered
+#'  individuals, respectively. For a discussion of these definitions, in addition to a more
+#'  detailed description of the overall spatial SEIR framework, please refer to that work. 
+#' @examples print("Examples go here") 
+
 DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star"), phi = NA)
 {
     if (compartment != "I_star")

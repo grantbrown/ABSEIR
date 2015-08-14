@@ -1,3 +1,21 @@
+#' perform and return epidemic simulations based on a fitted model object
+#' 
+#' @param modelObject a SpatialSEIRModel object, as created by the \code{\link{SpatialSEIRModel}}
+#' function. 
+#' @param replicates the number of replicate simulations to perform for each sample
+#' contained in \code{modelObject}
+#' @param verbose a logical value, indicating whether verbose output should be 
+#' provided. 
+#' 
+#' @details 
+#'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
+#'    memory efficiency and runtime does not return the simulated compartment values
+#'    to the user. If simulated epidemics are desired, they may be quickly and
+#'    easily generated using this function. 
+#' 
+#' @examples \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
+#'                                                  verbose = TRUE)} 
+#' 
 epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
 {
     if (class(modelObject) != "SpatialSEIRModel")
