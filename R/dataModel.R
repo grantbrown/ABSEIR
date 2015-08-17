@@ -17,6 +17,8 @@
 
 DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star"), phi = NA)
 {
+    type = type[1] 
+    compartment = compartment[1] 
     if (compartment != "I_star")
     {
         stop(paste("Currently, only the I_star compartment is supported.", 
@@ -27,14 +29,13 @@ DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c(
     {
         Y = as.matrix(Y)
     }
-    type = type[1]
     if (length(phi) == 1 && is.na(phi) && type != "identity")
     {
         stop("Must specify overdispersion parameter (phi) for non-identity data model.")
     }
     else if (length(phi) == 1 && is.na(phi))
     {
-        return(new(dataModel, Y, type, compartment, -1.0))
+        phi = -1
     }
     else if (class(phi) != "numeric" || length(phi) != 1)
     {
