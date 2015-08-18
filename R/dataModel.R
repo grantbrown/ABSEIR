@@ -19,12 +19,7 @@ DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c(
 {
     type = type[1] 
     compartment = compartment[1] 
-    if (compartment != "I_star")
-    {
-        stop(paste("Currently, only the I_star compartment is supported.", 
-             " Alternate models are planned, so if you find yourself",
-             " in need of such features, please email grant-brown@uiowa.edu"))
-    }
+
     if (class(Y) != "matrix")
     {
         Y = as.matrix(Y)
