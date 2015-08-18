@@ -703,6 +703,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
                                                                       exposureModelInstance -> betaPriorMean,
                                                                       reinfectionModelInstance -> betaPriorMean,
                                                                       dataModelInstance -> phi,
+                                                                      dataModelInstance -> dataModelCompartment,
                                                                       (*self)));
         (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]);
     }

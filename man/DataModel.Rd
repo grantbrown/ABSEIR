@@ -5,7 +5,7 @@
 \title{Create a DataModel object, describing the relationship of your data to the SEIR model}
 \usage{
 DataModel(Y, type = c("identity", "overdispersion"),
-  compartment = c("I_star", "R_star"), phi = NA)
+  compartment = c("I_star", "R_star", "I"), phi = NA)
 }
 \arguments{
 \item{Y}{a matrix with T rows and n columns, for time points and spatial locations respectively.}

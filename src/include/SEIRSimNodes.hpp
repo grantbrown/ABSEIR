@@ -29,7 +29,7 @@ class SEIR_sim_node : public event_based_actor {
                       Eigen::VectorXi I0,
                       Eigen::VectorXi R0,
                       Eigen::VectorXd offset,
-                      Eigen::MatrixXi I_star,
+                      Eigen::MatrixXi Y,
                       MatrixXb na_mask,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
@@ -42,6 +42,7 @@ class SEIR_sim_node : public event_based_actor {
                       Eigen::VectorXd se_mean,
                       Eigen::VectorXd rs_mean,
                       double phi,
+                      int data_compartment,
                       actor parent);
         ~SEIR_sim_node();
     protected:
@@ -55,7 +56,7 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::VectorXi I0;
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
-        Eigen::MatrixXi I_star;
+        Eigen::MatrixXi Y;
         MatrixXb na_mask;
         std::vector<Eigen::MatrixXd> DM_vec;
         Eigen::MatrixXd X;
@@ -73,6 +74,7 @@ class SEIR_sim_node : public event_based_actor {
         bool has_spatial;
         bool has_reinfection;
         int total_size;
+        int data_compartment;
         actor parent;
         scoped_actor* self;
         mt19937* generator;

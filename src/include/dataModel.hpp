@@ -4,6 +4,12 @@
 #include <modelComponent.hpp>
 #include <Eigen/Core>
 
+#define COMPARTMENT_I_STAR 0
+#define COMPARTMENT_R_STAR 1
+#define COMPARTMENT_I 2
+
+
+
 using namespace Rcpp;
 typedef Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> MatrixXb;
 RCPP_EXPOSED_CLASS(dataModel)

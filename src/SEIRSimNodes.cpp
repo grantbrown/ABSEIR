@@ -17,7 +17,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              Eigen::VectorXi i,
                              Eigen::VectorXi r,
                              Eigen::VectorXd offs,
-                             Eigen::MatrixXi is,
+                             Eigen::MatrixXi y,
                              MatrixXb nm,
                              std::vector<Eigen::MatrixXd> dmv,
                              Eigen::MatrixXd x,
@@ -30,6 +30,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              Eigen::VectorXd se_mean,
                              Eigen::VectorXd rs_mean,
                              double ph,
+                             int dmc,
                              actor pr
                              ) : sim_width(w),
                                  random_seed(sd),
@@ -38,7 +39,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  I0(i),
                                  R0(r),
                                  offset(offs),
-                                 I_star(is),
+                                 Y(y),
                                  na_mask(nm),
                                  DM_vec(dmv),
                                  X(x),
@@ -51,6 +52,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  exposure_mean(se_mean),
                                  reinfection_mean(rs_mean),
                                  phi(ph),
+                                 data_compartment(dmc),
                                  parent(pr)
 {
     try
@@ -66,7 +68,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
         aout(this) << "Error in constructor: " << e << "\n";
     }
     has_reinfection = (reinfection_precision(0) > 0); 
-    has_spatial = (I_star.cols() > 1);
+    has_spatial = (Y.cols() > 1);
     total_size = (has_reinfection && has_spatial 
                       ? X.cols() + X_rs.cols() + DM_vec.size() + 2 
                : (has_reinfection 
@@ -215,10 +217,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     // p_se calculation
     // Equivalent R expression: 
-    // exp(matrix(X %*% beta, nrow = nrow(I_star), ncol = ncol(I_star)))
+    // exp(matrix(X %*% beta, nrow = nrow(Y), ncol = ncol(Y)))
     Eigen::MatrixXd eta = ((X*beta).unaryExpr([](double elem){return(std::exp(elem));}));
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
-                I_star.rows(), I_star.cols());
+                Y.rows(), Y.cols());
 
     time_idx = 0;
     for (i = 0; i < sim_width; i++)
@@ -268,29 +270,29 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
     else
     {
-        p_rs = Eigen::VectorXd::Zero(I_star.rows());
+        p_rs = Eigen::VectorXd::Zero(Y.rows());
     }
 
     // Initialize debug info if applicable
     if (keepCompartments)
     {
         compartmentResults.result = 0.0;
-        compartmentResults.S = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.E = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.I = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.R = Eigen::MatrixXi(I_star.rows(), I_star.cols());
+        compartmentResults.S = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.E = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.I = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.R = Eigen::MatrixXi(Y.rows(), Y.cols());
 
-        compartmentResults.S_star = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.E_star = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.I_star = Eigen::MatrixXi(I_star.rows(), I_star.cols());
-        compartmentResults.R_star = Eigen::MatrixXi(I_star.rows(), I_star.cols());
+        compartmentResults.S_star = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.E_star = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.I_star = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.R_star = Eigen::MatrixXi(Y.rows(), Y.cols());
         
         compartmentResults.X = Eigen::MatrixXd(X.rows(), X.cols());  
         compartmentResults.X = X; 
         compartmentResults.beta = Eigen::MatrixXd(1, beta.size());
         compartmentResults.beta = beta.transpose(); 
         // Todo: add reinfection component
-        compartmentResults.p_se = Eigen::MatrixXd(I_star.rows(), I_star.cols());
+        compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se.row(0) = p_se.row(0);
         compartmentResults.p_ei = p_ei.transpose(); 
         compartmentResults.p_ir = p_ir.transpose(); 
@@ -313,7 +315,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     std::binomial_distribution<int> E_star_gen(previous_E(0,0) ,p_se(0));            
     std::binomial_distribution<int> I_star_gen(previous_I(0,0) ,p_ei(0));            
     std::binomial_distribution<int> R_star_gen(previous_R(0,0) ,p_ir(0));            
-    for (i = 0; i < I_star.cols(); i++)
+    for (i = 0; i < Y.cols(); i++)
     {
         for (j = 0; j<sim_width; j++)
         {
@@ -328,7 +330,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             previous_R_star(j,i) = R_star_gen(*generator);
 
             results(j) += (na_mask(0,i) ? 0 : 
-                    pow((previous_I_star(j,i) - I_star(0, i)), 2.0)); 
+                    pow((previous_I_star(j,i) - Y(0, i)), 2.0)); 
         }
     }
 
@@ -360,7 +362,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     // Simulation: iterative case
 
-    for (time_idx = 1; time_idx < I_star.rows(); time_idx++)
+    for (time_idx = 1; time_idx < Y.rows(); time_idx++)
     {
         for (i = 0; i < sim_width; i++)
         {
@@ -388,7 +390,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se.row(i) = ((-1.0*p_se.row(i).array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
         }
  
-        for (i = 0; i < I_star.cols(); i++)
+        for (i = 0; i < Y.cols(); i++)
         {
             for (j = 0; j < sim_width; j++)
             {
@@ -402,7 +404,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
                 results(j) += (na_mask(time_idx, i) ? 0 : 
-                        pow((previous_I_star(j,i) - I_star(time_idx, i)), 2.0)); 
+                        pow((previous_I_star(j,i) - Y(time_idx, i)), 2.0)); 
             }
         }
 

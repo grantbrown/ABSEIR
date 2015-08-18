@@ -36,11 +36,15 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi,
 
     if (inputCompartment(0) == "I_star")
     {
-        dataModelCompartment = 0;
+        dataModelCompartment = COMPARTMENT_I_STAR;
     }
     else if (inputCompartment(0) == "R_star")
     {
-        dataModelCompartment = 1;
+        dataModelCompartment = COMPARTMENT_R_STAR;
+    }
+    else if (inputCompartment(0) == "I")
+    {
+        dataModelCompartment = COMPARTMENT_I;
     }
     else
     {

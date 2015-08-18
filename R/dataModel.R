@@ -15,7 +15,7 @@
 #'  detailed description of the overall spatial SEIR framework, please refer to that work. 
 #' @examples print("Examples go here") 
 
-DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star"), phi = NA)
+DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star", "I"), phi = NA)
 {
     type = type[1] 
     compartment = compartment[1] 
