@@ -51,6 +51,7 @@ SpatialSEIRModel = function(data_model,
         modelComponents[["dataModel"]] = new(dataModel, data_model$Y,
                                             data_model$type,
                                             data_model$compartment,
+                                            data_model$cumulative,
                                             data_model$phi,
                                             data_model$na_mask*1)
 

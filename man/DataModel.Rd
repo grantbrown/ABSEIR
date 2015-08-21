@@ -5,7 +5,7 @@
 \title{Create a DataModel object, describing the relationship of your data to the SEIR model}
 \usage{
 DataModel(Y, type = c("identity", "overdispersion"),
-  compartment = c("I_star", "R_star", "I"), phi = NA)
+  compartment = c("I_star", "R_star", "I"), cumulative = FALSE, phi = NA)
 }
 \arguments{
 \item{Y}{a matrix with T rows and n columns, for time points and spatial locations respectively.}
@@ -13,6 +13,9 @@ DataModel(Y, type = c("identity", "overdispersion"),
 \item{type}{a string equal to "identity" or "overdispersion"}
 
 \item{compartment}{a string equal to "I_star" or "R_star"}
+
+\item{cumulative}{a logical value indicating whether the data is reported on a
+cumulative scale}
 
 \item{phi}{optional overdispersion parameter}
 }

@@ -4,11 +4,15 @@
 
 using namespace Rcpp;
 
-dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, SEXP _phi, 
-        SEXP _na_mask)
+dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, 
+        SEXP _cumulative, SEXP _phi, SEXP _na_mask)
 {
     Rcpp::NumericMatrix input(_Y);
     Rcpp::IntegerMatrix input_na_mask(_na_mask);
+
+    Rcpp::IntegerVector cmltv(_cumulative);
+
+    cumulative = (cmltv(0) != 0);
 
     nLoc = input.ncol();
     nTpt = input.nrow();
@@ -113,7 +117,7 @@ RCPP_MODULE(mod_dataModel)
 {
     using namespace Rcpp;
     class_<dataModel>( "dataModel" )
-    .constructor<SEXP,SEXP,SEXP,SEXP,SEXP>()
+    .constructor<SEXP,SEXP,SEXP,SEXP,SEXP,SEXP>()
     .method("summary", &dataModel::summary);
 }
 

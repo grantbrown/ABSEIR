@@ -43,6 +43,7 @@ class SEIR_sim_node : public event_based_actor {
                       Eigen::VectorXd rs_mean,
                       double phi,
                       int data_compartment,
+                      bool cumulative,
                       actor parent);
         ~SEIR_sim_node();
     protected:
@@ -75,6 +76,7 @@ class SEIR_sim_node : public event_based_actor {
         bool has_reinfection;
         int total_size;
         int data_compartment;
+        bool cumulative;
         actor parent;
         scoped_actor* self;
         mt19937* generator;

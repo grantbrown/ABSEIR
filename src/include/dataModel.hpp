@@ -16,8 +16,8 @@ RCPP_EXPOSED_CLASS(dataModel)
 class dataModel : public modelComponent
 {
     public:
-        dataModel(SEXP Y, SEXP type, SEXP compartment, SEXP phi,
-                  SEXP na_mask);
+        dataModel(SEXP Y, SEXP type, SEXP compartment, SEXP cumulative, 
+                  SEXP phi, SEXP na_mask);
         virtual void summary();
         Rcpp::IntegerVector* compartmentDimensions;
         int getModelComponentType();
@@ -25,6 +25,7 @@ class dataModel : public modelComponent
         int nTpt;
         int dataModelType;
         int dataModelCompartment;
+        bool cumulative;
         double phi;
         Eigen::MatrixXi Y;
         MatrixXb na_mask;

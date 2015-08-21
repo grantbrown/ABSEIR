@@ -31,6 +31,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              Eigen::VectorXd rs_mean,
                              double ph,
                              int dmc,
+                             bool cmltv,
                              actor pr
                              ) : sim_width(w),
                                  random_seed(sd),
@@ -53,6 +54,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                                  reinfection_mean(rs_mean),
                                  phi(ph),
                                  data_compartment(dmc),
+                                 cumulative(cmltv),
                                  parent(pr)
 {
     try
@@ -211,6 +213,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXi previous_I_star(sim_width, S0.size());
     Eigen::MatrixXi previous_R_star(sim_width, S0.size()); 
 
+    Eigen::MatrixXi cumulative_compartment(sim_width, S0.size());
+
     Eigen::MatrixXi* comparison_compartment = (data_compartment == 0 ?
                                                &previous_I_star : 
                                               (data_compartment == 1 ? 
@@ -335,6 +339,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             previous_I_star(j,i) = I_star_gen(*generator);
             previous_R_star(j,i) = R_star_gen(*generator);
 
+            if (cumulative)
+            {
+                cumulative_compartment(j,i) = (*comparison_compartment)(j,i);
+            }
+
             results(j) += (na_mask(0,i) ? 0 : 
                     pow(((*comparison_compartment)(j,i) - Y(0, i)), 2.0)); 
         }
@@ -409,8 +418,19 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 previous_E_star(j,i) = E_star_gen(*generator);
                 previous_I_star(j,i) = I_star_gen(*generator);
                 previous_R_star(j,i) = R_star_gen(*generator);
-                results(j) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((*comparison_compartment)(j,i) - Y(time_idx, i)), 2.0)); 
+
+                if (cumulative)
+                {
+                    cumulative_compartment(j,i) = (*comparison_compartment)(j,i);
+                    results(j) += (na_mask(time_idx, i) ? 0 : 
+                        pow(((cumulative_compartment)(j,i) - Y(time_idx, i)), 2.0)); 
+
+                }
+                else
+                {
+                    results(j) += (na_mask(time_idx, i) ? 0 : 
+                            pow(((*comparison_compartment)(j,i) - Y(time_idx, i)), 2.0)); 
+                }
             }
         }
 

@@ -41,6 +41,7 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
         modelCache[["dataModel"]] = new(dataModel, dataModelInstance$Y,
                                             dataModelInstance$type,
                                             dataModelInstance$compartment,
+                                            dataModelInstance$cumulative,
                                             dataModelInstance$phi,
                                             dataModelInstance$na_mask)
 

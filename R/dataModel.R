@@ -3,6 +3,8 @@
 #' @param Y a matrix with T rows and n columns, for time points and spatial locations respectively.
 #' @param type a string equal to "identity" or "overdispersion"
 #' @param compartment a string equal to "I_star" or "R_star" 
+#' @param cumulative a logical value indicating whether the data is reported on a 
+#' cumulative scale
 #' @param phi optional overdispersion parameter
 #' @return an object of type \code{\link{DataModel}} 
 #' @details
@@ -15,7 +17,10 @@
 #'  detailed description of the overall spatial SEIR framework, please refer to that work. 
 #' @examples print("Examples go here") 
 
-DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c("I_star", "R_star", "I"), phi = NA)
+DataModel = function(Y, type = c("identity", "overdispersion"), 
+                     compartment = c("I_star", "R_star", "I"), 
+                     cumulative=FALSE,
+                     phi = NA)
 {
     type = type[1] 
     compartment = compartment[1] 
@@ -36,11 +41,16 @@ DataModel = function(Y, type = c("identity", "overdispersion"), compartment = c(
     {
         stop("Non identy data model currently requires a single overdispersion parameter") 
     }
+    else if (length(cumulative) != 1 || class(cumulative) != "logical")
+    {
+        stop("The cumulative argument must be a logical value of length 1.")
+    }
     na_mask = is.na(Y)
     Y[na_mask] = -Inf
     structure(list("Y"=Y, 
                    "type"=type,
                    "compartment"=compartment,
+                   "cumulative"=cumulative,
                    "phi"=phi,
                    "na_mask" = na_mask), class = "DataModel")
 }
