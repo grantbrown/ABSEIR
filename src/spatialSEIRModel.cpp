@@ -169,7 +169,6 @@ samplingResultSet spatialSEIRModel::combineResults_basic(
                                             Eigen::MatrixXd newParams)
 {
     // If we need to expand result sets, this is where it happens. 
-    Rcpp::Rcout << "numSamples: " << numSamples << "\n";
     Rcpp::NumericVector outResults = Rcpp::NumericVector(numSamples);
     Rcpp::NumericMatrix outParams = Rcpp::NumericMatrix(numSamples, 
                                         currentParams.ncol());
@@ -227,7 +226,8 @@ samplingResultSet spatialSEIRModel::combineResults_SMC(
     int idx = 0;
     int i,j;
     int nrow = newResults.size();
-    int N = currentSamples.params.nrow();
+    int oldN = currentSamples.params.nrow();
+    int N = numSamples;
     while (idx < nrow && currentAccepted.size() < (size_t) N) 
     {
         if (newResults(idx) < currentEps)
@@ -243,7 +243,9 @@ samplingResultSet spatialSEIRModel::combineResults_SMC(
     if (currentAccepted.size() == (size_t) N)
     {
         reweight = 1;
-        samplingResultSet output = currentSamples;
+        samplingResultSet output;
+        output.result = Rcpp::NumericVector(N);
+        output.params = Rcpp::NumericMatrix(N, newParams.cols());
         for (i = 0; i < output.params.nrow(); i++)
         {
             for (j = 0; j < output.params.ncol(); j++)
@@ -261,6 +263,7 @@ samplingResultSet spatialSEIRModel::combineResults_SMC(
         currentAcceptedResult.clear();
         return(output);
     }
+    reweight = 0;
     return(currentSamples);
 }
 
@@ -553,7 +556,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
 
     batchNum = (init ? 1 : 0); // If we're bringing in existing samples/weights, 
                                // then don't do the usual batch 0 stuff. 
-    reweight = 0;
+    reweight = batchNum;
 
     // Initialize weights if we don't already have them. 
     // Only used for Beaumont 2009 algorithm, but set and returned for 
@@ -586,7 +589,6 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
 
     int incompleteBatches = 0;
     param_matrix = Eigen::MatrixXd(bs, nParams);
-    batchNum = 0;
     while (batchNum < nBatches && incompleteBatches < 
             (samplingControlInstance -> max_batches))
     {
@@ -613,7 +615,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
         if (verbose && (samplingControlInstance -> algorithm) 
                 == ALG_ModifiedBeaumont2009)
         {
-            if (reweight != 0 || batchNum == 1)
+            if (reweight != 0 || (!init && batchNum == 1))
             {
                 Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
                     nBatches << ". Upd: " << updateFraction << ". Eps: [" << 
@@ -712,10 +714,15 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
     int i;
     // Need for expansion.
     // Need for initialization 
+    minEps = 0.0;
+    maxEps = 0.0;
+    currentEps = 0.0;
+    
     weights = Eigen::VectorXd(wts.size());
     for (i = 0; i < wts.size(); i++)
     {
         weights(i) = wts(i);
+        if (currentEps < eps(i)){maxEps = eps(i); currentEps = eps(i);}
     }
     Rcpp::Rcout << "Sampling...\n";
 
