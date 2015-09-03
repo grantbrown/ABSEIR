@@ -73,7 +73,7 @@ class spatialSEIRModel
          * call to sample. 
          */
         Rcpp::List update(SEXP nSample, SEXP inParams, SEXP inEps, 
-                SEXP inWeights, SEXP verbose);
+                SEXP inWeights, SEXP inCurEps, SEXP verbose);
         double evalPrior(Rcpp::NumericVector param_values);
         /** Destructor */
         ~spatialSEIRModel();

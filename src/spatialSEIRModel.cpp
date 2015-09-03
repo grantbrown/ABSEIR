@@ -296,10 +296,9 @@ void spatialSEIRModel::updateParams_SMC()
 
     std::uniform_real_distribution<double> runif(0.0,1.0);
     std::vector<std::normal_distribution<double>> K;
-
     for (i = 0; i < nParams; i++)
     {
-        tau(i) = std::max(updateFraction, 0.01)*Rcpp::sd(currentSamples.params( _, i));
+        tau(i) = Rcpp::sd(currentSamples.params( _, i));
         K.push_back(std::normal_distribution<double>(0.0, tau(i)));
     }
 
@@ -312,7 +311,7 @@ void spatialSEIRModel::updateParams_SMC()
     }
     if (std::abs(cumulativeWeights[csSize-1]-1) > 1e-6)
     {
-        Rcpp::Rcout << "Warning, weights don't add up to 1: "
+        Rcpp::Rcout << "Warning: weights don't add up to 1: "
             << cumulativeWeights[csSize-1] << "\n";
     }
     cumulativeWeights[csSize-1] = 1.0;
@@ -650,6 +649,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     outList["result"] = currentSamples.result;
     outList["params"] = currentSamples.params;
     outList["weights"] = outputWeights;
+    outList["currentEps"] = currentEps;
     return(outList);
 }
 
@@ -696,7 +696,7 @@ Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
 }
 
 Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
-        SEXP inEps, SEXP inWeights, SEXP inVerbose)
+        SEXP inEps, SEXP inWeights, SEXP inCurEps, SEXP inVerbose)
 {
     Rcpp::IntegerVector nSamp(nSample);
     Rcpp::IntegerVector vbs(inVerbose);
@@ -707,6 +707,7 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
     Rcpp::NumericMatrix params(inParams);
     Rcpp::NumericVector eps(inEps);
     Rcpp::NumericVector wts(inWeights);
+    Rcpp::NumericVector curEps(inCurEps);
 
     currentSamples.result = eps;
     currentSamples.params = params;
@@ -716,16 +717,13 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
     // Need for initialization 
     minEps = 0.0;
     maxEps = 0.0;
-    currentEps = 0.0;
+    currentEps = curEps(0);
     
     weights = Eigen::VectorXd(wts.size());
     for (i = 0; i < wts.size(); i++)
     {
         weights(i) = wts(i);
-        if (currentEps < eps(i)){maxEps = eps(i); currentEps = eps(i);}
     }
-    Rcpp::Rcout << "Sampling...\n";
-
     return(sample_internal(N, verbose, true));
 }
 

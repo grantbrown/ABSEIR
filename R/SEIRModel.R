@@ -144,6 +144,7 @@ SpatialSEIRModel = function(data_model,
         epsilon = rslt$result
         params = rslt$params
         weights = rslt$weights
+        current_eps = rslt$currentEps
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposure_model$X), sep = "")
@@ -168,6 +169,7 @@ SpatialSEIRModel = function(data_model,
         modelResults[["param.samples"]] = params
         modelResults[["epsilon"]] = epsilon
         modelResults[["weights"]] = weights
+        modelResults[["current_eps"]] = current_eps
         modelResults[["modelComponents"]] = list(
                      data_model = data_model,
                      exposure_model = exposure_model,
@@ -355,12 +357,14 @@ update.SpatialSEIRModel = function(object, ...)
                                                 modelObject$param.samples,
                                                 modelObject$epsilon, 
                                                 modelObject$weights,
+                                                modelObject$current_eps,
                                                 verbose*1)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result
         params = rslt$params
         weights = rslt$weights
+        current_eps = rslt$currentEps
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposureModelInstance$X), sep = "")
@@ -388,6 +392,7 @@ update.SpatialSEIRModel = function(object, ...)
         modelResults[["param.samples"]] = params
         modelResults[["epsilon"]] = epsilon
         modelResults[["weights"]] = weights
+        modelResults[["current_eps"]] = current_eps
         modelResults[["modelComponents"]] = list(
                      data_model = dataModelInstance,
                      exposure_model = exposureModelInstance,
