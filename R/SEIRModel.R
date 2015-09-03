@@ -143,6 +143,7 @@ SpatialSEIRModel = function(data_model,
 
         epsilon = rslt$result
         params = rslt$params
+        weights = rslt$weights
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposure_model$X), sep = "")
@@ -166,6 +167,7 @@ SpatialSEIRModel = function(data_model,
         
         modelResults[["param.samples"]] = params
         modelResults[["epsilon"]] = epsilon
+        modelResults[["weights"]] = weights
         modelResults[["modelComponents"]] = list(
                      data_model = data_model,
                      exposure_model = exposure_model,
@@ -194,6 +196,222 @@ SpatialSEIRModel = function(data_model,
         }
     })
     return(structure(modelResults, class = "SpatialSEIRModel"))
+}
+
+
+#' Update a \code{\link{SpatialSEIRModel}} object by drawing additional samples.
+#' @param object a \code{\link{SpatialSEIRModel}} object
+#' @param \dots Additional arguments include \code{sampling_control}, which
+#' must be a \code{\link{SamplingControl}} object, \code{samples} which indicates
+#' the number of parameter values to sample from the posterior, and \code{verbose}
+#' which indicates whether verbose output should be provided.
+update.SpatialSEIRModel = function(object, ...)
+{
+    modelObject = object
+    if (class(modelObject) != "SpatialSEIRModel")
+    {
+        stop("object must be of type SpatialSEIRModel")
+    }
+
+    optionalParamNames <- c("samples", "sampling_control", "verbose")
+    optparams <- list(...)
+    samples = Ifelse("samples" %in% names(optparams), optparams$samples,  
+                     nrow(modelObject$param.samples))
+    sampling_control = Ifelse("sampling_control" %in% names(optparams),
+                              optparams$sampling_control, NA)
+    verbose = Ifelse("verbose" %in% names(optparams), 
+                     optparams$verbose, FALSE)
+
+    if (!(all(is.na(sampling_control))) && class(sampling_control) 
+        != "SamplingControl")
+    {
+        stop("The sampling_control argument must be of type SamplingControl.")
+    }
+    else if ((class(sampling_control) == "SamplingControl") && 
+             (sampling_control$algorithm != 
+             modelObject$modelComponents$sampling_control$algorithm))
+    {
+        stop(paste("The algorithm specified by sampling_control must match ", 
+             "the algorithm used in the original model.\n", sep = "")) 
+    } 
+
+    modelCache = list()
+    modelResults = list()
+    tryCatch({
+        dataModelInstance = modelObject$modelComponents$data_model;
+        exposureModelInstance = modelObject$modelComponents$exposure_model;
+        reinfectionModelInstance = 
+            modelObject$modelComponents$reinfection_model;
+        distanceModelInstance = modelObject$modelComponents$distance_model;
+        transitionPriorsInstance = 
+            modelObject$modelComponents$transition_priors;
+        initialValueContainerInstance = 
+            modelObject$modelComponents$initial_value_container; 
+        if (all(is.na(sampling_control))){
+            samplingControlInstance = modelObject$modelComponents$sampling_control
+        }
+        else
+        {
+            samplingControlInstance = sampling_control 
+        } 
+
+        if (verbose) cat("...Building data model\n")
+        modelCache[["dataModel"]] = new(dataModel, dataModelInstance$Y,
+                                            dataModelInstance$type,
+                                            dataModelInstance$compartment,
+                                            dataModelInstance$cumulative,
+                                            dataModelInstance$phi,
+                                            dataModelInstance$na_mask)
+
+        if (verbose) cat("...Building distance model\n")
+        modelCache[["distanceModel"]] = new(distanceModel)
+        for (i in 1:length(distanceModelInstance$distanceList))
+        {
+            modelCache[["distanceModel"]]$addDistanceMatrix(
+                distanceModelInstance$distanceList[[i]]
+            )
+        }
+        modelCache[["distanceModel"]]$setPriorParameters(
+            distanceModelInstance$priorAlpha,
+            distanceModelInstance$priorBeta
+        )
+
+        if (verbose) cat("...Building exposure model\n")
+        modelCache[["exposureModel"]] = new(
+            exposureModel, 
+            exposureModelInstance$X,
+            exposureModelInstance$nTpt,
+            exposureModelInstance$nLoc,
+            exposureModelInstance$betaPriorMean,
+            exposureModelInstance$betaPriorPrecision
+        )
+        if (!all(is.na(exposureModelInstance$offset)))
+        {
+            modelCache[["exposureModel"]]$offsets = (
+                exposureModelInstance$offset
+            )
+        }
+
+        if (verbose) cat("...Building initial value container\n")
+        modelCache[["initialValueContainer"]] = new(initialValueContainer)
+        modelCache[["initialValueContainer"]]$setInitialValues(
+            initialValueContainerInstance$S0,
+            initialValueContainerInstance$E0,
+            initialValueContainerInstance$I0,
+            initialValueContainerInstance$R0
+        )
+
+        if (verbose) cat("...Building reinfection model\n") 
+        modelCache[["reinfectionModel"]] = new(
+            reinfectionModel, 
+            reinfectionModelInstance$integerMode
+        )
+        if (reinfectionModelInstance$integerMode != 3)
+        {
+            modelCache[["reinfectionModel"]]$buildReinfectionModel(
+                reinfectionModelInstance$X_prs, 
+                reinfectionModelInstance$priorMean, 
+                reinfectionModelInstance$priorPrecision
+        );
+        }
+
+        if (verbose) cat("...Building sampling control model\n") 
+        modelCache[["samplingControl"]] = new (
+            samplingControl, 
+            c(samplingControlInstance$sim_width, samplingControlInstance$seed,
+              samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
+              samplingControlInstance$batch_size,samplingControlInstance$epochs, 
+              samplingControlInstance$max_batches),
+            c(samplingControlInstance$acceptance_fraction, 
+              samplingControlInstance$shrinkage)
+        )
+
+        if (verbose) cat("...building transition priors\n") 
+        modelCache[["transitionPriors"]] = new(transitionPriors)
+        modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
+            transitionPriorsInstance$p_ei,
+            transitionPriorsInstance$p_ir,
+            transitionPriorsInstance$p_ei_ess,
+            transitionPriorsInstance$p_ir_ess
+        )
+
+        if (verbose) cat("Running additional epidemic simulations\n") 
+       
+        modelCache[["SEIRModel"]] = new( 
+                    spatialSEIRModel, 
+            modelCache[["dataModel"]],
+            modelCache[["exposureModel"]],
+            modelCache[["reinfectionModel"]],
+            modelCache[["distanceModel"]],
+            modelCache[["transitionPriors"]],
+            modelCache[["initialValueContainer"]],
+            modelCache[["samplingControl"]]
+        )
+
+        rslt = modelCache[["SEIRModel"]]$update(samples, 
+                                                modelObject$param.samples,
+                                                modelObject$epsilon, 
+                                                modelObject$weights,
+                                                verbose*1)
+        if (verbose) cat("Simulation complete\n")
+
+        epsilon = rslt$result
+        params = rslt$params
+        weights = rslt$weights
+
+        cnames = paste("Beta_SE_", 
+                       1:ncol(exposureModelInstance$X), sep = "")
+        hasSpatial = (ncol(dataModelInstance$Y) > 1) 
+        hasReinfection = (reinfectionModelInstance$integerMode != 3) 
+
+        if (hasReinfection)
+        {
+            cnames = c(cnames, paste("Beta_RS_", 
+                                     1:ncol(reinfectionModelInstance$X_prs), 
+                                     sep = "")
+            )
+        }
+        if (hasSpatial)
+        {
+            cnames = c(cnames, 
+                       paste("rho_", 
+                            1:length(distanceModelInstance$distanceList), 
+                             sep = "")
+            )
+        }
+        cnames = c(cnames, "gamma_EI", "gamma_IR")
+        colnames(params) = cnames 
+        
+        modelResults[["param.samples"]] = params
+        modelResults[["epsilon"]] = epsilon
+        modelResults[["weights"]] = weights
+        modelResults[["modelComponents"]] = list(
+                     data_model = dataModelInstance,
+                     exposure_model = exposureModelInstance,
+                     reinfection_model = reinfectionModelInstance,
+                     distance_model = distanceModelInstance,
+                     transition_priors = transitionPriorsInstance,
+                     initial_value_container = initialValueContainerInstance,
+                     sampling_control = samplingControlInstance)
+        },
+        warning=function(w)
+        {
+            cat("Warnings generated:\n")
+            print(w)
+        },
+        error=function(e)
+        {
+            cat("Errors generated:\n")
+            print(e)
+            stop("Aborting")
+        },
+        finally = { 
+            if (exists("modelComponents"))
+            {
+                rm(modelCache)
+            }
+        })
+        return(structure(modelResults, class = "SpatialSEIRModel"))   
 }
 
 #' Plot a graphical summary of the marginal posterior distribution of SEIR model parameters
@@ -245,10 +463,10 @@ summary.SpatialSEIRModel = function(object, ...)
        nLoc = nLoc,
        nTpt = nTpt,
        exposureParams = ncol(object$modelComponents$exposure_model$X),
-       reinfectionParams = ifelse(hasReinfection, 
+       reinfectionParams = Ifelse(hasReinfection, 
             ncol(object$modelComponents$reinfection_model$X_prs), 
             0),
-       spatialParams = ifelse(hasSpatial, 
+       spatialParams = Ifelse(hasSpatial, 
             length(object$modelComponents$distance_model$distanceList),
             0)
        ), class = "summary.SpatialSEIRModel")

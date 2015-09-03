@@ -69,6 +69,11 @@ class spatialSEIRModel
          * return the simulated epidemic quantities.  
          */
         Rcpp::List simulate_given(SEXP inParams);
+        /** Continue sampling from the approximated posterior after an inital 
+         * call to sample. 
+         */
+        Rcpp::List update(SEXP nSample, SEXP inParams, SEXP inEps, 
+                SEXP inWeights, SEXP verbose);
         double evalPrior(Rcpp::NumericVector param_values);
         /** Destructor */
         ~spatialSEIRModel();
@@ -84,6 +89,9 @@ class spatialSEIRModel
          * data. This is not currently used much, as we destroy objects after
          * use and recreate them as needed.*/
         int ncalls;
+
+        /** A persistant reference to the number of requested samples*/
+        int numSamples;
         /** The fraction of the current estimates which was replaced by new 
          * draws in the latest batch (BasicABC)*/
         double updateFraction;
@@ -93,6 +101,8 @@ class spatialSEIRModel
         double maxEps;
         /** The currently enforced uppder bound on distance*/
         double currentEps;
+        /** internal implementation of the main sampling function*/
+        Rcpp::List sample_internal(int nSample, bool verbose, bool init);
         /** Generic function to propose new parameters. */
         void updateParams();
         /** Function to propose new parameters from the prior distribution*/

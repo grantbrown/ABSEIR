@@ -82,6 +82,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     updateFraction = 0;
     minEps = 0.0;
     maxEps = 0.0;
+    numSamples = 0;
 
     dataModelInstance = &dataModel_;
     exposureModelInstance = &exposureModel_;
@@ -167,8 +168,12 @@ samplingResultSet spatialSEIRModel::combineResults_basic(
                                             Rcpp::NumericVector newResults,
                                             Eigen::MatrixXd newParams)
 {
-    Rcpp::NumericVector outResults = Rcpp::clone(currentResults);
-    Rcpp::NumericMatrix outParams = Rcpp::clone(currentParams);
+    // If we need to expand result sets, this is where it happens. 
+    Rcpp::Rcout << "numSamples: " << numSamples << "\n";
+    Rcpp::NumericVector outResults = Rcpp::NumericVector(numSamples);
+    Rcpp::NumericMatrix outParams = Rcpp::NumericMatrix(numSamples, 
+                                        currentParams.ncol());
+
     std::vector<size_t> currentIndex = sort_indexes(currentResults);
     std::vector<size_t> newIndex = sort_indexes(newResults);
     size_t idx1 = 0;
@@ -176,10 +181,13 @@ samplingResultSet spatialSEIRModel::combineResults_basic(
     size_t err = 0;
     size_t i, j;
 
+
     // Zipper merge
-    for (i = 0; i < currentIndex.size(); i++)
+    for (i = 0; i < numSamples; i++)
     {
-        if (currentResults(currentIndex[idx1]) > newResults(newIndex[idx2]))
+        // Make sure we don't run out of samples
+        if (idx1 >= currentResults.size() || 
+                currentResults(currentIndex[idx1]) > newResults(newIndex[idx2]))
         {
             outResults(i) = newResults(newIndex[idx2]);
             for (j = 0; j < (size_t) currentParams.ncol(); j++)
@@ -301,7 +309,8 @@ void spatialSEIRModel::updateParams_SMC()
     }
     if (std::abs(cumulativeWeights[csSize-1]-1) > 1e-6)
     {
-        Rcpp::Rcout << "Weights don't add up to 1: " << cumulativeWeights[csSize-1] << "\n";
+        Rcpp::Rcout << "Warning, weights don't add up to 1: "
+            << cumulativeWeights[csSize-1] << "\n";
     }
     cumulativeWeights[csSize-1] = 1.0;
 
@@ -478,6 +487,8 @@ void spatialSEIRModel::updateWeights()
         reweight = 0;
         int i,j,k;
         int N = currentSamples.params.nrow();
+        // If we need to expand the weight vector, this is where it happens
+        int oldN = weights.size(); 
         int nParams = currentSamples.params.ncol();
         double tmpWeightComp = 1.0;
         for (k = 0; k < nParams; k++)
@@ -490,7 +501,7 @@ void spatialSEIRModel::updateWeights()
         for (i = 0; i < N; i++)
         {
             newWeights(i) = 0.0;
-            for (j = 0; j < N; j++) 
+            for (j = 0; j < oldN; j++) 
             {
                 tmpWeight = tmpWeightComp;
                 for (k = 0; k < nParams; k++)
@@ -505,25 +516,21 @@ void spatialSEIRModel::updateWeights()
             newWeights(i) = evalPrior(currentSamples.params(i, _))/newWeights(i);
             totalWeight += newWeights(i);
         }
-
+        weights = newWeights;
         for (i = 0; i < N; i++)
         {
-            weights(i) = newWeights(i)/totalWeight;
+            weights(i) = weights(i)/totalWeight;
         }
     }
 
 }
 
-Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
+Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
 {
-    Rcpp::IntegerVector nSamp(nSamples);
-    Rcpp::IntegerVector vbs(vb);
-
-    bool verbose = (vbs(0) != 0);
+    numSamples = N;
     bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
     bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
 
-    int N = nSamp(0);
     double r = samplingControlInstance -> accept_fraction;
     int bs = samplingControlInstance -> batch_size;
     int i;
@@ -531,6 +538,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
     int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
     int nParams = nBeta + nBetaRS + nRho + 2;
+
 
     int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
                         std::ceil(((1.0*N)/r)/bs) :  
@@ -546,7 +554,10 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
     batchNum = 0;
     reweight = 0;
 
-    if (samplingControlInstance -> algorithm == ALG_ModifiedBeaumont2009)
+    // Initialize weights if we don't already have them. 
+    // Only used for Beaumont 2009 algorithm, but set and returned for 
+    // consistency. 
+    if (!init)
     {
         weights = Eigen::VectorXd(N);
         for (i = 0; i < N; i++)
@@ -555,6 +566,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
         }
     }
 
+    // Declare output containers
     Rcpp::List tmpList, outList;
 
     Rcpp::NumericVector outputValues(N);
@@ -563,10 +575,13 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
         outputValues(i) = std::numeric_limits<double>::infinity(); 
     }
 
-    Rcpp::NumericMatrix outputParams(nSamp(0), nParams);
+    Rcpp::NumericMatrix outputParams(N, nParams);
 
-    currentSamples.result = outputValues;
-    currentSamples.params = outputParams;
+    if (!init)
+    {
+        currentSamples.result = outputValues;
+        currentSamples.params = outputParams;
+    }
 
     int incompleteBatches = 0;
     param_matrix = Eigen::MatrixXd(bs, nParams);
@@ -580,6 +595,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
                                         currentSamples.params,
                                         as<NumericVector>(tmpList["result"]),
                                         param_matrix);
+
 
         if (((samplingControlInstance -> algorithm) 
                 == ALG_ModifiedBeaumont2009) && reweight == 0
@@ -622,9 +638,26 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
         Rcpp::checkUserInterrupt();
         updateWeights();
     }
+    Rcpp::NumericVector outputWeights(N);
+    for (i = 0; i < N; i++)
+    {
+        outputWeights(i) = weights(i);
+    }
+
     outList["result"] = currentSamples.result;
     outList["params"] = currentSamples.params;
+    outList["weights"] = outputWeights;
     return(outList);
+}
+
+Rcpp::List spatialSEIRModel::sample(SEXP nSamples, SEXP vb)
+{
+    Rcpp::IntegerVector nSamp(nSamples);
+    Rcpp::IntegerVector vbs(vb);
+
+    bool verbose = (vbs(0) != 0);
+    int N = nSamp(0);
+    return(sample_internal(N, verbose, false));
 }
 
 Rcpp::List spatialSEIRModel::evaluate(SEXP inParams)
@@ -657,6 +690,35 @@ Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
         }
     }
     return(this -> simulate(param_matrix, sim_result_atom::value));
+}
+
+Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
+        SEXP inEps, SEXP inWeights, SEXP inVerbose)
+{
+    Rcpp::IntegerVector nSamp(nSample);
+    Rcpp::IntegerVector vbs(inVerbose);
+
+    bool verbose = (vbs(0) != 0);
+    int N = nSamp(0);
+
+    Rcpp::NumericMatrix params(inParams);
+    Rcpp::NumericVector eps(inEps);
+    Rcpp::NumericVector wts(inWeights);
+
+    currentSamples.result = eps;
+    currentSamples.params = params;
+
+    int i;
+    // Need for expansion.
+    // Need for initialization 
+    weights = Eigen::VectorXd(wts.size());
+    for (i = 0; i < wts.size(); i++)
+    {
+        weights(i) = wts(i);
+    }
+    Rcpp::Rcout << "Sampling...\n";
+
+    return(sample_internal(N, verbose, true));
 }
 
 Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix, 
@@ -824,6 +886,7 @@ RCPP_MODULE(mod_spatialSEIRModel)
                  samplingControl&>()
     .method("evaluate", &spatialSEIRModel::evaluate)
     .method("sample", &spatialSEIRModel::sample)
+    .method("update", &spatialSEIRModel::update)
     .method("simulate", &spatialSEIRModel::simulate_given);
 }
 
