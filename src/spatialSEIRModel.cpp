@@ -154,7 +154,7 @@ samplingResultSet spatialSEIRModel::combineResults(
                                             Rcpp::NumericVector newResults,
                                             Eigen::MatrixXd newParams)
 {
-    if (batchNum == 0 || samplingControlInstance -> algorithm == ALG_BasicABC)
+    if ((batchNum == 0) || samplingControlInstance -> algorithm == ALG_BasicABC)
     {
         return(combineResults_basic(currentResults, currentParams, newResults, 
                                     newParams));
@@ -551,7 +551,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
 
     tau = Eigen::VectorXd(nParams);
 
-    batchNum = 0;
+    batchNum = (init ? 1 : 0); // If we're bringing in existing samples/weights, 
+                               // then don't do the usual batch 0 stuff. 
     reweight = 0;
 
     // Initialize weights if we don't already have them. 
