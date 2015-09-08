@@ -202,7 +202,6 @@ SpatialSEIRModel = function(data_model,
 
 
 #' Update a \code{\link{SpatialSEIRModel}} object by drawing additional samples.
-#' This function is experimental.
 #' @param object a \code{\link{SpatialSEIRModel}} object
 #' @param \dots Additional arguments include \code{sampling_control}, which
 #' must be a \code{\link{SamplingControl}} object, \code{samples} which indicates
@@ -210,8 +209,6 @@ SpatialSEIRModel = function(data_model,
 #' which indicates whether verbose output should be provided.
 update.SpatialSEIRModel = function(object, ...)
 {
-    warning(paste("Update functionality is experimental and not",
-                  "recommended for use at this time."))
     modelObject = object
     if (class(modelObject) != "SpatialSEIRModel")
     {
