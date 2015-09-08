@@ -871,7 +871,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
 
 spatialSEIRModel::~spatialSEIRModel()
 {   
-    shutdown();
     delete generator;
     dataModelInstance -> unprotect();
     exposureModelInstance -> unprotect();
