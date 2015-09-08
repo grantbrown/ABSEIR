@@ -9,10 +9,14 @@
 \arguments{
 \item{object}{a \code{\link{SpatialSEIRModel}} object}
 
-\item{\dots}{Additional arguments include \code{sampling_control}, which
-must be a \code{\link{SamplingControl}} object, \code{samples} which indicates
-the number of parameter values to sample from the posterior, and \code{verbose}
-which indicates whether verbose output should be provided.}
+\item{\dots}{Additional arguments include:
+\itemize{
+ \item{\code{sampling_control}: }{a \code{\link{SamplingControl}} object}
+ \item{\code{samples}: }{indicates the number of parameter values to sample
+from the posterior}
+ \item{\code{verbose}: }{indicates whether verbose output should be
+provided.}
+}}
 }
 \description{
 Update a \code{\link{SpatialSEIRModel}} object by drawing additional samples.
