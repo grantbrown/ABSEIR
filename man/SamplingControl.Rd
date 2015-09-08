@@ -36,20 +36,20 @@ can greatly improve efficiency.\\
 
 Additional parameters which may be passed to the algorithms:
 \itemize{
-\item{acceptance_fraction}{For the BasicABC algorithm, this gives
+\item{acceptance_fraction: }{For the BasicABC algorithm, this gives
 the proportion of simulated epidemics to accept. The smaller the acceptance
 fraction, the better the approximation to the posterior distribution, and the
 more computation time required.}
-\item{batch_size}{For the both algorithms, this determines the number of
+\item{batch_size: }{For the both algorithms, this determines the number of
 epidemics to simulate in parallel, before returning to the main process to evaluate
 them. \code{batch_size} must be greater than the number of samples requested
 in the \code{\link{SpatialSEIRModel}} function.}
-\item{epochs}{For the Beaumont2009 algorithm, \code{epochs} determines the maximum
+\item{epochs: }{For the Beaumont2009 algorithm, \code{epochs} determines the maximum
 number of iterations.}
-\item{shrinkage}{for the Beaumont2009 algorithm, \code{shrinkage} defines the multiplicative
+\item{shrinkage: }{for the Beaumont2009 algorithm, \code{shrinkage} defines the multiplicative
 constant by which the maximum distance between simulated and observed
 epidemics is shrunk between each iteration.}
-\item{max_batches}{for the Beaumont2009 algorithm, \code{max_batches} determines
+\item{max_batches: }{for the Beaumont2009 algorithm, \code{max_batches} determines
 the maximum number of parallel batches to run before which a new set of
 parameters must be accepted. If an insufficient number of parameters are accepted
 by the time the algorithm reaches \code{max_batches}, the program will terminate
