@@ -649,7 +649,11 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     outList["result"] = currentSamples.result;
     outList["params"] = currentSamples.params;
     outList["weights"] = outputWeights;
-    outList["currentEps"] = currentEps;
+    outList["currentEps"] = (incompleteBatches == 
+            (samplingControlInstance -> max_batches) 
+            ? currentEps/(samplingControlInstance 
+                                -> shrinkage) 
+            : currentEps); // If we didn't get a complete batch in, prev eps
     return(outList);
 }
 
