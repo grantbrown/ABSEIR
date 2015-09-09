@@ -654,6 +654,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
             ? currentEps/(samplingControlInstance 
                                 -> shrinkage) 
             : currentEps); // If we didn't get a complete batch in, prev eps
+    outList["completedEpochs"] = batchNum;
     return(outList);
 }
 

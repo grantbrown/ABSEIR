@@ -145,6 +145,7 @@ SpatialSEIRModel = function(data_model,
         params = rslt$params
         weights = rslt$weights
         current_eps = rslt$currentEps
+        completed_epochs = rslt$completedEpochs
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposure_model$X), sep = "")
@@ -179,6 +180,7 @@ SpatialSEIRModel = function(data_model,
                      initial_value_container = initial_value_container,
                      sampling_control = sampling_control
         ) 
+        modelResults[["completedEpochs"]] = completed_epochs
     },
     warning=function(w)
     {
@@ -366,6 +368,7 @@ update.SpatialSEIRModel = function(object, ...)
         params = rslt$params
         weights = rslt$weights
         current_eps = rslt$currentEps
+        completed_epochs = rslt$completedEpochs
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposureModelInstance$X), sep = "")
@@ -402,6 +405,7 @@ update.SpatialSEIRModel = function(object, ...)
                      transition_priors = transitionPriorsInstance,
                      initial_value_container = initialValueContainerInstance,
                      sampling_control = samplingControlInstance)
+        modelResults[["completedEpochs"]] = completed_epochs
         },
         warning=function(w)
         {
