@@ -80,6 +80,7 @@ class SEIR_sim_node : public event_based_actor {
         actor parent;
         scoped_actor* self;
         mt19937* generator;
+        std::normal_distribution<double> overdispersion_distribution;
         behavior    alive;
 };
 

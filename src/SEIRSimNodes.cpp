@@ -64,6 +64,12 @@ SEIR_sim_node::SEIR_sim_node(int w,
         std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator));
         std::seed_seq q(std::begin(seed_data), std::end(seed_data));
         generator = new mt19937{q};   
+
+        if (phi > 0)
+        {   
+            overdispersion_distribution = std::normal_distribution<double>(0.0, 
+                    1.0/phi);
+        }
     }
     catch (int e)
     {
@@ -343,9 +349,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             {
                 cumulative_compartment(j,i) = (*comparison_compartment)(j,i);
             }
-
             results(j) += (na_mask(0,i) ? 0 : 
-                    pow(((*comparison_compartment)(j,i) - Y(0, i)), 2.0)); 
+                    pow(((*comparison_compartment)(j,i) + 
+                            (phi > 0 ? 
+                             std::floor(overdispersion_distribution(*generator)) 
+                             : 0) - Y(0, i)), 2.0)); 
         }
     }
 
@@ -421,15 +429,22 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
                 if (cumulative)
                 {
-                    cumulative_compartment(j,i) = (*comparison_compartment)(j,i);
+                    cumulative_compartment(j,i) += (*comparison_compartment)(j,i); 
+
                     results(j) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((cumulative_compartment)(j,i) - Y(time_idx, i)), 2.0)); 
+                        pow(((cumulative_compartment)(j,i) 
+                                + (phi > 0 ? 
+                                    std::floor(overdispersion_distribution(*generator)) 
+                                    : 0)
+                                - Y(time_idx, i)), 2.0)); 
 
                 }
                 else
                 {
                     results(j) += (na_mask(time_idx, i) ? 0 : 
-                            pow(((*comparison_compartment)(j,i) - Y(time_idx, i)), 2.0)); 
+                            pow(((*comparison_compartment)(j,i) + (phi > 0 ? 
+                                        std::floor(overdispersion_distribution(*generator))
+                                        : 0)- Y(time_idx, i)), 2.0)); 
                 }
             }
         }
