@@ -67,7 +67,8 @@ SEIR_sim_node::SEIR_sim_node(int w,
 
         if (phi > 0)
         {   
-            overdispersion_distribution = std::normal_distribution<double>(0.0, 
+            // We take the floor of the resulting continuous normal, so shift by 0.5
+            overdispersion_distribution = std::normal_distribution<double>(0.5, 
                     1.0/phi);
         }
     }
