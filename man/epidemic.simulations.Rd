@@ -4,7 +4,8 @@
 \alias{epidemic.simulations}
 \title{perform and return epidemic simulations based on a fitted model object}
 \usage{
-epidemic.simulations(modelObject, replicates = 1, verbose = FALSE)
+epidemic.simulations(modelObject, replicates = 1, returnCompartments = TRUE,
+  verbose = FALSE)
 }
 \arguments{
 \item{modelObject}{a SpatialSEIRModel object, as created by the \code{\link{SpatialSEIRModel}}
@@ -12,6 +13,9 @@ function.}
 
 \item{replicates}{the number of replicate simulations to perform for each sample
 contained in \code{modelObject}}
+
+\item{returnCompartments}{a logical value, indicating whether simulated compartments
+should be returned along with epsilon values}
 
 \item{verbose}{a logical value, indicating whether verbose output should be
 provided.}
@@ -27,6 +31,7 @@ The main SpatialSEIRModel functon performs many simulations, but for the sake of
 }
 \examples{
 \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10,
+                                                 returnCompartments = TRUE,
                                                  verbose = TRUE)}
 }
 

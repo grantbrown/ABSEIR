@@ -6,6 +6,8 @@
 #' contained in \code{modelObject}
 #' @param verbose a logical value, indicating whether verbose output should be 
 #' provided. 
+#' @param returnCompartments  a logical value, indicating whether simulated compartments
+#' should be returned along with epsilon values
 #' 
 #' @details 
 #'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
@@ -14,9 +16,10 @@
 #'    easily generated using this function. 
 #' 
 #' @examples \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
+#'                                                  returnCompartments = TRUE, 
 #'                                                  verbose = TRUE)} 
 #' 
-epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
+epidemic.simulations = function(modelObject, replicates=1, returnCompartments = TRUE,verbose = FALSE)
 {
     if (class(modelObject) != "SpatialSEIRModel")
     {
@@ -133,8 +136,16 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
 
         params = modelObject$param.samples
         params = params[rep(1:nrow(params), each = replicates),]
-        modelResult[["simulatedResults"]] = 
-            modelCache$SEIRModel$simulate(params)
+        if (returnCompartments)
+        {
+            modelResult[["simulatedResults"]] = 
+                modelCache$SEIRModel$simulate(params)
+        } 
+        else
+        {
+            modelResult[["simulatedResults"]] = 
+                modelCache$SEIRModel$evaluate(params)
+        }
         },
         warning=function(w){
             cat(paste("Warnings produced: ", w, sep = ""))
@@ -146,9 +157,12 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
             rm(modelCache)
         }
     );    
-    names(modelResult$simulatedResults) = 
-          paste("Simulation_", 1:length(modelResult$simulatedResults), 
-                sep = "")
+    if (returnCompartments)
+    {
+        names(modelResult$simulatedResults) = 
+              paste("Simulation_", 1:length(modelResult$simulatedResults), 
+                    sep = "")
+    }
     return(modelResult$simulatedResults)
 }
 
