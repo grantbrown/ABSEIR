@@ -106,6 +106,16 @@ class spatialSEIRModel
         double maxEps;
         /** The currently enforced uppder bound on distance*/
         double currentEps;
+        /** A vector of current parameter means*/
+        Eigen::RowVectorXd parameterMeans;
+        /** Centered values of current parameters */
+        Eigen::MatrixXd parameterCentered;
+        /** Current parameter covariance matrix*/
+        Eigen::MatrixXd parameterCov;
+        /** Current parameter inverse covariance matrix*/
+        Eigen::MatrixXd parameterICov; 
+        /** Current parameter inverse covariance matrix determinant*/
+        double parameterICovDet;
         /** internal implementation of the main sampling function*/
         Rcpp::List sample_internal(int nSample, bool verbose, bool init);
         /** Generic function to propose new parameters. */

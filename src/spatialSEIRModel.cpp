@@ -308,10 +308,15 @@ void spatialSEIRModel::updateParams_SMC()
     {
         // TODO: Integrate with/replace above
         Eigen::Map<Eigen::MatrixXd> curSamp(Rcpp::as<Eigen::Map<Eigen::MatrixXd> >(currentSamples.params));
-        Eigen::RowVectorXd mean = curSamp.colwise().mean();
-        Eigen::MatrixXd covMat = ((curSamp.rowwise() - mean).transpose() * (curSamp.rowwise() - mean))/(curSamp.rows()-1);
-        L = Eigen::MatrixXd(covMat.llt().matrixL());
-        Z = Eigen::VectorXd(covMat.cols());
+        Eigen::RowVectorXd parameterMeans = curSamp.colwise().mean();
+        parameterCentered = (curSamp.rowwise() - parameterMeans);
+        Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
+                * (parameterCentered)/(curSamp.rows()-1);
+        Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
+        L = Eigen::MatrixXd(paramLLT.matrixL());
+        Z = Eigen::VectorXd(parameterCov.cols());
+        parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+        parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
     }
     else
     {
@@ -542,36 +547,65 @@ void spatialSEIRModel::updateWeights()
         int oldN = weights.size(); 
         int nParams = currentSamples.params.ncol();
         double tmpWeightComp = 1.0;
-        for (k = 0; k < nParams; k++)
-        {
-            tmpWeightComp *= (1.0/tau[k]);
-        }
+        double totalWeight;
         double tmpWeight;
-        double totalWeight = 0.0;
         Eigen::VectorXd newWeights(N);
-        for (i = 0; i < N; i++)
+        Eigen::VectorXd tmpParams;
+        if (samplingControlInstance -> multivariatePerturbation)
         {
-            newWeights(i) = 0.0;
-            for (j = 0; j < oldN; j++) 
+            tmpWeightComp *= std::sqrt(parameterICovDet);
+            totalWeight = 0.0;
+            for (i = 0; i < N; i++)
             {
-                tmpWeight = tmpWeightComp;
-                for (k = 0; k < nParams; k++)
+                newWeights(i) = 0.0;
+                for (j = 0; j < oldN; j++) 
                 {
-                    tmpWeight *= std::exp(1.0*std::pow(
-                                (currentSamples.params(i,k)
-                                 - previousSamples.params(j,k)/(2.0*tau[k])),
-                                2));
+                    tmpWeight = tmpWeightComp;
+                    tmpWeight *= std::exp(-0.5*
+                            (parameterCentered.row(i)
+                            *parameterICov*parameterCentered.transpose()
+                                .col(i))(0)
+                            );
+
+                    newWeights(i) += weights(j)*tmpWeight;
                 }
-                newWeights(i) += weights(j)*tmpWeight;
+                newWeights(i) = evalPrior(currentSamples.params(i, _))
+                    /newWeights(i);
+                totalWeight += newWeights(i);
             }
-            newWeights(i) = evalPrior(currentSamples.params(i, _))/newWeights(i);
-            totalWeight += newWeights(i);
+        }
+        else
+        {
+            for (k = 0; k < nParams; k++)
+            {
+                tmpWeightComp *= (1.0/tau[k]);
+            }
+            totalWeight = 0.0;
+            for (i = 0; i < N; i++)
+            {
+                newWeights(i) = 0.0;
+                for (j = 0; j < oldN; j++) 
+                {
+                    tmpWeight = tmpWeightComp;
+                    for (k = 0; k < nParams; k++)
+                    {
+                        tmpWeight *= std::exp(1.0*std::pow(
+                                    (currentSamples.params(i,k)
+                                     - previousSamples.params(j,k)/(2.0*tau[k])),
+                                    2));
+                    }
+                    newWeights(i) += weights(j)*tmpWeight;
+                }
+                newWeights(i) = evalPrior(currentSamples.params(i, _))/newWeights(i);
+                totalWeight += newWeights(i);
+            }
         }
         weights = newWeights;
         for (i = 0; i < N; i++)
         {
             weights(i) = weights(i)/totalWeight;
         }
+
     }
 
 }
