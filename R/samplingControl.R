@@ -36,7 +36,11 @@
 #' the maximum number of parallel batches to run before which a new set of 
 #' parameters must be accepted. If an insufficient number of parameters are accepted
 #' by the time the algorithm reaches \code{max_batches}, the program will terminate
-#' under the assumption that the parameters have converged.}}
+#' under the assumption that the parameters have converged.}
+#' \item{multivariate_perturbation}{A logical value indicating whether, for the
+#' Beaumont2009 algorithm, parameter perturbations should be made from a
+#' mulivariate normal distribuion rather than independent normals.}}
+#' 
 #' @examples samplingControl <- SamplingControl(123123, 2)
 #' 
 
@@ -61,7 +65,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
-                 max_batches = 20)
+                 max_batches = 20,
+                 multivariate_perturbation = 1)
         }
         else
         {
@@ -69,7 +74,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  batch_size = 10000,
                  epochs = 1,
                  shrinkage = 1,
-                 max_batches = 1)
+                 max_batches = 1,
+                 multivariate_perturbation = 0)
         }
     }
     else if (class(params) == "list")
@@ -91,6 +97,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("max_batches" %in% names(params))) {
                 params[["max_batches"]] = 20
             }
+            if (!("multivariate_perturbation" %in% names(params))){
+                params[["multivariate_perturbation"]] = 1
+            }
         }
         else if (algorithm == "BasicABC")
         {
@@ -109,6 +118,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("max_batches" %in% names(params))) {
                 params[["max_batches"]] = 1
             }
+            if (!("multivariate_perturbation" %in% names(params))){
+                params[["multivariate_perturbation"]] = 0
+            }
         }
         else
         {
@@ -125,7 +137,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "algorithm" = alg,
                    "epochs" = params$epochs,
                    "shrinkage" = params$shrinkage,
-                   "max_batches" = params$max_batches
+                   "max_batches" = params$max_batches,
+                   "multivariate_perturbation" = params$multivariate_perturbation
                    ), class = "SamplingControl")
 }
 

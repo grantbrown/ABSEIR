@@ -1,4 +1,6 @@
 #include <Rcpp.h>
+#include <Eigen/Core>
+#include <RcppEigen.h>
 #include <cmath>
 #include <math.h>
 #include <spatialSEIRModel.hpp>
@@ -294,12 +296,30 @@ void spatialSEIRModel::updateParams_SMC()
     previousSamples.params = Rcpp::clone(currentSamples.params);
     previousSamples.result = Rcpp::clone(currentSamples.result);
 
+    Eigen::MatrixXd L;
+    Eigen::VectorXd Z;
     std::uniform_real_distribution<double> runif(0.0,1.0);
-    std::vector<std::normal_distribution<double>> K;
-    for (i = 0; i < nParams; i++)
+    std::normal_distribution<double> rnorm(0.0, 1.0);
+    std::vector<std::normal_distribution<double> > K;
+
+
+
+    if (samplingControlInstance -> multivariatePerturbation)
     {
-        tau(i) = Rcpp::sd(currentSamples.params( _, i));
-        K.push_back(std::normal_distribution<double>(0.0, tau(i)));
+        // TODO: Integrate with/replace above
+        Eigen::Map<Eigen::MatrixXd> curSamp(Rcpp::as<Eigen::Map<Eigen::MatrixXd> >(currentSamples.params));
+        Eigen::RowVectorXd mean = curSamp.colwise().mean();
+        Eigen::MatrixXd covMat = ((curSamp.rowwise() - mean).transpose() * (curSamp.rowwise() - mean))/(curSamp.rows()-1);
+        L = Eigen::MatrixXd(covMat.llt().matrixL());
+        Z = Eigen::VectorXd(covMat.cols());
+    }
+    else
+    {
+        for (i = 0; i < nParams; i++)
+        {
+            tau(i) = Rcpp::sd(currentSamples.params( _, i));
+            K.push_back(std::normal_distribution<double>(0.0, tau(i)));
+        }
     }
 
     // Calculate cumulative weights for resampling. 
@@ -316,24 +336,53 @@ void spatialSEIRModel::updateParams_SMC()
     }
     cumulativeWeights[csSize-1] = 1.0;
 
-    int up;
+    int up, itrs;
     bool hasValidProposal;
     Rcpp::NumericVector proposal(nParams);
     for (i = 0; i < bs; i++)
     {
+        itrs = 0;
         up = std::upper_bound(cumulativeWeights.begin(), 
                               cumulativeWeights.end(), runif(*generator)) 
             - cumulativeWeights.begin();
         hasValidProposal = false;
-        while (!hasValidProposal)
+        if (samplingControlInstance -> multivariatePerturbation)
         {
-            for (j = 0; j < param_matrix.cols(); j ++)
+            while (!hasValidProposal && itrs < 10000)
             {
-                proposal(j) = currentSamples.params(up, j) + K[j](*generator);
+                // Fill up standard normal vector
+                for (j = 0; j < param_matrix.cols(); j++)
+                {
+                    Z(j) = rnorm(*generator);
+                }
+                // Generate multivariate normal
+                proposal = Rcpp::wrap(L * Z);
+                // Add back appropriate mean
+                proposal += currentSamples.params(up, _);
+                hasValidProposal = (evalPrior(proposal) != 0);  
+                itrs++;
             }
-            // proposals with impossible values receive 0 weight anyway.
-            hasValidProposal = (evalPrior(proposal) != 0);
         }
+        else
+        {
+            while (!hasValidProposal && itrs < 10000)
+            {
+                for (j = 0; j < param_matrix.cols(); j ++)
+                {
+                    proposal(j) = currentSamples.params(up, j) + K[j](*generator);
+                }
+                // proposals with impossible values receive 0 weight anyway.
+                hasValidProposal = (evalPrior(proposal) != 0);
+                itrs++;
+            }
+        }
+        // Check that we got a valid proposal, otherwise panic
+        if (!hasValidProposal)
+        {
+            Rcpp::Rcout << "Proposal Iterations: " << itrs << "\n";
+            Rcpp::stop("Unable to generate a valid proposal.\n");
+        }
+        // Assign accepted proposal to param_matrix
         for (j = 0; j < nParams; j++)
         {
             param_matrix(i, j) = proposal(j);

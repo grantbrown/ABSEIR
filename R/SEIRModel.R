@@ -113,7 +113,8 @@ SpatialSEIRModel = function(data_model,
             c(sampling_control$sim_width, sampling_control$seed,
               sampling_control$n_cores,sampling_control$algorithm, 
               sampling_control$batch_size,sampling_control$epochs, 
-              sampling_control$max_batches),
+              sampling_control$max_batches, 
+              sampling_control$multivariate_perturbation),
             c(sampling_control$acceptance_fraction, sampling_control$shrinkage)
         )
 
@@ -329,7 +330,8 @@ update.SpatialSEIRModel = function(object, ...)
             c(samplingControlInstance$sim_width, samplingControlInstance$seed,
               samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
               samplingControlInstance$batch_size,samplingControlInstance$epochs, 
-              samplingControlInstance$max_batches),
+              samplingControlInstance$max_batches,
+              samplingControlInstance$multivariate_perturbation),
             c(samplingControlInstance$acceptance_fraction, 
               samplingControlInstance$shrinkage)
         )

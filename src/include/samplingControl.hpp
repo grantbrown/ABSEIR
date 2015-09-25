@@ -27,6 +27,7 @@ class samplingControl : public modelComponent
     int max_batches;
     int CPU_cores;
     int epochs;
+    bool multivariatePerturbation;
 };
 
 

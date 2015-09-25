@@ -89,6 +89,11 @@ class spatialSEIRModel
          * data. This is not currently used much, as we destroy objects after
          * use and recreate them as needed.*/
         int ncalls;
+        /** A flag to indicate that the Beaumont2009 sampler should make 
+         * perterbation proposals from a multivariate normal distribution
+         * rather than independant normals.
+         */
+        bool multivariatePerturbation;
 
         /** A persistant reference to the number of requested samples*/
         int numSamples;

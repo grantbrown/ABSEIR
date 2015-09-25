@@ -107,7 +107,8 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             c(samplingControlInstance$sim_width, samplingControlInstance$seed,
               samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
               samplingControlInstance$batch_size,samplingControlInstance$epochs, 
-              samplingControlInstance$max_batches),
+              samplingControlInstance$max_batches, 
+              samplingControlInstance$multivariate_perturbation),
             c(samplingControlInstance$acceptance_fraction, 
               samplingControlInstance$shrinkage)
         )

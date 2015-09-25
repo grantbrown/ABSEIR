@@ -53,7 +53,10 @@ epidemics is shrunk between each iteration.}
 the maximum number of parallel batches to run before which a new set of
 parameters must be accepted. If an insufficient number of parameters are accepted
 by the time the algorithm reaches \code{max_batches}, the program will terminate
-under the assumption that the parameters have converged.}}
+under the assumption that the parameters have converged.}
+\item{multivariate_perturbation}{A logical value indicating whether, for the
+Beaumont2009 algorithm, parameter perturbations should be made from a
+mulivariate normal distribuion rather than independent normals.}}
 }
 \examples{
 samplingControl <- SamplingControl(123123, 2)
