@@ -66,7 +66,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  epochs = 100, 
                  shrinkage = 0.9,
                  max_batches = 20,
-                 multivariate_perturbation = 1)
+                 multivariate_perturbation = 0)
         }
         else
         {
@@ -98,7 +98,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                 params[["max_batches"]] = 20
             }
             if (!("multivariate_perturbation" %in% names(params))){
-                params[["multivariate_perturbation"]] = 1
+                params[["multivariate_perturbation"]] = 0
             }
         }
         else if (algorithm == "BasicABC")
