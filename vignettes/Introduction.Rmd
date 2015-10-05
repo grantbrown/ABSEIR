@@ -1,0 +1,43 @@
+---
+title: "ABSEIR"
+author: "Grant Brown"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ABSEIR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Introduction
+----------------
+
+ABSEIR is an R package designed to efficiently implement a class of spatial 
+epidemic models known as spatial SEIR(S) models. This family of analytical 
+techniques is more completely described in 
+[this recently accepted manuscript](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf),
+as well as in [my thesis work](http://ir.uiowa.edu/etd/1554), though a brief practical introduction
+is given here. 
+
+
+Spatial SEIR Models
+---------------------
+
+If you're reading this, you're probably interested in epidemic modeling techniques.
+It will therefore come as no surprise to you that epidemics develop
+over both time and space. When we want to apply statistical models to these
+phenomena, however, we need to be a bit more specific about what we mean when we
+say 'time' and 'space'. The class of spatial SEIR(S) models is defined
+for discrete time points and discrete spatial locations. This may take the form
+of weekly reports on a particular disease process, perhaps subdivided by 
+administrative regions. This specification stands in contrast to continuous spatiotemporal
+processes, like the latitude, longitude, and time at which a biological sample is
+taken. 
+
+
+```{r, fig.show='hold'}
+plot(1:10)
+plot(10:1)
+```
+
+
