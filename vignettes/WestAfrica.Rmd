@@ -1,0 +1,6 @@
+---
+title: "West Africa Ebola Analysis"
+output: html_document
+---
+
+Analysis of 2014-2015 West Africa data goes here. Tell Grant to get back to work: grant-brown@uiowa.edu

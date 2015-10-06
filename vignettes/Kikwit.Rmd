@@ -1,0 +1,106 @@
+---
+title: "Kikwit Ebola Analysis"
+output: html_document
+---
+**Disclaimer: ** tutorial in progress.
+
+
+1. Load library and data
+```{r}
+# load the ABSEIR library
+library(ABSEIR)
+# read in the data set
+data(Kikwit1995)
+```
+
+
+2. Plot cases
+```{r}
+barplot(t(Kikwit1995$Count), main = "New Cases", xlab = "Day", ylab = "Cases")
+axis(side = 1, at = seq(0, nrow(Kikwit1995), 50)) 
+```
+
+3. Build model
+
+```{r}
+# Model to relate observe data to epidemic process
+data_model = DataModel(Kikwit1995$Count,
+                       type = "identity",
+                       compartment="I_star",
+                       cumulative=FALSE)
+# Model to describe relationship of any covariates to epidemic intensity
+exposure_model_1 = ExposureModel(matrix(1, nrow = nrow(Kikwit1995)),
+                                nTpt = nrow(Kikwit1995),
+                                nLoc = 1,
+                                betaPriorPrecision = 0.5,
+                                betaPriorMean = 0)
+# (more realistic) Model to describe relationship of any covariates to epidemic intensity
+intervention_term = cumsum(Kikwit1995$Date >  as.Date("05-09-1995", "%m-%d-%Y"))
+intervention_term = intervention_term/max(intervention_term)
+exposure_model_2 = ExposureModel(cbind(1,intervention_term),
+                                nTpt = nrow(Kikwit1995),
+                                nLoc = 1,
+                                betaPriorPrecision = 0.5,
+                                betaPriorMean = 0)
+# there's no reinfection in this case
+reinfection_model = ReinfectionModel("SEIR")
+# we have no distance model, because it's a non-spatial analysis. 
+# This is clunky, any suggestions? Might be solved by adapting the qSEIR and qSpatialSEIR
+# functions from libSpatialSEIR to the new framework.
+distance_model = DistanceModel(list(matrix(0)))
+
+# Set initial population sizes
+initial_value_container = InitialValueContainer(S0=5.36e6,
+                                                E0=2,
+                                                I0=2,
+                                                R0=0)
+  
+  
+# Model to describe E to I and I to R transition probabilities. Prior values from 
+# Lekone and Finkenstadt 2006
+# This is going to be expanded soon. 
+transition_priors = TransitionPriors(p_ei = 1-exp(-1/5), 
+                                     p_ir= 1-exp(-1/7),
+                                     p_ei_ess = 100,
+                                     p_ir_ess = 100)
+
+# set algorithm configuration
+sampling_control = SamplingControl(seed = 123123, 
+                                   n_cores = 2,
+                                   algorithm="Beaumont2009",
+                                    list(batch_size = 10000,
+                                           epochs = 1e6,
+                                           max_batches = 5,
+                                           shrinkage = 0.99)
+                                   )
+
+result1 = SpatialSEIRModel(data_model,
+                          exposure_model_1,
+                          reinfection_model,
+                          distance_model,
+                          transition_priors,
+                          initial_value_container,
+                          sampling_control,
+                          samples = 100,
+                          verbose = TRUE)
+
+result2 = SpatialSEIRModel(data_model,
+                          exposure_model_2,
+                          reinfection_model,
+                          distance_model,
+                          transition_priors,
+                          initial_value_container,
+                          sampling_control,
+                          samples = 100,
+                          verbose = TRUE)
+
+compareModels(result1, result2, n_samples = 10000, 
+              batch_size = 20000)
+
+summary(result1)
+
+summary(result2)
+
+
+
+```
