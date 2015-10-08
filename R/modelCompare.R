@@ -89,8 +89,10 @@ compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
                                          size = batch_size),]
         mr1$param.samples = s1
         mr2$param.samples = s2
-        e1 = epidemic.simulations(mr1, returnCompartments=FALSE)$result
-        e2 = epidemic.simulations(mr2, returnCompartments=FALSE)$result
+        e1 = epidemic.simulations(mr1, returnCompartments=FALSE
+                                  )$simulationResults$result
+        e2 = epidemic.simulations(mr2, returnCompartments=FALSE
+                                  )$simulationResults$result
         c(sum(e1 < e.compare), sum(e2 < e.compare))
     }
 

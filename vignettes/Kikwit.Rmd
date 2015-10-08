@@ -16,25 +16,29 @@ data(Kikwit1995)
 
 2. Plot cases
 ```{r}
+# make barplot of new case counts
 barplot(t(Kikwit1995$Count), main = "New Cases", xlab = "Day", ylab = "Cases")
+# add an X axis to give a reference epidemic time
 axis(side = 1, at = seq(0, nrow(Kikwit1995), 50)) 
 ```
 
 3. Build model
 
 ```{r}
-# Model to relate observe data to epidemic process
+# Create a model to relate observe data to epidemic process
 data_model = DataModel(Kikwit1995$Count,
                        type = "identity",
                        compartment="I_star",
                        cumulative=FALSE)
-# Model to describe relationship of any covariates to epidemic intensity
+# Create a model to describe relationship of any covariates to epidemic intensity
 exposure_model_1 = ExposureModel(matrix(1, nrow = nrow(Kikwit1995)),
                                 nTpt = nrow(Kikwit1995),
                                 nLoc = 1,
                                 betaPriorPrecision = 0.5,
                                 betaPriorMean = 0)
-# (more realistic) Model to describe relationship of any covariates to epidemic intensity
+# Create a (more realistic) Model to describe relationship of any covariates to epidemic intensity
+# In this analysis we know on which date interventions began, so we may include a linear term
+# starting on that date. 
 intervention_term = cumsum(Kikwit1995$Date >  as.Date("05-09-1995", "%m-%d-%Y"))
 intervention_term = intervention_term/max(intervention_term)
 exposure_model_2 = ExposureModel(cbind(1,intervention_term),
@@ -42,11 +46,12 @@ exposure_model_2 = ExposureModel(cbind(1,intervention_term),
                                 nLoc = 1,
                                 betaPriorPrecision = 0.5,
                                 betaPriorMean = 0)
-# there's no reinfection in this case
+# There's no reinfection in this case, so we just use a "SEIR" model. 
 reinfection_model = ReinfectionModel("SEIR")
-# we have no distance model, because it's a non-spatial analysis. 
-# This is clunky, any suggestions? Might be solved by adapting the qSEIR and qSpatialSEIR
-# functions from libSpatialSEIR to the new framework.
+# we have no distance model, because it's a non-spatial analysis, but we still
+# need to create an empty DistanceModel for ABSEIR. This approach is a bit clunky, 
+# so we're open to suggestions. One option may be the implmentation of new verisons
+# of the qSEIR functions included in libSpatialSEIR. 
 distance_model = DistanceModel(list(matrix(0)))
 
 # Set initial population sizes
@@ -58,21 +63,31 @@ initial_value_container = InitialValueContainer(S0=5.36e6,
   
 # Model to describe E to I and I to R transition probabilities. Prior values from 
 # Lekone and Finkenstadt 2006
-# This is going to be expanded soon. 
+# This is going to be expanded soon, so that we won't need to rely on 
+# the exponential assumption
 transition_priors = TransitionPriors(p_ei = 1-exp(-1/5), 
                                      p_ir= 1-exp(-1/7),
                                      p_ei_ess = 100,
                                      p_ir_ess = 100)
 
-# set algorithm configuration
+# Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 2,
+                                   n_cores = 14,
                                    algorithm="Beaumont2009",
                                     list(batch_size = 10000,
                                            epochs = 1e6,
-                                           max_batches = 5,
-                                           shrinkage = 0.99)
+                                           max_batches = 10,
+                                           shrinkage = 0.99,
+                                           multivariate_perturbation=TRUE
+                                         )
                                    )
+
+
+```
+
+4. Run our two models
+
+```{r}
 
 result1 = SpatialSEIRModel(data_model,
                           exposure_model_1,
@@ -82,7 +97,7 @@ result1 = SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE)
+                          verbose = FALSE)
 
 result2 = SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -92,8 +107,14 @@ result2 = SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE)
+                          verbose = FALSE)
 
+
+```
+
+5. Compare the two models, and consider a summary of their parameter estimates
+
+```{r}
 compareModels(result1, result2, n_samples = 10000, 
               batch_size = 20000)
 
@@ -102,5 +123,59 @@ summary(result1)
 summary(result2)
 
 
+```
+
+
+6. Consider model fit by looking at posterior predictive distribution of epidemic values. 
+
+```{r}
+# Simulate new epidemics based on the accepted parameters for model 1
+simulated = epidemic.simulations(result1, replicates = 25)
+
+allSimulatedI_star = sapply(simulated$simulationResults, function(x){x$I_star})
+
+
+lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
+posteriorMean = apply(allSimulatedI_star, 1, mean)
+upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
+
+
+plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
+     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 1: Posterior Predictive Distribution")
+lines(upperQuantile, lty = 2, col = "blue")
+lines(lowerQuantile, lty = 2, col = "blue")
+lines(posteriorMean, lty = 1, col = "blue")
+
+legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
+       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
+```
+
+```{r}
+# Simulate new epidemics based on the accepted parameters for model 2
+simulated = epidemic.simulations(result2, replicates = 25)
+
+allSimulatedI_star = sapply(simulated$simulationResults, function(x){x$I_star})
+
+
+lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
+posteriorMean = apply(allSimulatedI_star, 1, mean)
+upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
+
+
+plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
+     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 2: Posterior Predictive Distribution")
+lines(upperQuantile, lty = 2, col = "blue")
+lines(lowerQuantile, lty = 2, col = "blue")
+lines(posteriorMean, lty = 1, col = "blue")
+
+legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
+       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
+```
+
+7. Look at reproductive number estimates
+
+```{r}
+  
+  
 
 ```

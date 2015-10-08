@@ -164,7 +164,9 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
               paste("Simulation_", 1:length(modelResult$simulatedResults), 
                     sep = "")
     }
-    return(modelResult$simulatedResults)
+    return(structure(list(modelObject = modelObject, 
+                          simulationResults=modelResult$simulatedResults),
+                     class = "PosteriorSimulation"))
 }
 
 
