@@ -73,9 +73,9 @@ compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
 
     w1 = model1$weights
     w2 = model1$weights
-    e1 = model1$epsilon
-    e2 = model2$epsilon
-    e.compare = mean(c(e1, e2))
+    e1 = model1$current_eps
+    e2 = model2$current_eps
+    e.compare = max(c(e1, e2))
     
     drawSamples = function()
     {
