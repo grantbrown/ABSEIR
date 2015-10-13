@@ -521,12 +521,12 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     // Fill in R0(t) and eff R0(t)
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
-        (*results).r0t.row(time_idx) = eta.row(time_idx);
-        for (l = 0; l < eta.cols(); l++)
+        (*results).r0t.row(time_idx) = p_se_components.row(time_idx);
+        for (l = 0; l < p_se_components.cols(); l++)
         {
             (*results).r0t(time_idx, l) /= -std::log(1.0-(*results).p_ir(time_idx));
             (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
-                *((*results).S(time_idx, l))/N(l);
+                                            *((*results).S(time_idx, l))/N(l);
         }
     }
 
