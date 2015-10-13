@@ -29,8 +29,8 @@ struct simulationResultSet
     Eigen::MatrixXi R_star;
     Eigen::MatrixXd X;
     Eigen::MatrixXd rEA;
-    //Eigen::MatrixXd r0t;
-    //Eigen::MatrixXd effR0;
+    Eigen::MatrixXd r0t;
+    Eigen::MatrixXd effR0;
     Eigen::MatrixXd p_se;
     Eigen::MatrixXd p_ei;
     Eigen::MatrixXd p_ir;

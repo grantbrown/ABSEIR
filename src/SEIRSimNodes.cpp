@@ -311,8 +311,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         // Todo: add reinfection component
 
         compartmentResults.rEA = Eigen::MatrixXd(Y.rows(), Y.cols());
-        //compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
-        //compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
+        compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
+        compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se.row(0) = p_se.row(0);
         compartmentResults.p_ei = p_ei.transpose(); 
@@ -513,11 +513,25 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
 
 
 
+
     int nLoc = (*results).S.cols();
     int nTpt = (*results).S.rows();
     std::vector<Eigen::MatrixXd> GVector;
     double component1, component2;
-    //Calculate next generation matrices (more vector logic could be used here)
+    // Fill in R0(t) and eff R0(t)
+    for (time_idx = 0; time_idx < nTpt; time_idx++)
+    {
+        (*results).r0t.row(time_idx) = eta.row(time_idx);
+        for (l = 0; l < eta.cols(); l++)
+        {
+            (*results).r0t(time_idx, l) /= -std::log(1.0-(*results).p_ir(time_idx));
+            (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
+                *((*results).S(time_idx, l))/N(l);
+        }
+    }
+
+
+    // Calculate next generation matrices (more vector logic could be used here)
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
         //Create and zero out G(t)

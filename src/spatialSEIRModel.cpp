@@ -925,6 +925,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
             subList["p_ei"] = createRcppNumericFromEigen(results_complete[i].p_ei);
             subList["p_ir"] = createRcppNumericFromEigen(results_complete[i].p_ir);
             subList["R_EA"] = createRcppNumericFromEigen(results_complete[i].rEA);
+            subList["R0t"] = createRcppNumericFromEigen(results_complete[i].r0t);
+            subList["effR0t"] = createRcppNumericFromEigen(results_complete[i].effR0);
             subList["rho"] = createRcppNumericFromEigen(results_complete[i].rho);
             subList["beta"] = createRcppNumericFromEigen(results_complete[i].beta);
             subList["X"] = createRcppNumericFromEigen(results_complete[i].X);
