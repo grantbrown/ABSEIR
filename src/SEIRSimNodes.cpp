@@ -309,6 +309,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.beta = Eigen::MatrixXd(1, beta.size());
         compartmentResults.beta = beta.transpose(); 
         // Todo: add reinfection component
+
+        compartmentResults.rEA = Eigen::MatrixXd(Y.rows(), Y.cols());
+        //compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
+        //compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se.row(0) = p_se.row(0);
         compartmentResults.p_ei = p_ei.transpose(); 
@@ -322,7 +326,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             compartmentResults.rho = Eigen::MatrixXd(1,1);
             compartmentResults.rho(0, 0) = 0.0; 
         }
-
     }
 
 
@@ -488,9 +491,104 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     if (keepCompartments)
     {
         this -> sim_width = oldWidth;
+        calculateReproductiveNumbers(&compartmentResults);
     }
     compartmentResults.result = resultVal; 
     return(compartmentResults);
+}
+
+void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
+{
+    int i, l, k;
+    Eigen::VectorXi N(S0.size());
+    N = S0 + E0 + I0 + R0;
+
+    int time_idx;
+    Eigen::VectorXd beta = (*results).beta; 
+
+    Eigen::MatrixXd eta = (((*results).X*beta).unaryExpr([](double elem){return(std::exp(elem));}));
+    Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
+                (*results).S.rows(), (*results).S.cols());
+    Eigen::MatrixXd p_se_cache(1, (*results).S.cols());
+
+
+
+    int nLoc = (*results).S.cols();
+    int nTpt = (*results).S.rows();
+    std::vector<Eigen::MatrixXd> GVector;
+    double component1, component2;
+    //Calculate next generation matrices (more vector logic could be used here)
+    for (time_idx = 0; time_idx < nTpt; time_idx++)
+    {
+        //Create and zero out G(t)
+        Eigen::MatrixXd G(nLoc, nLoc);
+        for (i = 0; i < nLoc; i++){for (l = 0; l < nLoc; l++){G(i,l) = 0.0;}}
+
+        // Out: rows
+        for (i = 0; i < nLoc; i++) 
+        {
+            // Out: columns
+            for (l = 0; l < nLoc; l++)
+            { 
+                component1 = ((*results).I(time_idx, l) 
+                        * (p_se_components(time_idx, l)))/N(l);
+                if (i != l)
+                {
+                    component2 = 0.0;
+                    for (k = 0; k < DM_vec.size(); k++)
+                    {
+                        component2 += ((*results).rho(k))*((DM_vec[k](i,l))*component1);
+                    }
+                    G(i,l) = ((*results).I(time_idx, l) != 0 ? 
+                              (*results).S(time_idx, l)/((*results).I(time_idx, l))
+                              *(1-std::exp(-component2)) : 0.0);
+                }
+                else
+                { 
+                    G(i,l) = ((*results).I(time_idx, l) != 0 ? 
+                              (*results).S(time_idx, l)/((*results).I(time_idx, l))
+                              * (1-std::exp(-component1)) : 0.0);
+                }
+            }
+        } 
+        GVector.push_back(G);
+    }    
+
+
+    for (time_idx = 0; time_idx < nTpt; time_idx ++)
+    {
+        for (i = 0; i < nLoc; i++)
+        {
+            (*results).rEA(time_idx, i) = 0.0;
+        }
+
+        for (i = 0; i < nLoc; i++)
+        {
+            for (l = 0; l < nLoc; l++)
+            {
+                (*results).rEA(time_idx, l) += GVector[time_idx](l, i);        
+            }
+        }
+    }
+
+
+
+    double _1mpIR_cum = 1.0;
+    for (time_idx = 0; time_idx < nTpt; time_idx++)
+    {
+        _1mpIR_cum = (1-(*results).p_ir(time_idx, 0));
+        for (l = time_idx+1; l < nTpt; l++)
+        {
+            (*results).rEA.row(time_idx) += 
+                _1mpIR_cum*(*results).rEA.row(l);
+            _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
+        }
+        while (_1mpIR_cum > 1e-8)
+        {
+            (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
+            _1mpIR_cum*=((*results).p_ir(nTpt - 1,0));
+        }
+    }
 }
 
 SEIR_sim_node::~SEIR_sim_node()

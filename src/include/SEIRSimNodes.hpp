@@ -50,6 +50,7 @@ class SEIR_sim_node : public event_based_actor {
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
         behavior make_behavior() override;
     private: 
+        void calculateReproductiveNumbers(simulationResultSet* input);
         int sim_width;
         unsigned int random_seed;
         Eigen::VectorXi S0;
