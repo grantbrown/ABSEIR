@@ -130,9 +130,9 @@ summary(result2)
 
 ```{r}
 # Simulate new epidemics based on the accepted parameters for model 1
-simulated = epidemic.simulations(result1, replicates = 25)
+simulated1 = epidemic.simulations(result1, replicates = 25)
 
-allSimulatedI_star = sapply(simulated$simulationResults, function(x){x$I_star})
+allSimulatedI_star = sapply(simulated1$simulationResults, function(x){x$I_star})
 
 
 lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
@@ -152,9 +152,9 @@ legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0)
 
 ```{r}
 # Simulate new epidemics based on the accepted parameters for model 2
-simulated = epidemic.simulations(result2, replicates = 25)
+simulated2 = epidemic.simulations(result2, replicates = 25)
 
-allSimulatedI_star = sapply(simulated$simulationResults, function(x){x$I_star})
+allSimulatedI_star = sapply(simulated2$simulationResults, function(x){x$I_star})
 
 
 lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
@@ -175,7 +175,22 @@ legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0)
 7. Look at reproductive number estimates
 
 ```{r}
-  
+allSimulatedR0_1 = sapply(simulated1$simulationResults, function(x){x$R0t})
+allSimulatedEA_R0_1 = sapply(simulated1$simulationResults, function(x){x$R_EA})
+
+allSimulatedR0_2 = sapply(simulated2$simulationResults, function(x){x$R0t})
+allSimulatedEA_R0_2 = sapply(simulated2$simulationResults, function(x){x$R_EA})
+
+par(mfrow = c(1,2))
+plot(apply(allSimulatedR0_1, 1, median), type = "l", ylim = c(0, 1.5), lwd =2,
+     ylab = "Reproductive Number", main = "Model 1: R0(t) and EA-R(t)")
+lines(apply(allSimulatedEA_R0_1, 1, median), lwd = 2, lty = 2, col = "blue")
+
+plot(apply(allSimulatedR0_2, 1, median), type = "l", ylim = c(0, 1.5), lwd = 2,
+     ylab = "Reproductive Number", main = "Model 2: R0(t) and EA-R(t)")
+lines(apply(allSimulatedEA_R0_2, 1, median), lwd =2, lty = 2, col = "blue")
+legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
+       lwd = c(2,2), cex = 1.25)
   
 
 ```
