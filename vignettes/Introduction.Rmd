@@ -1,0 +1,83 @@
+---
+title: "ABSEIR"
+author: "Grant Brown"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ABSEIR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Introduction
+----------------
+
+ABSEIR is an R package designed to efficiently implement a class of spatial 
+epidemic models known as spatial SEIR(S) models. This family of analytical 
+techniques is more completely described in 
+[this recently accepted manuscript](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf),
+as well as in [my thesis work](http://ir.uiowa.edu/etd/1554), though a brief practical introduction
+is given here. 
+
+
+Spatial SEIR Models
+---------------------
+
+If you're reading this, you're probably interested in epidemic modeling techniques.
+It will therefore come as no surprise to you that epidemics develop
+over both time and space. When we want to apply statistical models to these
+phenomena, however, we need to be a bit more specific about what we mean when we
+say 'time' and 'space'. The class of spatial SEIR(S) models is defined
+for discrete time points and discrete spatial locations. This may take the form
+of weekly reports on a particular disease process, perhaps subdivided by 
+administrative regions. This specification stands in contrast to continuous spatiotemporal
+processes, like the latitude, longitude, and time at which a biological sample is
+taken. 
+
+The acronyms in this field can be a bit daunting, but allow readers to very quickly get
+an idea for what kind of assumptions a particular model is likely to make about a disease
+process. Disease states are broken up into 'compartments', and the names/labels of these
+compartments generally give rise to the acronyms. SEIR models, for example, describe models
+in which an individual may either be **S**usceptible, **E**xposed, **I**nfectious, or **R**emoved. 
+Susceptible indiduals do not have a particular disease, but may contract it. Exposed individuals
+(somewhat confusingly) have contracted the pathogen of interest, but are not yet capable of 
+spreading it. Infectious individuals are... infectious, and the removed category describes 
+individuals who are no longer infectious due to recovery with immunity or mortality. 
+
+Clearly, these are not the only disease states we might be interested in. In fact, ABSEIR
+already allows users to fit full SEIRS models, which allow removed individuals to re-enter
+the susceptible population. More generally, we often want to distinguish between various
+types of infectious state, different removal states (with different probabilities of 
+reentry into the susceptible population), work with multiple species or make any number
+of other generalizations to the compartmental framework. Work in this area is ongoing, 
+though the ABSEIR package itself is likely to retain a broadly similer feature set
+to that it currently posesses. There are certainly a lot of exciting opportunities 
+for the development of more general epidemic modeling software. Even so, you might be 
+very surprised at the wide range of analyses which can be performed using the 
+spatial SEIR(S) model class as implemented by ABSEIR. We're capable of working with
+a variety of spatial and nonspatial models for a wide variety of disease processes. 
+As we'll see in later tutorials, the 'spatial' structure as described in the above
+manuscripts can be adapted to describe structured multi-host populations. 
+
+
+Documentation: Goals
+---------------------
+
+The ABSEIR documentation is intended to give an informal introduction to important concepts
+for understanding the compartmental models implemented by the software, and to describe
+the practical details of actually working with these models. It is not intended to 
+provide a comprehensive background on epidemic modeling techniques or approximate Bayesian
+methodology more generally. Questions are, however, encouraged, and should be directed to the
+[issues](https://github.com/grantbrown/ABSEIR/issues) section of our GitHub page.
+This documentation also does not cover installation, which is currently only an option
+for users of Linux and OSX. Detailed instructions are available [here](https://github.com/grantbrown/ABSEIR/wiki/Installation), and we hope to soon support Windows as well. 
+
+
+Tutorials
+------------
+
+* [Single location analysis of the 1995 outbreak of Ebola in Kikwit, Nigeria](./Kikwit.html)
+* [Spatial analysis of the 2014-2015 outbreak of Ebola in West Africa](WestAfrica.html)
+* (more to come - suggestions welcome)
+
+
