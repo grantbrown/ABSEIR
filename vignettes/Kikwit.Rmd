@@ -72,7 +72,7 @@ transition_priors = TransitionPriors(p_ei = 1-exp(-1/5),
 
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 14,
+                                   n_cores = 2,
                                    algorithm="Beaumont2009",
                                     list(batch_size = 10000,
                                            epochs = 1e6,
