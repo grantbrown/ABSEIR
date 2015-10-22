@@ -8,6 +8,7 @@ distanceModel::distanceModel()
 {
     numLocations=-1;
     spatial_prior = Eigen::VectorXd(2);
+    dm_list = std::vector<Eigen::MatrixXd>();
 }
 
 int distanceModel::getModelComponentType()
@@ -39,17 +40,19 @@ void distanceModel::addDistanceMatrix(NumericMatrix distMat)
         {
             new_mat(i,j) = distMat(i,j);
         }
-
     }
 
     dm_list.push_back(new_mat);
     numLocations = distMat.nrow();
+
 }
+
 void distanceModel::summary()
 {
     Rcpp::Rcout << "Number of locations: " << numLocations << "\n";
     Rcpp::Rcout << "Number of distance structures: " << (dm_list.size()) << "\n";
 }
+
 distanceModel::~distanceModel()
 {
     if (prot !=0 ){

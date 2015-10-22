@@ -97,7 +97,7 @@ result1 = SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE)
+                          verbose = TRUE)
 
 result2 = SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -107,7 +107,7 @@ result2 = SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE)
+                          verbose = TRUE)
 
 
 ```

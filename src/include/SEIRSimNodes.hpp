@@ -22,8 +22,7 @@ struct simulationResultSet;
 
 class SEIR_sim_node : public event_based_actor {
     public:
-        SEIR_sim_node(int sim_width,
-                      int random_seed,
+        SEIR_sim_node(int random_seed,
                       Eigen::VectorXi S0,
                       Eigen::VectorXi E0,
                       Eigen::VectorXi I0,

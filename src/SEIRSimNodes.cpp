@@ -10,8 +10,7 @@
 using namespace std;
 using namespace caf;
 
-SEIR_sim_node::SEIR_sim_node(int w,
-                             int sd,
+SEIR_sim_node::SEIR_sim_node(int sd,
                              Eigen::VectorXi s,
                              Eigen::VectorXi e,
                              Eigen::VectorXi i,
@@ -33,8 +32,7 @@ SEIR_sim_node::SEIR_sim_node(int w,
                              int dmc,
                              bool cmltv,
                              actor pr
-                             ) : sim_width(w),
-                                 random_seed(sd),
+                             ) : random_seed(sd),
                                  S0(s),
                                  E0(e),
                                  I0(i),
@@ -153,23 +151,15 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 {
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
-    int oldWidth = this -> sim_width;
-    if (keepCompartments)
-    {
-        // If we're saving debug information, each set of parameters
-        // must only run one simulation. Duplicate sims in R if you
-        // need to. 
-        this -> sim_width = 1;
-    }
+
+    int time_idx, i, j;
+    unsigned int idx; 
 
     simulationResultSet compartmentResults;
-    unsigned int idx; 
-    int time_idx, i, j;
-    Eigen::VectorXd results = Eigen::VectorXd::Zero(sim_width); 
-    for (i = 0; i < sim_width; i++)
-    {
-       results(i) = 0.0; 
-    }
+
+    
+    Eigen::VectorXd results = Eigen::VectorXd(1); 
+    results(0) = 0.0;
 
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
@@ -196,38 +186,40 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         rho = Eigen::VectorXd(1.0);
     }
-
+   
     double gamma_ei = params(params.size() - 2);
     double gamma_ir = params(params.size() - 1);
 
     Eigen::VectorXi N(S0.size());
     N = (S0 + E0 + I0 + R0);
 
-    Eigen::MatrixXd p_se_cache(sim_width, S0.size());
+    Eigen::VectorXd p_se_cache(S0.size());
 
-    Eigen::MatrixXi current_S(sim_width, S0.size());
-    Eigen::MatrixXi current_E(sim_width, S0.size());
-    Eigen::MatrixXi current_I(sim_width, S0.size());
-    Eigen::MatrixXi current_R(sim_width, S0.size());
+    Eigen::VectorXi current_S(S0.size());
+    Eigen::VectorXi current_E(S0.size());
+    Eigen::VectorXi current_I(S0.size());
+    Eigen::VectorXi current_R(S0.size());
 
-    Eigen::MatrixXi previous_S(sim_width, S0.size());
-    Eigen::MatrixXi previous_E(sim_width, S0.size());
-    Eigen::MatrixXi previous_I(sim_width, S0.size());
-    Eigen::MatrixXi previous_R(sim_width, S0.size());
+    Eigen::VectorXi previous_S(S0.size());
+    Eigen::VectorXi previous_E(S0.size());
+    Eigen::VectorXi previous_I(S0.size());
+    Eigen::VectorXi previous_R(S0.size());
 
-    Eigen::MatrixXi previous_S_star(sim_width, S0.size());
-    Eigen::MatrixXi previous_E_star(sim_width, S0.size());
-    Eigen::MatrixXi previous_I_star(sim_width, S0.size());
-    Eigen::MatrixXi previous_R_star(sim_width, S0.size()); 
 
-    Eigen::MatrixXi cumulative_compartment(sim_width, S0.size());
+    Eigen::VectorXi previous_S_star(S0.size());
+    Eigen::VectorXi previous_E_star(S0.size());
+    Eigen::VectorXi previous_I_star(S0.size());
+    Eigen::VectorXi previous_R_star(S0.size()); 
 
-    Eigen::MatrixXi* comparison_compartment = (data_compartment == 0 ?
+    Eigen::VectorXi cumulative_compartment(S0.size());
+
+    Eigen::VectorXi* comparison_compartment = (data_compartment == 0 ?
                                                &previous_I_star : 
                                               (data_compartment == 1 ? 
                                                &previous_R_star : 
                                               (data_compartment == 2 ? 
                                                &previous_I : &previous_I_star)));
+
 
 
     // Calculate probabilities
@@ -239,38 +231,42 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
 
+
     time_idx = 0;
-    for (i = 0; i < sim_width; i++)
-    {
-        previous_S.row(i) = S0;
-        previous_E.row(i) = E0;
-        previous_I.row(i) = I0;
-        previous_R.row(i) = R0;
+    previous_S = S0;
+    previous_E = E0;
+    previous_I = I0;
+    previous_R = R0;
 
-        p_se_cache.row(i) = (((p_se_components.row(0)).array() 
-                       * (previous_I.row(i).cast<double>().array())) 
-                       * (((N.transpose().cast<double>().array()).unaryExpr([](double e)
-                        {
-                            return(1.0/e);
-                        })).array())).matrix();
-    }
+    /*
+    auto c1 = (p_se_components.row(0).transpose().array());
+    auto c2 = previous_I.cast<double>().array();
+    auto c3 = (N.cast<double>().array()); 
 
-    Eigen::MatrixXd p_se = 1*p_se_cache; 
+    Rcpp::Rcout << "dim1: (" << c1.rows() << ", " << c1.cols() << ", " << c1.size() << ")\n";
+    Rcpp::Rcout << "dim2: (" << c2.rows() << ", " << c2.cols() << ", " << c2.size() << ")\n";
+    Rcpp::Rcout << "dim3: (" << c3.rows() << ", " << c3.cols() << ", " << c3.size() << ")\n";
+    */
+
+    p_se_cache = (((p_se_components.row(0).array().transpose())
+                   * (previous_I.cast<double>().array())) 
+                   * (((N.cast<double>().array()).unaryExpr([](double e)
+                    {
+                        return(1.0/e);
+                    })).array()));
+    Eigen::VectorXd p_se = 1*p_se_cache; 
+
     if (has_spatial)
     {
         for (idx = 0; idx < DM_vec.size(); idx++)
         {
-            for (j = 0; j < sim_width; j++)
-            {
-                p_se.row(j) += rho[idx]*(DM_vec[idx] * (p_se_cache.row(j).transpose()));
-            }
+            p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
         }
     }
 
-    for (i = 0; i < p_se.rows(); i++)
-    {
-        p_se.row(i) = (((-1.0*p_se.row(i).array()) * (offset(0)))).unaryExpr([](double e){return(1-std::exp(e));}); 
-    }
+    p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
+            return(1-std::exp(e));
+            }); 
 
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));});
@@ -281,7 +277,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXd p_rs;
     if (has_reinfection)
     {
-        // untested
         p_rs = ((((X_rs*beta_rs).unaryExpr([](double e){return(std::exp(e));})).array() 
                     * offset(0)).matrix()).unaryExpr([](double e){return(1-std::exp(-e));});
     }
@@ -314,7 +309,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
-        compartmentResults.p_se.row(0) = p_se.row(0);
+        compartmentResults.p_se.row(0) = p_se;
         compartmentResults.p_ei = p_ei.transpose(); 
         compartmentResults.p_ir = p_ir.transpose(); 
         if (has_spatial)
@@ -335,30 +330,31 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     std::binomial_distribution<int> E_star_gen(previous_E(0,0) ,p_se(0));            
     std::binomial_distribution<int> I_star_gen(previous_I(0,0) ,p_ei(0));            
     std::binomial_distribution<int> R_star_gen(previous_R(0,0) ,p_ir(0));            
+
     for (i = 0; i < Y.cols(); i++)
     {
-        for (j = 0; j<sim_width; j++)
+
+
+        S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(i) ,p_rs(0)));
+        E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(i) ,p_se(i)));
+        I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(0)));
+        R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(0)));
+
+        previous_S_star(i) = S_star_gen(*generator);
+        previous_E_star(i) = E_star_gen(*generator);
+        previous_I_star(i) = I_star_gen(*generator);
+        previous_R_star(i) = R_star_gen(*generator);
+
+        if (cumulative)
         {
-            S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(j,i) ,p_rs(0)));
-            E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(j,i) ,p_se(j,i)));
-            I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(j,i) ,p_ei(0)));
-            R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(j,i) ,p_ir(0)));
-
-            previous_S_star(j,i) = S_star_gen(*generator);
-            previous_E_star(j,i) = E_star_gen(*generator);
-            previous_I_star(j,i) = I_star_gen(*generator);
-            previous_R_star(j,i) = R_star_gen(*generator);
-
-            if (cumulative)
-            {
-                cumulative_compartment(j,i) = (*comparison_compartment)(j,i);
-            }
-            results(j) += (na_mask(0,i) ? 0 : 
-                    pow(((*comparison_compartment)(j,i) + 
-                            (phi > 0 ? 
-                             std::floor(overdispersion_distribution(*generator)) 
-                             : 0) - Y(0, i)), 2.0)); 
+            cumulative_compartment(i) = (*comparison_compartment)(i);
         }
+
+        results(0) += (na_mask(0,i) ? 0 : 
+                pow(((*comparison_compartment)(i) + 
+                        (phi > 0 ? 
+                         std::floor(overdispersion_distribution(*generator)) : 0)
+                        - Y(0, i)), 2.0)); 
     }
 
     if (keepCompartments)
@@ -370,10 +366,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             compartmentResults.I(time_idx, i) = I0(i);
             compartmentResults.R(time_idx, i) = R0(i);
 
-            compartmentResults.S_star(time_idx, i) = previous_S_star(0,i);
-            compartmentResults.E_star(time_idx, i) = previous_E_star(0,i);
-            compartmentResults.I_star(time_idx, i) = previous_I_star(0,i);
-            compartmentResults.R_star(time_idx, i) = previous_R_star(0,i);
+            compartmentResults.S_star(time_idx, i) = previous_S_star(i);
+            compartmentResults.E_star(time_idx, i) = previous_E_star(i);
+            compartmentResults.I_star(time_idx, i) = previous_I_star(i);
+            compartmentResults.R_star(time_idx, i) = previous_R_star(i);
         }
     }
 
@@ -391,65 +387,54 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     for (time_idx = 1; time_idx < Y.rows(); time_idx++)
     {
-        for (i = 0; i < sim_width; i++)
-        {
-            p_se_cache.row(i) = (((p_se_components.row(time_idx)).array() 
-                       * (previous_I.row(i).cast<double>().array())) 
-                       * (((N.transpose().cast<double>().array()).unaryExpr([](double e)
-                        {
-                            return(1.0/e);
-                        })).array())).matrix();
-        }
+        p_se_cache = (((p_se_components.row(time_idx).array().transpose())
+                   * (previous_I.cast<double>().array())) 
+                   * (((N.cast<double>().array()).unaryExpr([](double e)
+                    {
+                        return(1.0/e);
+                    })).array()));
         
         p_se = 1*p_se_cache; 
         if (has_spatial)
         {
             for (idx = 0; idx < DM_vec.size(); idx++)
             {
-                for (j = 0; j < sim_width; j++)
-                {
-                    p_se.row(j) += rho[idx]*(DM_vec[idx] * p_se_cache.row(j).transpose());
-                }
+                p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
             }
         }
-        for (i = 0; i < sim_width; i++)
-        {
-            p_se.row(i) = ((-1.0*p_se.row(i).array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
-        }
+
+        p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
  
         for (i = 0; i < Y.cols(); i++)
         {
-            for (j = 0; j < sim_width; j++)
+            S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(i) ,p_rs(time_idx)));
+            E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(i) ,p_se(i)));
+            I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(time_idx)));
+            R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(time_idx)));
+
+            previous_S_star(i) = S_star_gen(*generator);
+            previous_E_star(i) = E_star_gen(*generator);
+            previous_I_star(i) = I_star_gen(*generator);
+            previous_R_star(i) = R_star_gen(*generator);
+
+            if (cumulative)
             {
-                S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(j,i) ,p_rs(time_idx)));
-                E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(j,i) ,p_se(j,i)));
-                I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(j,i) ,p_ei(time_idx)));
-                R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(j,i) ,p_ir(time_idx)));
+                cumulative_compartment(i) += (*comparison_compartment)(i); 
 
-                previous_S_star(j,i) = S_star_gen(*generator);
-                previous_E_star(j,i) = E_star_gen(*generator);
-                previous_I_star(j,i) = I_star_gen(*generator);
-                previous_R_star(j,i) = R_star_gen(*generator);
+                results(j) += (na_mask(time_idx, i) ? 0 : 
+                    pow(((cumulative_compartment)(i) 
+                            + (phi > 0 ? 
+                                std::floor(overdispersion_distribution(*generator)) 
+                                : 0)
+                            - Y(time_idx, i)), 2.0)); 
 
-                if (cumulative)
-                {
-                    cumulative_compartment(j,i) += (*comparison_compartment)(j,i); 
-
-                    results(j) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((cumulative_compartment)(j,i) 
-                                + (phi > 0 ? 
-                                    std::floor(overdispersion_distribution(*generator)) 
-                                    : 0)
-                                - Y(time_idx, i)), 2.0)); 
-
-                }
-                else
-                {
-                    results(j) += (na_mask(time_idx, i) ? 0 : 
-                            pow(((*comparison_compartment)(j,i) + (phi > 0 ? 
-                                        std::floor(overdispersion_distribution(*generator))
-                                        : 0)- Y(time_idx, i)), 2.0)); 
-                }
+            }
+            else
+            {
+                results(j) += (na_mask(time_idx, i) ? 0 : 
+                        pow(((*comparison_compartment)(i) + (phi > 0 ? 
+                                    std::floor(overdispersion_distribution(*generator))
+                                    : 0)- Y(time_idx, i)), 2.0)); 
             }
         }
 
@@ -457,17 +442,17 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         {
             for (i = 0; i < S0.size(); i++)
             {
-                compartmentResults.S(time_idx, i) = previous_S(0,i);
-                compartmentResults.E(time_idx, i) = previous_E(0,i);
-                compartmentResults.I(time_idx, i) = previous_I(0,i);
-                compartmentResults.R(time_idx, i) = previous_R(0,i);
+                compartmentResults.S(time_idx, i) = previous_S(i);
+                compartmentResults.E(time_idx, i) = previous_E(i);
+                compartmentResults.I(time_idx, i) = previous_I(i);
+                compartmentResults.R(time_idx, i) = previous_R(i);
 
-                compartmentResults.S_star(time_idx, i) = previous_S_star(0,i);
-                compartmentResults.E_star(time_idx, i) = previous_E_star(0,i);
-                compartmentResults.I_star(time_idx, i) = previous_I_star(0,i);
-                compartmentResults.R_star(time_idx, i) = previous_R_star(0,i);
+                compartmentResults.S_star(time_idx, i) = previous_S_star(i);
+                compartmentResults.E_star(time_idx, i) = previous_E_star(i);
+                compartmentResults.I_star(time_idx, i) = previous_I_star(i);
+                compartmentResults.R_star(time_idx, i) = previous_R_star(i);
 
-                compartmentResults.p_se.row(time_idx) = p_se.row(0);
+                compartmentResults.p_se.row(time_idx) = p_se;
             }
         }
 
@@ -482,15 +467,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         previous_R = current_R;
     }
 
-    double resultVal = 0.0;
-    for (i = 0; i < sim_width; i++)
-    {
-       resultVal += std::sqrt(results(i)); 
-    }
-    resultVal /= sim_width;
+
+    double resultVal = std::sqrt(results(0)); 
     if (keepCompartments)
     {
-        this -> sim_width = oldWidth;
         calculateReproductiveNumbers(&compartmentResults);
     }
     compartmentResults.result = resultVal; 

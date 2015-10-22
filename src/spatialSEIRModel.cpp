@@ -835,33 +835,33 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     auto worker_pool = actor_pool::make(actor_pool::round_robin());
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
     unsigned int nrow =  (unsigned int) param_matrix.rows(); 
-    unsigned int i;
+    unsigned int i, j, idx;
+
 
     for (i = 0; i < ncore; i++)
     {
-        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->simulation_width,
-                                                                      samplingControlInstance->random_seed + 1000*(i + 1) + ncalls,
-                                                                      initialValueContainerInstance -> S0,
-                                                                      initialValueContainerInstance -> E0,
-                                                                      initialValueContainerInstance -> I0,
-                                                                      initialValueContainerInstance -> R0,
-                                                                      exposureModelInstance -> offset,
-                                                                      dataModelInstance -> Y,
-                                                                      dataModelInstance -> na_mask,
-                                                                      distanceModelInstance -> dm_list,
-                                                                      exposureModelInstance -> X,
-                                                                      reinfectionModelInstance -> X_rs,
-                                                                      transitionPriorsInstance -> gamma_ei_params,
-                                                                      transitionPriorsInstance -> gamma_ir_params,
-                                                                      distanceModelInstance -> spatial_prior,
-                                                                      exposureModelInstance -> betaPriorPrecision,
-                                                                      reinfectionModelInstance -> betaPriorPrecision, 
-                                                                      exposureModelInstance -> betaPriorMean,
-                                                                      reinfectionModelInstance -> betaPriorMean,
-                                                                      dataModelInstance -> phi,
-                                                                      dataModelInstance -> dataModelCompartment,
-                                                                      dataModelInstance -> cumulative,
-                                                                      (*self)));
+        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->random_seed + 1000*(i + 1) + ncalls,
+                                                                     initialValueContainerInstance -> S0,
+                                                                     initialValueContainerInstance -> E0,
+                                                                     initialValueContainerInstance -> I0,
+                                                                     initialValueContainerInstance -> R0,
+                                                                     exposureModelInstance -> offset,
+                                                                     dataModelInstance -> Y,
+                                                                     dataModelInstance -> na_mask,
+                                                                     distanceModelInstance -> dm_list,
+                                                                     exposureModelInstance -> X,
+                                                                     reinfectionModelInstance -> X_rs,
+                                                                     transitionPriorsInstance -> gamma_ei_params,
+                                                                     transitionPriorsInstance -> gamma_ir_params,
+                                                                     distanceModelInstance -> spatial_prior,
+                                                                     exposureModelInstance -> betaPriorPrecision,
+                                                                     reinfectionModelInstance -> betaPriorPrecision, 
+                                                                     exposureModelInstance -> betaPriorMean,
+                                                                     reinfectionModelInstance -> betaPriorMean,
+                                                                     dataModelInstance -> phi,
+                                                                     dataModelInstance -> dataModelCompartment,
+                                                                     dataModelInstance -> cumulative,
+                                                                     (*self)));
         (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]);
     }
 
