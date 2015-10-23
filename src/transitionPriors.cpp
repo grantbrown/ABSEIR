@@ -5,11 +5,17 @@
 
 using namespace Rcpp;
 
-transitionPriors::transitionPriors()
+transitionPriors::transitionPriors(SEXP _mode)
 {
+    Rcpp::CharacterVector inMode(_mode);
+    std::string mode = inMode(0);
+    // Store dummy transition info
     gamma_ei_params = Eigen::VectorXd(2);
     gamma_ir_params = Eigen::VectorXd(2);
-    setUniformPriors();
+    setUniformExpPriors();
+
+    gamma_ei_ps_probs = Eigen::MatrixXd(1,1);
+    gamma_ir_ps_probs = Eigen::MatrixXd(1,1);
 }
 
 int transitionPriors::getModelComponentType()
@@ -17,12 +23,17 @@ int transitionPriors::getModelComponentType()
     return(LSS_TRANSITION_MODEL_TYPE);
 }
 
-void transitionPriors::setUniformPriors()
+void transitionPriors::setUniformExpPriors()
 {
     gamma_ei_params(0) = 1.0; 
     gamma_ei_params(1) = 1.0;
     gamma_ir_params(0) = 1.0; 
     gamma_ir_params(1) = 1.0;
+}
+
+void transitionPriors::setPathSpecificPriors(SEXP Zmat1, SEXP Zmat2)
+{
+    // implement PS priors here
 }
 
 void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, 
