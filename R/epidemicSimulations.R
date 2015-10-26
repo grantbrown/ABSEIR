@@ -114,13 +114,23 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
         )
 
         if (verbose) cat("...building transition priors\n") 
-        modelCache[["transitionPriors"]] = new(transitionPriors)
-        modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
-            transitionPriorsInstance$p_ei,
-            transitionPriorsInstance$p_ir,
-            transitionPriorsInstance$p_ei_ess,
-            transitionPriorsInstance$p_ir_ess
-        )
+        modelCache[["transitionPriors"]] = new(transitionPriors,
+                                               transitionPriorsInstance$mode)
+        if (transitionPriorsInstance$mode == "exponential")
+        {
+            modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
+                transitionPriorsInstance$p_ei,
+                transitionPriorsInstance$p_ir,
+                transitionPriorsInstance$p_ei_ess,
+                transitionPriorsInstance$p_ir_ess
+            )
+        }
+        else
+        {
+            modelCache[["transitionPriors"]]$setPathSpecificPriors(
+                                            transitionPriorsInstance$ei_pdist,
+                                            transitionPriorsInstance$ir_pdist)
+        }
 
         if (verbose) cat("Running epidemic simulations\n") 
        

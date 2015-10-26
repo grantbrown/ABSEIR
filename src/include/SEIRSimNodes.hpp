@@ -33,8 +33,9 @@ class SEIR_sim_node : public event_based_actor {
                       std::vector<Eigen::MatrixXd> DM_vec,
                       Eigen::MatrixXd X, 
                       Eigen::MatrixXd X_rs,
-                      Eigen::VectorXd ei_prior,
-                      Eigen::VectorXd ir_prior,
+                      std::string transitionMode,
+                      Eigen::MatrixXd ei_prior,
+                      Eigen::MatrixXd ir_prior,
                       Eigen::VectorXd sp_prior,
                       Eigen::VectorXd se_prec,
                       Eigen::VectorXd rs_prec,
@@ -58,12 +59,15 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
         Eigen::MatrixXi Y;
+        Eigen::MatrixXi E_paths;
+        Eigen::MatrixXi I_paths;
         MatrixXb na_mask;
         std::vector<Eigen::MatrixXd> DM_vec;
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;
-        Eigen::VectorXd E_to_I_prior;
-        Eigen::VectorXd I_to_R_prior;
+        std::string transitionMode;
+        Eigen::MatrixXd E_to_I_prior;
+        Eigen::MatrixXd I_to_R_prior;
         Eigen::VectorXd spatial_prior;
         Eigen::VectorXd exposure_precision;
         Eigen::VectorXd reinfection_precision;
@@ -74,6 +78,7 @@ class SEIR_sim_node : public event_based_actor {
         double value;
         bool has_spatial;
         bool has_reinfection;
+        bool exp_transition;
         int total_size;
         int data_compartment;
         bool cumulative;

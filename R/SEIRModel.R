@@ -119,13 +119,23 @@ SpatialSEIRModel = function(data_model,
         )
 
         if (verbose) cat("...Building transition priors\n") 
-        modelComponents[["transitionPriors"]] = new(transitionPriors)
-        modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
-            transition_priors$p_ei,
-            transition_priors$p_ir,
-            transition_priors$p_ei_ess,
-            transition_priors$p_ir_ess
-        )
+        modelComponents[["transitionPriors"]] = new(transitionPriors, 
+                                                    transition_priors$mode)
+        if (transition_priors$mode == "exponential")
+        {
+            modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
+                transition_priors$p_ei,
+                transition_priors$p_ir,
+                transition_priors$p_ei_ess,
+                transition_priors$p_ir_ess
+            )
+        }
+        else
+        {
+            modelComponents[["transitionPriors"]]$setPathSpecificPriors(
+                                                    transition_priors$ei_pdist,
+                                                    transition_priors$ir_pdist)
+        }
 
         if (verbose) cat("...Preparing model object\n")
         modelComponents[["SEIR_model"]] = new( 
@@ -337,13 +347,24 @@ update.SpatialSEIRModel = function(object, ...)
         )
 
         if (verbose) cat("...building transition priors\n") 
-        modelCache[["transitionPriors"]] = new(transitionPriors)
-        modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
-            transitionPriorsInstance$p_ei,
-            transitionPriorsInstance$p_ir,
-            transitionPriorsInstance$p_ei_ess,
-            transitionPriorsInstance$p_ir_ess
-        )
+        modelCache[["transitionPriors"]] = new(transitionPriors, 
+                                               transitionPriorsInstance$mode)
+        if (transitionPriorsInstance$mode == "exponential")
+        {
+            modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
+                transitionPriorsInstance$p_ei,
+                transitionPriorsInstance$p_ir,
+                transitionPriorsInstance$p_ei_ess,
+                transitionPriorsInstance$p_ir_ess)
+        }
+        else
+        {
+            modelCache[["transitionPriors"]]$setPathSpecificPriors(
+                                            transitionPriorsInstance$ei_pdist,
+                                            transitionPriorsInstance$ir_pdist)
+            
+        }
+
 
         if (verbose) cat("Running additional epidemic simulations\n") 
        

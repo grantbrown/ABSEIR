@@ -141,6 +141,13 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         // pass
     }
 
+    if (transitionPriorsInstance -> mode != "exponential" && 
+            transitionPriorsInstance -> mode != "path_specific")
+    {
+        Rcpp::stop("Invalid transition mode: " + 
+                (transitionPriorsInstance -> mode));
+    }
+
     // Set up random number provider 
     std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
     std::uint_least32_t seed_data[std::mt19937::state_size];
@@ -385,6 +392,11 @@ void spatialSEIRModel::updateParams_SMC()
         if (!hasValidProposal)
         {
             Rcpp::Rcout << "Proposal Iterations: " << itrs << "\n";
+            for (j = 0; j < proposal.size(); j++)
+            {
+                Rcpp::Rcout << proposal(j) << ", ";
+            }
+            Rcpp::Rcout << "\n";
             Rcpp::stop("Unable to generate a valid proposal.\n");
         }
         // Assign accepted proposal to param_matrix
@@ -400,11 +412,14 @@ void spatialSEIRModel::updateParams_prior()
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    const bool hasTransition = (transitionPriorsInstance -> 
+            mode == "exponential");
 
-    int nBeta = (exposureModelInstance -> X).cols();
-    int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    int bs = samplingControlInstance -> batch_size;
+    const int nBeta = (exposureModelInstance -> X).cols();
+    const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nTrans = (hasTransition ? 2 : 0);
+    const int bs = samplingControlInstance -> batch_size;
     int i, j;
 
     // Set up random samplers 
@@ -415,30 +430,39 @@ void spatialSEIRModel::updateParams_prior()
             (distanceModelInstance -> spatial_prior)(0),
         1.0/(distanceModelInstance -> spatial_prior)(1));
     // gamma_ei 
-    std::gamma_distribution<> gammaEIDist(
-            (transitionPriorsInstance -> gamma_ei_params)(0),
-        1.0/(transitionPriorsInstance -> gamma_ei_params)(1)); 
-    // gamma_ir
-    std::gamma_distribution<> gammaIRDist(
-            (transitionPriorsInstance -> gamma_ir_params)(0),
-        1.0/(transitionPriorsInstance -> gamma_ir_params)(1)); 
+    std::gamma_distribution<> gammaEIDist(1.0,1.0);
+    std::gamma_distribution<> gammaIRDist(1.0,1.0);
+
+    if (hasTransition)
+    {
+        gammaEIDist = std::gamma_distribution<>(
+                (transitionPriorsInstance -> gamma_ei_params)(0,0),
+            1.0/(transitionPriorsInstance -> gamma_ei_params)(1,0)); 
+        // gamma_ir
+        gammaIRDist = std::gamma_distribution<>(
+                (transitionPriorsInstance -> gamma_ir_params)(0,0),
+            1.0/(transitionPriorsInstance -> gamma_ir_params)(1,0)); 
+    }
 
     // If this is too slow, consider column-wise operations
     double rhoTot = 0.0;
     int rhoItrs = 0;
-    for (i = 0; i < bs; i++)
+    if (hasTransition)
     {
-        // Draw beta
-        for (j = 0; j < nBeta; j++)
+        for (i = 0; i < bs; i++)
         {
-            param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
-                                 standardNormal(*generator) /
-                                 (exposureModelInstance -> betaPriorPrecision(j));
+            // Draw beta
+            for (j = 0; j < nBeta; j++)
+            {
+                param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
+                                     standardNormal(*generator) /
+                                     (exposureModelInstance -> betaPriorPrecision(j));
+            }
+            // Draw gamma_ei
+            param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
+            // Draw gamma_ir
+            param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
         }
-        // Draw gamma_ei
-        param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
-        // Draw gamma_ir
-        param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
     }
     // Draw reinfection parameters
     if (hasReinfection)
@@ -483,11 +507,13 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
 {
     double outPrior = 1.0;
     double constr = 0.0;
-    bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
-    bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    int nBeta = (exposureModelInstance -> X).cols();
-    int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    const bool hasTransition = (transitionPriorsInstance -> 
+            mode == "exponential");
+    const int nBeta = (exposureModelInstance -> X).cols();
+    const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
     int i;
 
     int paramIdx = 0;
@@ -523,14 +549,17 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
         outPrior *= (constr <= 1);
     }
 
-    outPrior *= R::dgamma(param_vector(paramIdx), 
-            (transitionPriorsInstance -> gamma_ei_params)(0),
-            1.0/(transitionPriorsInstance -> gamma_ei_params)(1), 0);
-    paramIdx++;
+    if (hasTransition)
+    {
+        outPrior *= R::dgamma(param_vector(paramIdx), 
+                (transitionPriorsInstance -> gamma_ei_params)(0,0),
+                1.0/(transitionPriorsInstance -> gamma_ei_params)(1,0), 0);
+        paramIdx++;
 
-    outPrior *= R::dgamma(param_vector(paramIdx), 
-            (transitionPriorsInstance -> gamma_ir_params)(0),
-            1.0/(transitionPriorsInstance -> gamma_ir_params)(1), 0);
+        outPrior *= R::dgamma(param_vector(paramIdx), 
+                (transitionPriorsInstance -> gamma_ir_params)(0,0),
+                1.0/(transitionPriorsInstance -> gamma_ir_params)(1,0), 0);
+    }
     return(outPrior);
 }
 
@@ -613,19 +642,23 @@ void spatialSEIRModel::updateWeights()
 Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
 {
     numSamples = N;
-    bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
-    bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    const bool hasTransition = (transitionPriorsInstance -> 
+            mode == "exponential");
 
-    double r = samplingControlInstance -> accept_fraction;
-    int bs = samplingControlInstance -> batch_size;
+
+    const double r = samplingControlInstance -> accept_fraction;
+    const int bs = samplingControlInstance -> batch_size;
     int i;
-    int nBeta = (exposureModelInstance -> X).cols();
-    int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    int nParams = nBeta + nBetaRS + nRho + 2;
+    const int nBeta = (exposureModelInstance -> X).cols();
+    const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nTrans = (hasTransition ? 2 : 0);
+    const int nParams = nBeta + nBetaRS + nRho + nTrans;
 
 
-    int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
+    const int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
                         std::ceil(((1.0*N)/r)/bs) :  
                         (samplingControlInstance -> epochs));
 
@@ -818,6 +851,13 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
 Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix, 
                                       caf::atom_value sim_type_atom)
 {
+    const bool hasReinfection = (reinfectionModelInstance -> 
+            betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    const bool hasTransition = (transitionPriorsInstance -> 
+            mode == "exponential");
+
+
     if (!(sim_type_atom == sim_atom::value || 
          sim_type_atom == sim_result_atom::value || 
          sim_type_atom == sample_atom::value))
@@ -840,29 +880,33 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
 
     for (i = 0; i < ncore; i++)
     {
-        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(samplingControlInstance->random_seed + 1000*(i + 1) + ncalls,
-                                                                     initialValueContainerInstance -> S0,
-                                                                     initialValueContainerInstance -> E0,
-                                                                     initialValueContainerInstance -> I0,
-                                                                     initialValueContainerInstance -> R0,
-                                                                     exposureModelInstance -> offset,
-                                                                     dataModelInstance -> Y,
-                                                                     dataModelInstance -> na_mask,
-                                                                     distanceModelInstance -> dm_list,
-                                                                     exposureModelInstance -> X,
-                                                                     reinfectionModelInstance -> X_rs,
-                                                                     transitionPriorsInstance -> gamma_ei_params,
-                                                                     transitionPriorsInstance -> gamma_ir_params,
-                                                                     distanceModelInstance -> spatial_prior,
-                                                                     exposureModelInstance -> betaPriorPrecision,
-                                                                     reinfectionModelInstance -> betaPriorPrecision, 
-                                                                     exposureModelInstance -> betaPriorMean,
-                                                                     reinfectionModelInstance -> betaPriorMean,
-                                                                     dataModelInstance -> phi,
-                                                                     dataModelInstance -> dataModelCompartment,
-                                                                     dataModelInstance -> cumulative,
-                                                                     (*self)));
-        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, workers[workers.size()-1]);
+        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(
+                     samplingControlInstance->random_seed + 1000*(i + 1) 
+                        + ncalls,
+                     initialValueContainerInstance -> S0,
+                     initialValueContainerInstance -> E0,
+                     initialValueContainerInstance -> I0,
+                     initialValueContainerInstance -> R0,
+                     exposureModelInstance -> offset,
+                     dataModelInstance -> Y,
+                     dataModelInstance -> na_mask,
+                     distanceModelInstance -> dm_list,
+                     exposureModelInstance -> X,
+                     reinfectionModelInstance -> X_rs,
+                     transitionPriorsInstance -> mode,
+                     transitionPriorsInstance -> gamma_ei_params,
+                     transitionPriorsInstance -> gamma_ir_params,
+                     distanceModelInstance -> spatial_prior,
+                     exposureModelInstance -> betaPriorPrecision,
+                     reinfectionModelInstance -> betaPriorPrecision, 
+                     exposureModelInstance -> betaPriorMean,
+                     reinfectionModelInstance -> betaPriorMean,
+                     dataModelInstance -> phi,
+                     dataModelInstance -> dataModelCompartment,
+                     dataModelInstance -> cumulative,
+                     (*self)));
+        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, 
+                workers[workers.size()-1]);
     }
 
     // Distribute jobs among workers
@@ -922,14 +966,24 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
             subList["I_star"] = createRcppIntFromEigen(results_complete[i].I_star);
             subList["R_star"] = createRcppIntFromEigen(results_complete[i].R_star);
             subList["p_se"] = createRcppNumericFromEigen(results_complete[i].p_se);
-            subList["p_ei"] = createRcppNumericFromEigen(results_complete[i].p_ei);
-            subList["p_ir"] = createRcppNumericFromEigen(results_complete[i].p_ir);
+            if (hasTransition)
+            {
+                subList["p_ei"] = createRcppNumericFromEigen(results_complete[i].p_ei);
+                subList["p_ir"] = createRcppNumericFromEigen(results_complete[i].p_ir);
+            }
             subList["R_EA"] = createRcppNumericFromEigen(results_complete[i].rEA);
             subList["R0t"] = createRcppNumericFromEigen(results_complete[i].r0t);
             subList["effR0t"] = createRcppNumericFromEigen(results_complete[i].effR0);
-            subList["rho"] = createRcppNumericFromEigen(results_complete[i].rho);
+            if (hasSpatial)
+            {
+                subList["rho"] = createRcppNumericFromEigen(results_complete[i].rho);
+            }
             subList["beta"] = createRcppNumericFromEigen(results_complete[i].beta);
             subList["X"] = createRcppNumericFromEigen(results_complete[i].X);
+            if (hasReinfection)
+            {
+                // output reinfection info
+            }
             subList["result"] = results_complete[i].result;
             outList[std::to_string(i)] = subList;
         }

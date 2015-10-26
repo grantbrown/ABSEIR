@@ -65,14 +65,14 @@ initial_value_container = InitialValueContainer(S0=5.36e6,
 # Lekone and Finkenstadt 2006
 # This is going to be expanded soon, so that we won't need to rely on 
 # the exponential assumption
-transition_priors = TransitionPriors(p_ei = 1-exp(-1/5), 
+transition_priors = ExponentialTransitionPriors(p_ei = 1-exp(-1/5), 
                                      p_ir= 1-exp(-1/7),
                                      p_ei_ess = 100,
                                      p_ir_ess = 100)
 
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 2,
+                                   n_cores = 14,
                                    algorithm="Beaumont2009",
                                     list(batch_size = 10000,
                                            epochs = 1e6,

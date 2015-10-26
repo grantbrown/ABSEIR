@@ -56,13 +56,17 @@ ExposureModel = function(X,nTpt, nLoc,betaPriorPrecision=NA,
     }
     if (length(offset) == 1 && is.na(offset))
     {
-        print("Assuming equally spaced count data.")
+        print("Assuming equally spaced count data.") 
     }
     else if (length(offset) == 1){
         offset = rep(offset, nTpt)
     }
     else if (length(offset) != nTpt){
         stop("Offset must be the of length nTpt")
+    }
+    if (length(offset) != 1 && max(abs(offset - as.integer(offset))) > 0)
+    {
+        stop("Offsets must be integers - we need a mapping onto discrete time units.")
     }
     structure(list(X=X,
                    nTpt=nTpt,

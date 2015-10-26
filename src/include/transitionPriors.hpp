@@ -18,11 +18,12 @@ class transitionPriors : public modelComponent
                                SEXP priorAlpha_gammaIR, SEXP priorBeta_gammaIR);
         void summary();
 
-        Eigen::VectorXd gamma_ei_params;
-        Eigen::VectorXd gamma_ir_params;
+        Eigen::MatrixXd gamma_ei_params;
+        Eigen::MatrixXd gamma_ir_params;
 
-        Eigen::MatrixXd gamma_ei_ps_probs;
-        Eigen::MatrixXd gamma_ir_ps_probs;
+        std::string mode;
+        int max_latent;
+        int max_infectious;
 
         ~transitionPriors();
 };

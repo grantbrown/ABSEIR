@@ -5,36 +5,47 @@
 \title{Build a TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.}
 \usage{
-TransitionPriors(p_ei, p_ir, p_ei_ess, p_ir_ess)
+TransitionPriors(mode = c("exponential", "path_specific"), params = list())
 }
 \arguments{
-\item{p_ei}{the estimated probability that, at a given time point, an exposed
-individual becomes infectious.}
+\item{mode}{The type of transition model to employ}
 
-\item{p_ir}{the estimated probability that, at a given time point, an infectious
-individual is removed from the population.}
-
-\item{p_ei_ess}{the effective sample size, or corresponding number of observations
-of the E to I process, associated with \code{p_ei}}
-
-\item{p_ir_ess}{the effective sample size, or corresponding number of observations
-of the I to R process, associated with \code{p_ir}}
+\item{params}{Additional parameters, specific to the type of transition model. See
+details section for additional information.}
 }
 \description{
 Build a TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.
 }
 \details{
-Many other transition models are possible, and more are planned for this package.
- In particular, we would like to be able to support path specific transition
- trajectories for individuals in these compartments.
+The TransitionPriors component of spatial SEIR(S) models captures the
+ process by which individuals move from the exposed to infectious compartment,
+ and from the infectious to removed compartment. This component thus governs the
+ duration of the latent and infectious periods of the disease of interest, on the
+ discrete timescale employed.
 
- In the meantime, we use the parameterization from Brown et al. 2015, which
- employs a constant transition probability over discrete time, corresponding to
- a geometric compartment membership time. For additional discussion, see Brown
- et al. 2015.
+ Two different TransitionPriors configurations are currently offered: the exponential
+ compartment membership model, and a path specific generalization. These may be
+ specified manually using the TransitionPriors function, or with the specific
+ ExponentialTransitionPriors and PathSpecificTransitionPriors functions.
+
+ The exponential version of this process requires four parameters:
+ \itemize{
+     \item{p_ei}{The probability, at a given time point, that an exposed individual will
+                          become infectious}
+     \item{p_ir}{The probability, at a given time point, that an infectious individual
+                 be removed from the infectious population}
+     \item{p_ei_ess}{An effective number of samples, corresponding to the confidence in
+                     the chosen E to I transition probability}
+     \item{p_ir_ess}{An effective number of samples, corresponding to the confidence in
+                     the chosen I to R transition probability}
+ }
+ The path specific formulation requires fewer parameters, but more care is required in
+ their specification.
+ TODO: mention Z1, Z2
 }
 \examples{
-transitionPriors <- TransitionPriors(1/5,1/7, 100, 100)
+transitionPriors <- TransitionPriors("exponential", params=list(p_ei=
+                                        1/5, p_ir=1/7, p_ei_ess=100, p_ir_ess=100))
 }
 

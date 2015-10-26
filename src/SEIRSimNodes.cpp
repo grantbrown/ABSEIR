@@ -21,8 +21,9 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              std::vector<Eigen::MatrixXd> dmv,
                              Eigen::MatrixXd x,
                              Eigen::MatrixXd x_rs,
-                             Eigen::VectorXd ei_prior,
-                             Eigen::VectorXd ir_prior,
+                             std::string mode,
+                             Eigen::MatrixXd ei_prior,
+                             Eigen::MatrixXd ir_prior,
                              Eigen::VectorXd sp_prior,
                              Eigen::VectorXd se_prec,
                              Eigen::VectorXd rs_prec,
@@ -43,6 +44,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  DM_vec(dmv),
                                  X(x),
                                  X_rs(x_rs),
+                                 transitionMode(mode),
                                  E_to_I_prior(ei_prior),
                                  I_to_R_prior(ir_prior),
                                  spatial_prior(sp_prior),
@@ -63,6 +65,17 @@ SEIR_sim_node::SEIR_sim_node(int sd,
         std::seed_seq q(std::begin(seed_data), std::end(seed_data));
         generator = new mt19937{q};   
 
+        if (transitionMode == "path_specific")
+        {
+            E_paths = Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols());
+            I_paths = Eigen::MatrixXi(I_to_R_prior.rows(),Y.cols());
+        }
+        else
+        {
+            E_paths = Eigen::MatrixXi(1,Y.cols());
+            I_paths = Eigen::MatrixXi(1,Y.cols());
+        }
+
         if (phi > 0)
         {   
             // We take the floor of the resulting continuous normal, so shift by 0.5
@@ -76,14 +89,13 @@ SEIR_sim_node::SEIR_sim_node(int sd,
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
-    total_size = (has_reinfection && has_spatial 
-                      ? X.cols() + X_rs.cols() + DM_vec.size() + 2 
-               : (has_reinfection 
-                      ? X.cols() + X_rs.cols() + 2 
-               : (has_spatial 
-                      ? X.cols() + DM_vec.size() + 2 
-               : X.cols() + 2)));
-
+    exp_transition = (transitionMode == "exponential");
+    const int nRho = (has_spatial ? DM_vec.size() : 0);
+    const int nReinf = (has_reinfection ? X_rs.cols() : 0);
+    const int nBeta = X.cols();
+    const int nTrans = (exp_transition ? 2 : 0);
+    total_size = nRho + nReinf + nBeta + nTrans;
+    
     alive.assign(
         [=](sim_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
         {
@@ -152,12 +164,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
 
-    int time_idx, i, j;
+    int time_idx, i, j, k;
     unsigned int idx; 
 
     simulationResultSet compartmentResults;
-
-    
+ 
     Eigen::VectorXd results = Eigen::VectorXd(1); 
     results(0) = 0.0;
 
@@ -171,7 +182,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         beta_rs = Eigen::VectorXd(1);
     }
-
 
     Eigen::VectorXd rho;
     if (has_spatial && has_reinfection)
@@ -187,8 +197,27 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         rho = Eigen::VectorXd(1.0);
     }
    
-    double gamma_ei = params(params.size() - 2);
-    double gamma_ir = params(params.size() - 1);
+    double gamma_ei = (exp_transition ? params(params.size() - 2) : -1.0);
+    double gamma_ir = (exp_transition ? params(params.size() - 1) : -1.0);
+
+    if (!exp_transition)
+    {
+        // Clear out paths
+        for (i = 0; i < E_paths.cols(); i++)
+        {
+            for(j = 0; j < E_paths.rows(); j++)
+            {
+                E_paths(j,i) = 0;
+            }
+        }
+        for (i = 0; i < I_paths.cols(); i++)
+        {
+            for(j = 0; j < I_paths.rows(); j++)
+            {
+                I_paths(j,i) = 0;
+            }
+        }
+    }
 
     Eigen::VectorXi N(S0.size());
     N = (S0 + E0 + I0 + R0);
@@ -231,22 +260,18 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
 
-
     time_idx = 0;
     previous_S = S0;
     previous_E = E0;
     previous_I = I0;
     previous_R = R0;
 
-    /*
-    auto c1 = (p_se_components.row(0).transpose().array());
-    auto c2 = previous_I.cast<double>().array();
-    auto c3 = (N.cast<double>().array()); 
+    if (!exp_transition)
+    {
+        I_paths.row(0) = I0;
+        E_paths.row(0) = E0;
+    }
 
-    Rcpp::Rcout << "dim1: (" << c1.rows() << ", " << c1.cols() << ", " << c1.size() << ")\n";
-    Rcpp::Rcout << "dim2: (" << c2.rows() << ", " << c2.cols() << ", " << c2.size() << ")\n";
-    Rcpp::Rcout << "dim3: (" << c3.rows() << ", " << c3.cols() << ", " << c3.size() << ")\n";
-    */
 
     p_se_cache = (((p_se_components.row(0).array().transpose())
                    * (previous_I.cast<double>().array())) 
@@ -268,6 +293,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             return(1-std::exp(e));
             }); 
 
+
+
+
+    // Not used if !exp_transition
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));});
     
@@ -331,19 +360,69 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     std::binomial_distribution<int> I_star_gen(previous_I(0,0) ,p_ei(0));            
     std::binomial_distribution<int> R_star_gen(previous_R(0,0) ,p_ir(0));            
 
+    int tmpDraw;
     for (i = 0; i < Y.cols(); i++)
     {
-
-
         S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(i) ,p_rs(0)));
         E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(i) ,p_se(i)));
-        I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(0)));
-        R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(0)));
 
         previous_S_star(i) = S_star_gen(*generator);
         previous_E_star(i) = E_star_gen(*generator);
-        previous_I_star(i) = I_star_gen(*generator);
-        previous_R_star(i) = R_star_gen(*generator);
+
+        if (exp_transition)
+        {
+            I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(0)));
+            R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(0)));
+            previous_I_star(i) = I_star_gen(*generator);
+            previous_R_star(i) = R_star_gen(*generator);
+        }
+        else
+        {
+            // Updating E_paths and I_paths is repetative - factor out into a function?
+            // That might be costly, unless it's inlined...
+            previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
+            E_paths(E_paths.rows() -1, i) = 0;
+            for (j = 0; j < offset(0); j++)
+            {
+                // TODO: stop early when possible
+                // idea: cache previous max?
+                for (k = E_paths.rows() - 2; 
+                        k >= 0; k--)
+                {
+                    if (E_paths(k,i) > 0)
+                    {
+                        I_star_gen.param(std::binomial_distribution<>::param_type(
+                                    E_paths(k,i),E_to_I_prior(k, 4)));
+                        tmpDraw = I_star_gen(*generator);
+                        previous_I_star(i) += tmpDraw;
+                        E_paths(k,i) -= tmpDraw;
+                        E_paths(k+1, i) = E_paths(k,i);
+                        E_paths(k,i) = 0; // not needed?
+                    }
+                }
+            }
+            previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
+            I_paths(I_paths.rows() -1, i) = 0;
+            for (j = 0; j < offset(0); j++)
+            {
+                // TODO: stop early when possible
+                // idea: cache previous max?
+                for (k = I_paths.rows() - 2; 
+                        k >= 0; k--)
+                {
+                    if (I_paths(k,i) > 0)
+                    {
+                        R_star_gen.param(std::binomial_distribution<>::param_type(
+                                    I_paths(k,i),I_to_R_prior(k, 4)));
+                        tmpDraw = R_star_gen(*generator);
+                        previous_R_star(i) += tmpDraw;
+                        I_paths(k,i) -= tmpDraw;
+                        I_paths(k+1, i) = I_paths(k,i);
+                        I_paths(k,i) = 0; // not needed?
+                    }
+                }
+            }
+        }
 
         if (cumulative)
         {
@@ -377,6 +456,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     current_E = previous_E + previous_E_star - previous_I_star;
     current_I = previous_I + previous_I_star - previous_R_star;
     current_R = previous_R + previous_R_star - previous_S_star;
+
+    if (!exp_transition)
+    {
+        E_paths.row(0) = previous_E_star;
+        I_paths.row(0) = previous_I_star;
+    }
 
     previous_S = current_S;
     previous_E = current_E;
@@ -414,14 +499,66 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
             previous_S_star(i) = S_star_gen(*generator);
             previous_E_star(i) = E_star_gen(*generator);
-            previous_I_star(i) = I_star_gen(*generator);
-            previous_R_star(i) = R_star_gen(*generator);
 
+            if (exp_transition)
+            {
+                I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(time_idx)));
+                R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(time_idx)));
+                previous_I_star(i) = I_star_gen(*generator);
+                previous_R_star(i) = R_star_gen(*generator);
+            }
+            else
+            {
+                // Updating E_paths and I_paths is repetative - factor out into a function?
+                // That might be costly, unless it's inlined...
+                previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
+                E_paths(E_paths.rows() -1, i) = 0;
+                for (j = 0; j < offset(time_idx); j++)
+                {
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = E_paths.rows() - 2; 
+                            k >= 0; k--)
+                    {
+                        if (E_paths(k,i) > 0)
+                        {
+                            I_star_gen.param(std::binomial_distribution<>::param_type(
+                                        E_paths(k,i),E_to_I_prior(k, 4)));
+                            tmpDraw = I_star_gen(*generator);
+                            previous_I_star(i) += tmpDraw;
+                            E_paths(k,i) -= tmpDraw;
+                            E_paths(k+1, i) = E_paths(k,i);
+                            E_paths(k,i) = 0; // not needed?
+                        }
+                    }
+                }
+                previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
+                I_paths(I_paths.rows() -1, i) = 0;
+                for (j = 0; j < offset(time_idx); j++)
+                {
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = I_paths.rows() - 2; 
+                            k >= 0; k--)
+                    {
+                        if (I_paths(k,i) > 0)
+                        {
+                            R_star_gen.param(std::binomial_distribution<>::param_type(
+                                        I_paths(k,i),I_to_R_prior(k, 4)));
+                            tmpDraw = R_star_gen(*generator);
+                            previous_R_star(i) += tmpDraw;
+                            I_paths(k,i) -= tmpDraw;
+                            I_paths(k+1, i) = I_paths(k,i);
+                            I_paths(k,i) = 0; // not needed?
+                        }
+                    }
+                }
+            }
             if (cumulative)
             {
                 cumulative_compartment(i) += (*comparison_compartment)(i); 
 
-                results(j) += (na_mask(time_idx, i) ? 0 : 
+                results(0) += (na_mask(time_idx, i) ? 0 : 
                     pow(((cumulative_compartment)(i) 
                             + (phi > 0 ? 
                                 std::floor(overdispersion_distribution(*generator)) 
@@ -431,7 +568,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             }
             else
             {
-                results(j) += (na_mask(time_idx, i) ? 0 : 
+                results(0) += (na_mask(time_idx, i) ? 0 : 
                         pow(((*comparison_compartment)(i) + (phi > 0 ? 
                                     std::floor(overdispersion_distribution(*generator))
                                     : 0)- Y(time_idx, i)), 2.0)); 
@@ -460,6 +597,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         current_E = previous_E + previous_E_star - previous_I_star;
         current_I = previous_I + previous_I_star - previous_R_star;
         current_R = previous_R + previous_R_star - previous_S_star;
+
+        if (!exp_transition)
+        {
+            E_paths.row(0) = previous_E_star;
+            I_paths.row(0) = previous_I_star;
+        }
 
         previous_S = current_S;
         previous_E = current_E;
@@ -490,9 +633,6 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 (*results).S.rows(), (*results).S.cols());
     Eigen::MatrixXd p_se_cache(1, (*results).S.cols());
-
-
-
 
     int nLoc = (*results).S.cols();
     int nTpt = (*results).S.rows();

@@ -32,7 +32,8 @@
 #'  their specification. 
 #'  TODO: mention Z1, Z2
 #' 
-#' @examples transitionPriors <- TransitionPriors(1/5,1/7, 100, 100)
+#' @examples transitionPriors <- TransitionPriors("exponential", params=list(p_ei=
+#'                                         1/5, p_ir=1/7, p_ei_ess=100, p_ir_ess=100))
 TransitionPriors = function(mode = c("exponential", "path_specific"), params = list())
 {
     if (class(params) != "list")
@@ -52,9 +53,15 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
         }
         else
         {
-            return(ExponentialTransitionPriors(params$p_ei, params$p_ir,
-                                               params$p_ei_ess, 
-                                               params$p_ir_ess))
+            return(structure(list(mode="exponential",
+                       p_ei=params$p_ei,
+                       p_ir=params$p_ir,
+                       p_ei_ess=params$p_ei_ess,
+                       p_ir_ess=params$p_ir_ess,
+                       priorAlpha_gammaEI=NA,
+                       priorBeta_gamma_EI=NA,
+                       priorAlpha_gammaIR=NA,
+                       priorBeta_gamma_IR=NA), class = "TransitionPriors"))
         }
     }
     else if (mode == "path_specific")
@@ -75,24 +82,33 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
         f1 = function(x){ sapply(x, Z1) }
         f2 = function(x){ sapply(x, Z2) }       
             
-        
-        n = 100
-        itrs = 0
-        cmProb = 0
-        # inefficient, but shouldn't be problematic
-        while (itrs < 10 && cmProb < 1-truncation_prob)
-        {
-            indices = cbind(0:n,1:(n+1)) 
-            probs = apply(indices, 1, function(x){integrate(f1, x[1], x[2])$value})
-            cmProb = sum(probs)
-            n = n*2
-            itrs = itrs + 1
-        }
-        cprobs = cumsum(probs)
-        sprobs = 1-c(0,cprobs[1:(length(cprobs)-1)])
-        nprobs = probs/sprobs
-        max_idx = which(cprobs > 1-truncation_prob)[1]
-        pdist = cbind(indices, probs, cprobs, sprobs, nprobs)[1:max_idx,]
+        pdists = lapply(list(f1, f2), function(x){ 
+            n = 100
+            itrs = 0
+            cmProb = 0
+            # inefficient, but shouldn't be problematic
+            while (itrs < 10 && cmProb < 1-truncation_prob)
+            {
+                indices = cbind(0:n,1:(n+1)) 
+                probs = apply(indices, 1, function(x){integrate(f1, x[1], x[2])$value})
+                cmProb = sum(probs)
+                n = n*2
+                itrs = itrs + 1
+            }
+            cprobs = cumsum(probs)
+            sprobs = 1-c(0,cprobs[1:(length(cprobs)-1)])
+            nprobs = probs/sprobs
+            max_idx = which(cprobs > 1-truncation_prob)[1]
+            pdist = cbind(indices, probs, cprobs, sprobs, nprobs)[1:max_idx,]
+            colnames(pdist) = c("startTime", "endTime",
+                                "CDF", "Surv", "CSurv")
+            pdist
+        })
+
+        return(structure(list(mode="path_specific",
+                              ei_pdist = pdists[[1]],
+                              ir_pdist = pdists[[2]])), 
+               class = "TransitionPriors")
     }
     else
     {
@@ -139,14 +155,9 @@ PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
 #' @examples transitionPriors <- ExponentialTransitionPriors(1/5,1/7, 100, 100)
 ExponentialTransitionPriors = function(p_ei, p_ir, p_ei_ess, p_ir_ess)
 {
-    structure(list(mode="exponential",
-                   p_ei=p_ei,
-                   p_ir=p_ir,
-                   p_ei_ess=p_ei_ess,
-                   p_ir_ess=p_ir_ess,
-                   priorAlpha_gammaEI=NA,
-                   priorBeta_gamma_EI=NA,
-                   priorAlpha_gammaIR=NA,
-                   priorBeta_gamma_IR=NA), class = "TransitionPriors")
+    return(TransitionPriors("exponential", list(p_ei=p_ei,
+                                                p_ir=p_ir,
+                                                p_ei_ess=p_ei_ess,
+                                                p_ir_ess=p_ir_ess)))
 }
 
