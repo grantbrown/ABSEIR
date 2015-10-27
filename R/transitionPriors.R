@@ -100,15 +100,15 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
             nprobs = probs/sprobs
             max_idx = which(cprobs > 1-truncation_prob)[1]
             pdist = cbind(indices, probs, cprobs, sprobs, nprobs)[1:max_idx,]
-            colnames(pdist) = c("startTime", "endTime",
+            colnames(pdist) = c("startTime", "endTime", "PDF",
                                 "CDF", "Surv", "CSurv")
             pdist
         })
 
         return(structure(list(mode="path_specific",
                               ei_pdist = pdists[[1]],
-                              ir_pdist = pdists[[2]])), 
-               class = "TransitionPriors")
+                              ir_pdist = pdists[[2]]), 
+               class = "TransitionPriors"))
     }
     else
     {

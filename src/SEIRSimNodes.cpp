@@ -6,7 +6,8 @@
 #include "caf/all.hpp"
 #include "SEIRSimNodes.hpp"
 #include "spatialSEIRModel.hpp"
-
+#include <chrono>
+#include <thread>
 using namespace std;
 using namespace caf;
 
@@ -163,8 +164,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 {
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
-
-    int time_idx, i, j, k;
+    int time_idx, i, j, k;   
     unsigned int idx; 
 
     simulationResultSet compartmentResults;
@@ -249,14 +249,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                                               (data_compartment == 2 ? 
                                                &previous_I : &previous_I_star)));
 
-
-
     // Calculate probabilities
-
     // p_se calculation
     // Equivalent R expression: 
     // exp(matrix(X %*% beta, nrow = nrow(Y), ncol = ncol(Y)))
-    Eigen::MatrixXd eta = ((X*beta).unaryExpr([](double elem){return(std::exp(elem));}));
+    Eigen::MatrixXd eta = (X*beta).unaryExpr([](double elem){return(
+                std::exp(elem));
+            });
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
 
@@ -392,7 +391,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     if (E_paths(k,i) > 0)
                     {
                         I_star_gen.param(std::binomial_distribution<>::param_type(
-                                    E_paths(k,i),E_to_I_prior(k, 4)));
+                                    E_paths(k,i),E_to_I_prior(k, 5)));
                         tmpDraw = I_star_gen(*generator);
                         previous_I_star(i) += tmpDraw;
                         E_paths(k,i) -= tmpDraw;
@@ -523,7 +522,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                         if (E_paths(k,i) > 0)
                         {
                             I_star_gen.param(std::binomial_distribution<>::param_type(
-                                        E_paths(k,i),E_to_I_prior(k, 4)));
+                                        E_paths(k,i),E_to_I_prior(k, 5)));
                             tmpDraw = I_star_gen(*generator);
                             previous_I_star(i) += tmpDraw;
                             E_paths(k,i) -= tmpDraw;

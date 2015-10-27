@@ -46,6 +46,7 @@ SpatialSEIRModel = function(data_model,
     if (verbose){cat("Initializing Model Components\n")}
     hasSpatial = (ncol(data_model$Y) > 1) 
     hasReinfection = (reinfection_model$integerMode != 3) 
+    isExponential = transition_priors$mode == "exponential"
     result = tryCatch({
         if (verbose) cat("...Building data model\n")
         modelComponents[["dataModel"]] = new(dataModel, data_model$Y,
@@ -121,7 +122,7 @@ SpatialSEIRModel = function(data_model,
         if (verbose) cat("...Building transition priors\n") 
         modelComponents[["transitionPriors"]] = new(transitionPriors, 
                                                     transition_priors$mode)
-        if (transition_priors$mode == "exponential")
+        if (isExponential)
         {
             modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
                 transition_priors$p_ei,
@@ -175,7 +176,10 @@ SpatialSEIRModel = function(data_model,
                              sep = "")
             )
         }
-        cnames = c(cnames, "gamma_EI", "gamma_IR")
+        if (isExponential)
+        { 
+            cnames = c(cnames, "gamma_EI", "gamma_IR")
+        }
         colnames(params) = cnames 
         
         modelResults[["param.samples"]] = params

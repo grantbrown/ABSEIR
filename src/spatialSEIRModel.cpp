@@ -447,21 +447,26 @@ void spatialSEIRModel::updateParams_prior()
     // If this is too slow, consider column-wise operations
     double rhoTot = 0.0;
     int rhoItrs = 0;
+    for (i = 0; i < bs; i++)
+    {
+        // Draw beta
+        for (j = 0; j < nBeta; j++)
+        {
+            param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
+                                 standardNormal(*generator) /
+                                 (exposureModelInstance -> betaPriorPrecision(j));
+        }
+    }
+    // draw gammaEI, gammaIR
     if (hasTransition)
     {
         for (i = 0; i < bs; i++)
         {
-            // Draw beta
-            for (j = 0; j < nBeta; j++)
-            {
-                param_matrix(i, j) = (exposureModelInstance -> betaPriorMean(j)) + 
-                                     standardNormal(*generator) /
-                                     (exposureModelInstance -> betaPriorPrecision(j));
-            }
             // Draw gamma_ei
             param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
             // Draw gamma_ir
-            param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaIRDist(*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho + 1) = 
+                gammaIRDist(*generator);
         }
     }
     // Draw reinfection parameters
