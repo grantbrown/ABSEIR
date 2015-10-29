@@ -135,7 +135,8 @@ SpatialSEIRModel = function(data_model,
         {
             modelComponents[["transitionPriors"]]$setPathSpecificPriors(
                                                     transition_priors$ei_pdist,
-                                                    transition_priors$ir_pdist)
+                                                    transition_priors$ir_pdist,
+                                                    transition_priors$avg_hazard)
         }
 
         if (verbose) cat("...Preparing model object\n")
@@ -365,7 +366,8 @@ update.SpatialSEIRModel = function(object, ...)
         {
             modelCache[["transitionPriors"]]$setPathSpecificPriors(
                                             transitionPriorsInstance$ei_pdist,
-                                            transitionPriorsInstance$ir_pdist)
+                                            transitionPriorsInstance$ir_pdist,
+                                            transitionPriorsInstance$avg_hazard)
             
         }
 

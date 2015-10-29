@@ -81,7 +81,15 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
         # we can't assume that the functions passed in by the user are vectorized
         f1 = function(x){ sapply(x, Z1) }
         f2 = function(x){ sapply(x, Z2) }       
-            
+
+
+        inf.mean = integrate(function(x){x*f2(x)}, 0, Inf)$value
+        hzd = function(x){
+            sapply(x, Z2)/sapply(x, function(i){
+                            1-integrate(f2, 0, i)$value
+        })} 
+        avg.hazard = hzd(inf.mean)
+
         pdists = lapply(list(f1, f2), function(x){ 
             n = 100
             itrs = 0
@@ -97,17 +105,20 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
             }
             cprobs = cumsum(probs)
             sprobs = 1-c(0,cprobs[1:(length(cprobs)-1)])
-            nprobs = probs/sprobs
+            dhaz_probs = probs/sprobs
+            chaz_probs = hzd(apply(indices,1,mean)) 
             max_idx = which(cprobs > 1-truncation_prob)[1]
-            pdist = cbind(indices, probs, cprobs, sprobs, nprobs)[1:max_idx,]
+            pdist = cbind(indices, probs, cprobs, sprobs, dhaz_probs,
+                          chaz_probs)[1:max_idx,]
             colnames(pdist) = c("startTime", "endTime", "PDF",
-                                "CDF", "Surv", "CSurv")
+                                "CDF", "Surv", "DiscHaz", "ContHaz")
             pdist
         })
 
         return(structure(list(mode="path_specific",
                               ei_pdist = pdists[[1]],
-                              ir_pdist = pdists[[2]]), 
+                              ir_pdist = pdists[[2]],
+                              avg_hazard = avg.hazard), 
                class = "TransitionPriors"))
     }
     else

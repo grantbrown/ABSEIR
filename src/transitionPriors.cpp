@@ -11,6 +11,7 @@ transitionPriors::transitionPriors(SEXP _mode)
     Rcpp::CharacterVector inMode(_mode);
     mode = inMode(0);
     // Store dummy transition info
+    avg_hazard = -1.0;
     if (mode == "exponential")
     {
         setUniformExpPriors();
@@ -43,10 +44,13 @@ void transitionPriors::setUniformExpPriors()
     gamma_ir_params(1,0) = 1.0;
 }
 
-void transitionPriors::setPathSpecificPriors(SEXP _Zmat1, SEXP _Zmat2)
+void transitionPriors::setPathSpecificPriors(SEXP _Zmat1, SEXP _Zmat2, 
+        SEXP _avgH)
 {
     Rcpp::NumericMatrix Zmat1(_Zmat1); 
     Rcpp::NumericMatrix Zmat2(_Zmat1); 
+    Rcpp::NumericVector avgH(_avgH);
+    avg_hazard = avgH(0);
 
     gamma_ei_params = Eigen::MatrixXd(Zmat1.nrow(), Zmat1.ncol());   
     gamma_ir_params = Eigen::MatrixXd(Zmat2.nrow(), Zmat2.ncol());   

@@ -25,6 +25,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              std::string mode,
                              Eigen::MatrixXd ei_prior,
                              Eigen::MatrixXd ir_prior,
+                             double avgH,
                              Eigen::VectorXd sp_prior,
                              Eigen::VectorXd se_prec,
                              Eigen::VectorXd rs_prec,
@@ -48,6 +49,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  transitionMode(mode),
                                  E_to_I_prior(ei_prior),
                                  I_to_R_prior(ir_prior),
+                                 avg_hazard(avgH),
                                  spatial_prior(sp_prior),
                                  exposure_precision(se_prec),
                                  reinfection_precision(rs_prec),
@@ -412,7 +414,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     if (I_paths(k,i) > 0)
                     {
                         R_star_gen.param(std::binomial_distribution<>::param_type(
-                                    I_paths(k,i),I_to_R_prior(k, 4)));
+                                    I_paths(k,i),I_to_R_prior(k, 5)));
                         tmpDraw = R_star_gen(*generator);
                         previous_R_star(i) += tmpDraw;
                         I_paths(k,i) -= tmpDraw;
@@ -543,7 +545,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                         if (I_paths(k,i) > 0)
                         {
                             R_star_gen.param(std::binomial_distribution<>::param_type(
-                                        I_paths(k,i),I_to_R_prior(k, 4)));
+                                        I_paths(k,i),I_to_R_prior(k, 5)));
                             tmpDraw = R_star_gen(*generator);
                             previous_R_star(i) += tmpDraw;
                             I_paths(k,i) -= tmpDraw;
@@ -638,14 +640,26 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     std::vector<Eigen::MatrixXd> GVector;
     double component1, component2;
     // Fill in R0(t) and eff R0(t)
+    // I_to_R_prior(k, 4)
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
         (*results).r0t.row(time_idx) = p_se_components.row(time_idx);
         for (l = 0; l < p_se_components.cols(); l++)
         {
-            (*results).r0t(time_idx, l) /= -std::log(1.0-(*results).p_ir(time_idx));
-            (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
+            if (exp_transition)
+            {
+                (*results).r0t(time_idx, l) /= (
+                        -std::log(1.0-(*results).p_ir(time_idx))/offset(time_idx));
+                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
                                             *((*results).S(time_idx, l))/N(l);
+            }
+            else
+            {
+                (*results).r0t(time_idx, l) /= avg_hazard;
+                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
+                                            *((*results).S(time_idx, l))/N(l);
+               
+            }
         }
     }
 
@@ -689,7 +703,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
 
 
     for (time_idx = 0; time_idx < nTpt; time_idx ++)
-    {
+   {
         for (i = 0; i < nLoc; i++)
         {
             (*results).rEA(time_idx, i) = 0.0;
@@ -707,19 +721,52 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
 
 
     double _1mpIR_cum = 1.0;
-    for (time_idx = 0; time_idx < nTpt; time_idx++)
+    int infTime = 0;
+    if (exp_transition)
     {
-        _1mpIR_cum = (1-(*results).p_ir(time_idx, 0));
-        for (l = time_idx+1; l < nTpt; l++)
+        for (time_idx = 0; time_idx < nTpt; time_idx++)
         {
-            (*results).rEA.row(time_idx) += 
-                _1mpIR_cum*(*results).rEA.row(l);
-            _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
+            _1mpIR_cum = (1-(*results).p_ir(time_idx, 0));
+            for (l = time_idx+1; l < nTpt; l++)
+            {
+                (*results).rEA.row(time_idx) += 
+                    _1mpIR_cum*(*results).rEA.row(l);
+                _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
+            }
+            while (_1mpIR_cum > 1e-8)
+            {
+                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
+                _1mpIR_cum*=((*results).p_ir(nTpt - 1,0));
+            }
         }
-        while (_1mpIR_cum > 1e-8)
+    }
+    else
+    {
+        for (time_idx = 0; time_idx < nTpt; time_idx++)
         {
-            (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
-            _1mpIR_cum*=((*results).p_ir(nTpt - 1,0));
+            _1mpIR_cum = 1.0;
+            infTime = 0;
+            for (i = 0; i < offset(time_idx); i++)
+            {
+                _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
+                infTime ++;
+            }
+            for (l = time_idx+1; (l < nTpt && infTime < I_to_R_prior.rows()); l++)
+            {
+                (*results).rEA.row(time_idx) += 
+                    _1mpIR_cum*(*results).rEA.row(l);
+                for (i = 0; i < offset(time_idx); i++)
+                {
+                    _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
+                    infTime ++;
+                }
+            }
+            while (_1mpIR_cum > 1e-8 && infTime < I_to_R_prior.rows())
+            {
+                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
+                _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
+                infTime ++;
+            }
         }
     }
 }

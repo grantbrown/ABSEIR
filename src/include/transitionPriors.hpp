@@ -11,7 +11,7 @@ class transitionPriors : public modelComponent
     public:
         transitionPriors(SEXP mode);
         void setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, SEXP p_ei_ess, SEXP p_ir_ess);
-        void setPathSpecificPriors(SEXP Zmat1, SEXP Zmat2);
+        void setPathSpecificPriors(SEXP Zmat1, SEXP Zmat2, SEXP avgHazard);
         void setUniformExpPriors();
         int getModelComponentType();
         void setPriorsManually(SEXP priorAlpha_gammaEI, SEXP priorBeta_gammaEI,
@@ -24,6 +24,7 @@ class transitionPriors : public modelComponent
         std::string mode;
         int max_latent;
         int max_infectious;
+        double avg_hazard;
 
         ~transitionPriors();
 };
