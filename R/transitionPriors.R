@@ -145,6 +145,11 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
 #'      the latent state
 #' @param Z2 a probability density function for the length of time individuals spend in 
 #'      the infectious state
+#' @param truncation_prob ABSEIR precomputes the maximum number of discrete time points
+#' during which a person may remain in the latent and infectious states. We therefore
+#' require a probability cutoff. The trunction probability is the minimum that the
+#' conditional probability of remaining in a disease state can become before individuals
+#' are forced to transition. 
 #' 
 #' @details 
 #'  The TransitionPriors component of spatial SEIR(S) models captures the  
@@ -155,23 +160,23 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
 #' 
 #' @examples transitionPriors <- PathSpecificTransitionPriors(Z1 = function(x){dunif(x, 2, 10)},
 #'                                         Z2 = function(x){dunif(x, 7, 24)})
-#' @seealso \code{\link{TransitionPriors}}, \code{\link{ExponentiaLTransitionPriors}}
+#' @seealso \code{\link{TransitionPriors}}, \code{\link{ExponentialTransitionPriors}}
 #' @export 
-PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
-{
-    if (length(Z1) != 1 || length(Z2) != 1 || 
-        class(Z1) != "function" || class(Z2) != "function")
+    PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
     {
-       stop("Z1 and Z2 must be functions describing the latent and infectious time PDFs.") 
+        if (length(Z1) != 1 || length(Z2) != 1 || 
+            class(Z1) != "function" || class(Z2) != "function")
+        {
+           stop("Z1 and Z2 must be functions describing the latent and infectious time PDFs.") 
+        }
+        else
+        {
+            return(TransitionPriors("path_specific", list("Z1" = Z1,
+                                                          "Z2" = Z2,
+                                                          "truncation_prob" = 
+                                                           truncation_prob)))
+        }
     }
-    else
-    {
-        return(TransitionPriors("path_specific", list("Z1" = Z1,
-                                                      "Z2" = Z2,
-                                                      "truncation_prob" = 
-                                                       truncation_prob)))
-    }
-}
 
 
 #' Build an exponential TransitionPriors object, which governs how individuals move from

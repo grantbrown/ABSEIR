@@ -12,7 +12,13 @@ PathSpecificTransitionPriors(Z1 = NA, Z2 = NA, truncation_prob = 1e-06)
 the latent state}
 
 \item{Z2}{a probability density function for the length of time individuals spend in
-     the infectious state}
+the infectious state}
+
+\item{truncation_prob}{ABSEIR precomputes the maximum number of discrete time points
+during which a person may remain in the latent and infectious states. We therefore
+require a probability cutoff. The trunction probability is the minimum that the
+conditional probability of remaining in a disease state can become before individuals
+are forced to transition.}
 }
 \description{
 Build a path specific TransitionPriors object, which governs how individuals move from
@@ -30,6 +36,6 @@ transitionPriors <- PathSpecificTransitionPriors(Z1 = function(x){dunif(x, 2, 10
                                         Z2 = function(x){dunif(x, 7, 24)})
 }
 \seealso{
-\code{\link{TransitionPriors}}, \code{\link{Exponentialtransitionpriors}}
+\code{\link{TransitionPriors}}, \code{\link{ExponentialTransitionPriors}}
 }
 
