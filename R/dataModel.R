@@ -15,7 +15,7 @@
 #'  to the $I^*$ and $R^*$ compartments, which catalog the newly infectious and recovered
 #'  individuals, respectively. For a discussion of these definitions, in addition to a more
 #'  detailed description of the overall spatial SEIR framework, please refer to that work. 
-#' @examples dataModel = DataModel(rpois(100)) 
+#' @examples dataModel = DataModel(rpois(100, 10)) 
 #' @export
 DataModel = function(Y, type = c("identity", "overdispersion"), 
                      compartment = c("I_star", "R_star", "I"), 
