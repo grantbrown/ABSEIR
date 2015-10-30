@@ -44,7 +44,7 @@
 #' @references "A path-specific SEIR model for use with general 
 #'                latent and infectious time distributions." 2013. Porter, Aaron T, Oleson, Jacob J. Biometrics 69(1)
 #' @export 
-TransitionPriors = function(mode = c("exponential", "path_specific"), params = list())
+TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"), params = list())
 {
     if (class(params) != "list")
     {
@@ -207,3 +207,16 @@ ExponentialTransitionPriors = function(p_ei, p_ir, p_ei_ess, p_ir_ess)
                                                 p_ir_ess=p_ir_ess)))
 }
 
+
+#' Build a path specific Weibull TransitionPriors object, with 
+#' independent gamma priors for the shape/scale parameters of the 
+#' latent and infectious time distributions. 
+WeibullTransitionPriors = function(latent_shape_prior_alpha, 
+                                   latent_shape_prior_beta,
+                                   latent_scale_prior_alpha,
+                                   latent_scale_prior_beta,
+                                   infectious_scale_prior_alpha,
+                                   infectious_scale_prior_beta)
+{
+
+}
