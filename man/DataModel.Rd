@@ -35,6 +35,6 @@ A fundamental task in building hierarchical models is to describe the way in whi
  detailed description of the overall spatial SEIR framework, please refer to that work.
 }
 \examples{
-dataModel = DataModel(rpois(100))
+dataModel = DataModel(rpois(100, 10))
 }
 
