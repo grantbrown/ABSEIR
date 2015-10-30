@@ -155,7 +155,7 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
 #' 
 #' @examples transitionPriors <- PathSpecificTransitionPriors(Z1 = function(x){dunif(x, 2, 10)},
 #'                                         Z2 = function(x){dunif(x, 7, 24)})
-#' @seealso \code{\link{TransitionPriors}}, \code{\link{Exponentialtransitionpriors}}
+#' @seealso \code{\link{TransitionPriors}}, \code{\link{ExponentiaLTransitionPriors}}
 #' @export 
 PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
 {

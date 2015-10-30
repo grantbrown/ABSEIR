@@ -10,5 +10,5 @@ License: GPL (>= 3)
 Depends: R (>= 3.0), Rcpp (>= 0.11.5), methods
 LinkingTo: Rcpp, RcppEigen, RcppCAF
 LazyData: true
-Suggests: knitr
+Suggests: knitr, testthat
 VignetteBuilder: knitr

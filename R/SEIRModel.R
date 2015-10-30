@@ -53,7 +53,9 @@
 #' \code{\link{TransitionPriors}}, \code{\link{InitialValueContainer}}, 
 #' \code{\link{SamplingControl}}, \code{\link{summary.SpatialSEIRModel}}, 
 #' \code{\link{plot.SpatialSEIRModel}}, \code{\link{compareModels}}, 
-#' \code{\link{epidemicSimulations}}, 
+#' \code{\link{epidemic.simulations}}, 
+#' @import Rcpp
+#' @import methods
 #' @useDynLib ABSEIR
 #' @export
 SpatialSEIRModel = function(data_model,
