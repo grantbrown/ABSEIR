@@ -195,7 +195,7 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["transitionPriors"]]$setPathSpecificPriors(
                                                     transition_priors$ei_pdist,
                                                     transition_priors$ir_pdist,
-                                                    transition_priors$avg_hazard)
+                                                    transition_priors$inf_mean)
         }
 
         if (verbose) cat("...Preparing model object\n")
@@ -427,7 +427,7 @@ update.SpatialSEIRModel = function(object, ...)
             modelCache[["transitionPriors"]]$setPathSpecificPriors(
                                             transitionPriorsInstance$ei_pdist,
                                             transitionPriorsInstance$ir_pdist,
-                                            transitionPriorsInstance$avg_hazard)
+                                            transitionPriorsInstance$inf_mean)
             
         }
 
@@ -549,6 +549,8 @@ summary.SpatialSEIRModel = function(object, ...)
     nLoc = ncol(object$modelComponents$data_model$Y)
     nTpt = nrow(object$modelComponents$data_model$Y)
 
+    isExponential = (object$modelComponents$transition_priors$mode == 
+                     "exponential")
     hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
         (object$modelComponents$reinfection_model$integerMode != 3) 
@@ -572,7 +574,8 @@ summary.SpatialSEIRModel = function(object, ...)
             0),
        spatialParams = Ifelse(hasSpatial, 
             length(object$modelComponents$distance_model$distanceList),
-            0)
+            0),
+       transitionParams = Ifelse(isExponential, 2, 0)
        ), class = "summary.SpatialSEIRModel")
 }
 
@@ -592,6 +595,9 @@ print.summary.SpatialSEIRModel = function(x, ...)
              (x$reinfectionParams), "\n", sep = ""))
     cat(paste("Spatial Parameters: ", 
               (x$spatialParams), "\n", sep = ""))
+    cat(paste("Transition Parameters: ", 
+              (x$transitionParams), "\n", sep = ""))
+
     cat(nl)
     cat("Parameter Estimates:\n")
     print(round(x$parameterEstimates, 3))

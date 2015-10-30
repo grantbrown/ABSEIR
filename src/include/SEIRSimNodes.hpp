@@ -36,7 +36,7 @@ class SEIR_sim_node : public event_based_actor {
                       std::string transitionMode,
                       Eigen::MatrixXd ei_prior,
                       Eigen::MatrixXd ir_prior,
-                      double avgH,
+                      double avgI,
                       Eigen::VectorXd sp_prior,
                       Eigen::VectorXd se_prec,
                       Eigen::VectorXd rs_prec,
@@ -77,7 +77,7 @@ class SEIR_sim_node : public event_based_actor {
         double phi;
         int seed;
         double value;
-        double avg_hazard;
+        double inf_mean;
         bool has_spatial;
         bool has_reinfection;
         bool exp_transition;

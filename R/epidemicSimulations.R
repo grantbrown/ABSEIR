@@ -131,7 +131,7 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             modelCache[["transitionPriors"]]$setPathSpecificPriors(
                                             transitionPriorsInstance$ei_pdist,
                                             transitionPriorsInstance$ir_pdist,
-                                            transitionPriorsInstance$avg_hazard)
+                                            transitionPriorsInstance$inf_mean)
         }
 
         if (verbose) cat("Running epidemic simulations\n") 

@@ -11,7 +11,7 @@ transitionPriors::transitionPriors(SEXP _mode)
     Rcpp::CharacterVector inMode(_mode);
     mode = inMode(0);
     // Store dummy transition info
-    avg_hazard = -1.0;
+    inf_mean = -1.0;
     if (mode == "exponential")
     {
         setUniformExpPriors();
@@ -45,12 +45,12 @@ void transitionPriors::setUniformExpPriors()
 }
 
 void transitionPriors::setPathSpecificPriors(SEXP _Zmat1, SEXP _Zmat2, 
-        SEXP _avgH)
+        SEXP _avgI)
 {
     Rcpp::NumericMatrix Zmat1(_Zmat1); 
     Rcpp::NumericMatrix Zmat2(_Zmat1); 
-    Rcpp::NumericVector avgH(_avgH);
-    avg_hazard = avgH(0);
+    Rcpp::NumericVector avgI(_avgI);
+    inf_mean = avgI(0);
 
     gamma_ei_params = Eigen::MatrixXd(Zmat1.nrow(), Zmat1.ncol());   
     gamma_ir_params = Eigen::MatrixXd(Zmat2.nrow(), Zmat2.ncol());   
@@ -101,24 +101,6 @@ void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir,
     gamma_ir_params(1,0) = pIRess/(gamma_ir); 
 }
 
-void transitionPriors::setPriorsManually(SEXP priorAlpha_gammaEI, SEXP priorBeta_gammaEI,
-                       SEXP priorAlpha_gammaIR, SEXP priorBeta_gammaIR)
-{
-    gamma_ei_params = Eigen::MatrixXd(2, 1);
-    gamma_ir_params = Eigen::MatrixXd(2, 1);
-
-    Rcpp::NumericVector pA_gammaEI(priorAlpha_gammaEI);
-    Rcpp::NumericVector pB_gammaEI(priorBeta_gammaEI);
-    Rcpp::NumericVector pA_gammaIR(priorAlpha_gammaIR);
-    Rcpp::NumericVector pB_gammaIR(priorBeta_gammaIR);
-
-    gamma_ei_params(0,0) = (pA_gammaEI(0)); 
-    gamma_ei_params(1,0) = (pB_gammaEI(0)); 
-
-    gamma_ir_params(0,0) = (pA_gammaIR(0)); 
-    gamma_ir_params(1,0) = (pB_gammaIR(0)); 
-}
-
 void transitionPriors::summary()
 {
     if (gamma_ei_params.size() == 2){
@@ -142,7 +124,6 @@ RCPP_MODULE(mod_transitionPriors)
     .method("setUniformExpPriors", &transitionPriors::setUniformExpPriors)
     .method("setPathSpecificPriors", &transitionPriors::setPathSpecificPriors)
     .method("setPriorsFromProbabilities", &transitionPriors::setPriorsFromProbabilities)
-    .method("setPriorsManually", &transitionPriors::setPriorsManually)
     .method("summary", &transitionPriors::summary);
 }
 

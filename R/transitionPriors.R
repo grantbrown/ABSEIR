@@ -98,7 +98,6 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
             sapply(x, Z2)/sapply(x, function(i){
                             1-integrate(f2, 0, i)$value
         })} 
-        avg.hazard = hzd(inf.mean)
 
         pdists = lapply(list(f1, f2), function(x){ 
             n = 100
@@ -128,7 +127,7 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
         return(structure(list(mode="path_specific",
                               ei_pdist = pdists[[1]],
                               ir_pdist = pdists[[2]],
-                              avg_hazard = avg.hazard), 
+                              inf_mean = inf.mean), 
                class = "TransitionPriors"))
     }
     else

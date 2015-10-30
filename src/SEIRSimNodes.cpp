@@ -25,7 +25,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              std::string mode,
                              Eigen::MatrixXd ei_prior,
                              Eigen::MatrixXd ir_prior,
-                             double avgH,
+                             double avgI,
                              Eigen::VectorXd sp_prior,
                              Eigen::VectorXd se_prec,
                              Eigen::VectorXd rs_prec,
@@ -49,7 +49,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  transitionMode(mode),
                                  E_to_I_prior(ei_prior),
                                  I_to_R_prior(ir_prior),
-                                 avg_hazard(avgH),
+                                 inf_mean(avgI),
                                  spatial_prior(sp_prior),
                                  exposure_precision(se_prec),
                                  reinfection_precision(rs_prec),
@@ -655,7 +655,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
             }
             else
             {
-                (*results).r0t(time_idx, l) /= avg_hazard;
+                (*results).r0t(time_idx, l) *= inf_mean;
                 (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
                                             *((*results).S(time_idx, l))/N(l);
                
