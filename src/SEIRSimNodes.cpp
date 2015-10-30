@@ -722,6 +722,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
 
     double _1mpIR_cum = 1.0;
     int infTime = 0;
+    Eigen::MatrixXd finalEARVal = (*results).rEA.row(nTpt - 1);
     if (exp_transition)
     {
         for (time_idx = 0; time_idx < nTpt; time_idx++)
@@ -733,10 +734,10 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                     _1mpIR_cum*(*results).rEA.row(l);
                 _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
             }
-            while (_1mpIR_cum > 1e-8)
+            while (_1mpIR_cum > 1e-6)
             {
-                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
-                _1mpIR_cum*=((*results).p_ir(nTpt - 1,0));
+                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
+                _1mpIR_cum*=(1-(*results).p_ir(nTpt - 1,0));
             }
         }
     }
@@ -761,9 +762,9 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                     infTime ++;
                 }
             }
-            while (_1mpIR_cum > 1e-8 && infTime < I_to_R_prior.rows())
+            while (_1mpIR_cum > 1e-6 && infTime < I_to_R_prior.rows())
             {
-                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*(*results).rEA.row(nTpt - 1); 
+                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
                 _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
                 infTime ++;
             }
