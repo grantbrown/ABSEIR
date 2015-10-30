@@ -42,8 +42,7 @@
 #' mulivariate normal distribuion rather than independent normals.}}
 #' 
 #' @examples samplingControl <- SamplingControl(123123, 2)
-#' 
-
+#' @export
 SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                            params=NA)                           
 {

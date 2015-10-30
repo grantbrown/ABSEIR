@@ -8,7 +8,7 @@ the exposed to infectious and infectious to removed compartments.}
 TransitionPriors(mode = c("exponential", "path_specific"), params = list())
 }
 \arguments{
-\item{mode}{The type of transition model to employ}
+\item{mode}{The type of transition model to employ ("exponential" or "path_specific)}
 
 \item{params}{Additional parameters, specific to the type of transition model. See
 details section for additional information.}
@@ -42,10 +42,17 @@ The TransitionPriors component of spatial SEIR(S) models captures the
  }
  The path specific formulation requires fewer parameters, but more care is required in
  their specification.
- TODO: mention Z1, Z2
+ \itemize{
+  \item{Z1}{A probability density function for the time individuals spend in the latent state.}
+  \item{Z2}{A probability density function for the time individuals spend in the infectious state.}
+ }
 }
 \examples{
 transitionPriors <- TransitionPriors("exponential", params=list(p_ei=
                                         1/5, p_ir=1/7, p_ei_ess=100, p_ir_ess=100))
+}
+\references{
+"A path-specific SEIR model for use with general
+               latent and infectious time distributions." 2013. Porter, Aaron T, Oleson, Jacob J. Biometrics 69(1)
 }
 

@@ -19,7 +19,7 @@
 #'
 #' @examples \dontrun{compareModels(model1, model2)}
 #'                                                
-#'                                               
+#' @export 
 compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
                          batch_size = 10000, max_itrs = 1000)
 {

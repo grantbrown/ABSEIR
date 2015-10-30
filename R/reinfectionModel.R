@@ -18,8 +18,7 @@
 #'  are not permanently (over the course of a typical study period) removed from
 #'  the susceptible population by immunity or death after an infection. 
 #' @examples reinfectionModel = ReinfectionModel("SEIR")
-#' 
-
+#' @export
 ReinfectionModel = function(reinfectMode = c("SEIR", "SEIRS", "Fixed"),X_prs = NA, 
                                  priorPrecision = NA, priorMean = NA)
 {

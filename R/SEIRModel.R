@@ -1,4 +1,61 @@
-# SEIRModel module helper function
+#' Fit a spatial/non-spatial SEIR/SEIRS model based on the provided model components.
+#' 
+#' @param data_model A data model object, describing the link between
+#'  the observed data and the unobserved epidemic counts. Valid data models
+#'  are created using the \code{\link{DataModel}} function. 
+#' @param exposure_model An exposure model object, which describes the
+#'  spatial and temporal variability of the exposure/infection process. Valid 
+#'  exposure models are created using the \code{\link{ExposureModel}} function. 
+#' @param reinfection_model A reinfection model object, which describes
+#'  whether or not individuals are able to return from the Removed category
+#'  to the Susceptible population. Valid reinfection models are created using the
+#'  \code{\link{ReinfectionModel}} function. 
+#' @param distance_model A distance model object which describes the underlying
+#'  contact network, in addition to prior parameters which constrain the contact
+#'  process. Valid distance models are created using \code{\link{DistanceModel}} 
+#' @param transition_priors An object containing information about the E to I and
+#'  I to R transition prior parameters. These are created using the 
+#'  \code{\link{TransitionPriors}} function, and involve either transition
+#'  probabilities and corresponding effective sample sizes (amount of prior 
+#'  information), or manually specified probability distributions. .  
+#' @param initial_value_container An object specifying the initial state
+#'  of the epidemic for each spatial location, created by the
+#'  \code{\link{InitialValueContainer}} function. 
+#' @param sampling_control An object specifying information about the sampling
+#'  algorithm. In particular, the sampling_control argument should specify the
+#'  number of CPU cores to employ, and the random seed to use. 
+#'  Sampling control objects are created by the 
+#'  \code{\link{SamplingControl}} function. 
+#' @param samples the number of samples to approximate from the posterior
+#'        distribution, i.e. the number of particles to simulate. The number
+#'        of particles should be considerably smaller than the batch size
+#'        specified by the sampling_control argument. 
+#' @param verbose print diagnostic information on the progress of the fitting algorithm
+#' @return an object of type \code{\link{SpatialSEIRModel}} 
+#' @details
+#' Use the supplied model components to build and fit a corresponding model.   
+#' This function is used to fit all of the models in the spatial SEIRS model class. 
+#'    Numerous ABC algorithms have been developed, but as of now ABSEIR provides 
+#'    just two. The first algorithm is the basic rejection algorithm of Rubin 
+#'    1980. While this approach performs well when good prior information is available, 
+#'    it can be extremely inefficient when prior distributions are diffuse with 
+#'    respect to the posterior. To address this shortcoming, we have implemented
+#'    the Sequential Monte-Carlo approach proposed by Beaumont 2009, 2010. We may
+#'    provide additional algorithms in the future, in particular that of Del Moral
+#'    et al. 2012. 
+#'  
+#' @examples \dontrun{results = SpatialSEIRModel(data_model, exposure_model,
+#'                                                 reinfection_model, distance_model,
+#'                                                 transition_priors, initial_value_container,
+#'                                                 sampling_control, 50, TRUE)}
+#' @seealso \code{\link{DataModel}}, \code{\link{ExposureModel}}, 
+#' \code{\link{ReinfectionModel}}, \code{\link{DistanceModel}}, 
+#' \code{\link{TransitionPriors}}, \code{\link{InitialValueContainer}}, 
+#' \code{\link{SamplingControl}}, \code{\link{summary.SpatialSEIRModel}}, 
+#' \code{\link{plot.SpatialSEIRModel}}, \code{\link{compareModels}}, 
+#' \code{\link{epidemicSimulations}}, 
+#' @useDynLib ABSEIR
+#' @export
 SpatialSEIRModel = function(data_model,
                           exposure_model,
                           reinfection_model,
@@ -229,6 +286,7 @@ SpatialSEIRModel = function(data_model,
 #'  \item{\code{verbose}: }{indicates whether verbose output should be 
 #' provided.}
 #' }
+#' @export
 update.SpatialSEIRModel = function(object, ...)
 {
     modelObject = object
@@ -460,6 +518,7 @@ update.SpatialSEIRModel = function(object, ...)
 #' @param x a \code{\link{SpatialSEIRModel}} object
 #' @param \dots additional arguments to be passed to plotting functions. 
 #' @examples \dontrun{plot(modelObject)}
+#' @export
 plot.SpatialSEIRModel = function(x, ...)
 {
     for (i in 1:ncol(x$param.samples))
@@ -482,6 +541,7 @@ plot.SpatialSEIRModel = function(x, ...)
 #' @param object a \code{\link{SpatialSEIRModel}} object
 #' @param \dots not used 
 #' @return a summary.SpatialSEIRModel object
+#' @export
 summary.SpatialSEIRModel = function(object, ...)
 {
     nLoc = ncol(object$modelComponents$data_model$Y)
@@ -517,6 +577,7 @@ summary.SpatialSEIRModel = function(object, ...)
 #' Print a \code{summary.SpatialSEIRModel} object
 #' @param x a \code{summary.SpatialSEIRModel} object
 #' @param \dots not used
+#' @export
 print.summary.SpatialSEIRModel = function(x, ...)
 {
     nl = "\n\n"

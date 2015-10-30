@@ -23,8 +23,7 @@
 #'                                          nTpt = 25, nLoc = 1,
 #'                                          betaPriorPrecision = 0.1,
 #'                                          betaPriorMean = 0)
-
-
+#' @export
 ExposureModel = function(X,nTpt, nLoc,betaPriorPrecision=NA,
                               betaPriorMean=NA,offset=NA)
 {

@@ -33,4 +33,7 @@ ExponentialTransitionPriors provides the parameterization from Brown et al. 2015
 \examples{
 transitionPriors <- ExponentialTransitionPriors(1/5,1/7, 100, 100)
 }
+\seealso{
+\code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}}
+}
 

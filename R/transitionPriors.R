@@ -1,7 +1,7 @@
 #' Build a TransitionPriors object, which governs how individuals move from
 #' the exposed to infectious and infectious to removed compartments. 
 #' 
-#' @param mode  The type of transition model to employ 
+#' @param mode  The type of transition model to employ ("exponential" or "path_specific) 
 #' @param params  Additional parameters, specific to the type of transition model. See
 #' details section for additional information. 
 #' 
@@ -30,10 +30,20 @@
 #'  }
 #'  The path specific formulation requires fewer parameters, but more care is required in
 #'  their specification. 
-#'  TODO: mention Z1, Z2
+#'  \itemize{
+#'   \item{Z1}{A probability density function for the time individuals spend in the latent state.} 
+#'   \item{Z2}{A probability density function for the time individuals spend in the infectious state.} 
+#'  }
 #' 
 #' @examples transitionPriors <- TransitionPriors("exponential", params=list(p_ei=
 #'                                         1/5, p_ir=1/7, p_ei_ess=100, p_ir_ess=100))
+#' 
+#' @examples transitionPriors <- TransitionPriors("path_specific", params = list(
+#'                                         Z1 = function(x){dunif(x, 2, 10)},
+#'                                         Z2 = function(x){dunif(x, 7, 24)}))
+#' @references "A path-specific SEIR model for use with general 
+#'                latent and infectious time distributions." 2013. Porter, Aaron T, Oleson, Jacob J. Biometrics 69(1)
+#' @export 
 TransitionPriors = function(mode = c("exponential", "path_specific"), params = list())
 {
     if (class(params) != "list")
@@ -128,6 +138,25 @@ TransitionPriors = function(mode = c("exponential", "path_specific"), params = l
     }
 }
 
+#' Build a path specific TransitionPriors object, which governs how individuals move from
+#' the exposed to infectious and infectious to removed compartments. 
+#' 
+#' @param Z1 a probability density function for the length of time individuals spend in 
+#'      the latent state
+#' @param Z2 a probability density function for the length of time individuals spend in 
+#'      the infectious state
+#' 
+#' @details 
+#'  The TransitionPriors component of spatial SEIR(S) models captures the  
+#'  process by which individuals move from the exposed to infectious compartment, 
+#'  and from the infectious to removed compartment. This component thus governs the
+#'  duration of the latent and infectious periods of the disease of interest, on the
+#'  discrete timescale employed.
+#' 
+#' @examples transitionPriors <- PathSpecificTransitionPriors(Z1 = function(x){dunif(x, 2, 10)},
+#'                                         Z2 = function(x){dunif(x, 7, 24)})
+#' @seealso \code{\link{TransitionPriors}}, \code{\link{Exponentialtransitionpriors}}
+#' @export 
 PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
 {
     if (length(Z1) != 1 || length(Z2) != 1 || 
@@ -164,6 +193,8 @@ PathSpecificTransitionPriors = function(Z1 = NA, Z2 = NA, truncation_prob=1e-6)
 #'  et al. 2015. 
 #' 
 #' @examples transitionPriors <- ExponentialTransitionPriors(1/5,1/7, 100, 100)
+#' @seealso \code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}}
+#' @export
 ExponentialTransitionPriors = function(p_ei, p_ir, p_ei_ess, p_ir_ess)
 {
     return(TransitionPriors("exponential", list(p_ei=p_ei,

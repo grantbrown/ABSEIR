@@ -17,10 +17,7 @@
 #'                                           c(10,0),
 #'                                           c(0,0),
 #'                                           c(100,100))
-
-
-
-
+#' @export
 InitialValueContainer = function(S0, E0, I0, R0) 
 {
     # get rid of any data frame nonsense

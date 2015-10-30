@@ -19,6 +19,7 @@
 #'                                                  returnCompartments = TRUE, 
 #'                                                  verbose = TRUE)} 
 #' 
+#' @export
 epidemic.simulations = function(modelObject, replicates=1, returnCompartments = TRUE,verbose = FALSE)
 {
     if (class(modelObject) != "SpatialSEIRModel")

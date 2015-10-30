@@ -24,7 +24,7 @@
 #'  exposure process terms. 
 #' 
 #' @examples distanceModel <- DistanceModel(list(1-diag(4)))
-
+#' @export
 DistanceModel = function(distanceList, 
                               scaleMode = c("none","rowscale","invsqrt"),
                               priorAlpha=1.0,
