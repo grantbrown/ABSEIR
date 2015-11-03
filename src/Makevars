@@ -5,7 +5,7 @@ PKG_LIBS=  -lm -L$(EXT_PKGDR) -lcaf_main
 OLDLIBS=$(LIBS)
 LIBS= $(OLDLIBS) -L$(EXT_PKGDR)
 
-SOURCES = dataModel.cpp distanceModel.cpp exposureModel.cpp initialValueContainer.cpp RcppExports.cpp RcppExports.o reinfectionModel.cpp samplingControl.cpp SEIRSimNodes.cpp spatialSEIRModel.cpp transitionPriors.cpp
+SOURCES = dataModel.cpp distanceModel.cpp exposureModel.cpp initialValueContainer.cpp RcppExports.cpp reinfectionModel.cpp samplingControl.cpp SEIRSimNodes.cpp spatialSEIRModel.cpp transitionPriors.cpp weibullTransitionDistribution.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
 

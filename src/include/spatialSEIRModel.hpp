@@ -10,6 +10,7 @@
 #include "./samplingControl.hpp"
 #include "./spatialSEIRModel.hpp"
 #include "./transitionPriors.hpp"
+#include "./transitionDistribution.hpp"
 
 struct samplingResultSet
 {
@@ -147,6 +148,10 @@ class spatialSEIRModel
         /** A data structure containing previous epoch parameter values and 
          * distances, used in weight computation.*/
         samplingResultSet previousSamples;
+        /** General E to I transition Distribution*/
+        std::unique_ptr<transitionDistribution> EI_transition_dist;
+        /** General I to R transition Distribution*/
+        std::unique_ptr<transitionDistribution> IR_transition_dist;
 
         /** Main simulation function. */
         Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);

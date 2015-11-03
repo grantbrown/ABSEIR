@@ -105,7 +105,7 @@ SpatialSEIRModel = function(data_model,
     if (verbose){cat("Initializing Model Components\n")}
     hasSpatial = (ncol(data_model$Y) > 1) 
     hasReinfection = (reinfection_model$integerMode != 3) 
-    isExponential = transition_priors$mode == "exponential"
+    transitionMode= transitionPriors$mode
     result = tryCatch({
         if (verbose) cat("...Building data model\n")
         modelComponents[["dataModel"]] = new(dataModel, data_model$Y,
@@ -181,7 +181,7 @@ SpatialSEIRModel = function(data_model,
         if (verbose) cat("...Building transition priors\n") 
         modelComponents[["transitionPriors"]] = new(transitionPriors, 
                                                     transition_priors$mode)
-        if (isExponential)
+        if (transitionMode == "exponential")
         {
             modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
                 transition_priors$p_ei,
@@ -189,6 +189,20 @@ SpatialSEIRModel = function(data_model,
                 transition_priors$p_ei_ess,
                 transition_priors$p_ir_ess
             )
+        }
+        else if (transitionMode == "weibull")
+        {
+            modelComponents[["transitionPriors"]]$setPriorsForWeibull(
+                              c(transition_priors$latent_shape_prior_alpha,
+                                transition_priors$latent_shape_prior_beta,
+                                transition_priors$latent_scale_prior_alpha,
+                                transition_priors$latent_scale_prior_beta),
+                              c(transition_priors$infectious_shape_prior_alpha,
+                                transition_priors$infectious_shape_prior_beta,
+                                transition_priors$infectious_scale_prior_alpha,
+                                transition_priors$infectious_scale_prior_beta),
+                                transition_priors$max_EI_idx,
+                                transition_priors$max_IR_idx)
         }
         else
         {
@@ -236,7 +250,7 @@ SpatialSEIRModel = function(data_model,
                              sep = "")
             )
         }
-        if (isExponential)
+        if (transitionMode == "exponential")
         { 
             cnames = c(cnames, "gamma_EI", "gamma_IR")
         }
@@ -414,13 +428,28 @@ update.SpatialSEIRModel = function(object, ...)
         if (verbose) cat("...building transition priors\n") 
         modelCache[["transitionPriors"]] = new(transitionPriors, 
                                                transitionPriorsInstance$mode)
-        if (transitionPriorsInstance$mode == "exponential")
+        transitionMode = transitionPriorsInstance$mode 
+        if (transitionMode == "exponential")
         {
             modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
                 transitionPriorsInstance$p_ei,
                 transitionPriorsInstance$p_ir,
                 transitionPriorsInstance$p_ei_ess,
                 transitionPriorsInstance$p_ir_ess)
+        }
+        else if (transitionMode == "weibull")
+        {
+            modelCache[["transitionPriors"]]$setPriorsForWeibull(
+                              c(transitionPriorsInstance$latent_shape_prior_alpha,
+                                transitionPriorsInstance$latent_shape_prior_beta,
+                                transitionPriorsInstance$latent_scale_prior_alpha,
+                                transitionPriorsInstance$latent_scale_prior_beta),
+                              c(transitionPriorsInstance$infectious_shape_prior_alpha,
+                                transitionPriorsInstance$infectious_shape_prior_beta,
+                                transitionPriorsInstance$infectious_scale_prior_alpha,
+                                transitionPriorsInstance$infectious_scale_prior_beta),
+                                transitionPriorsInstance$max_EI_idx,
+                                transitionPriorsInstance$max_IR_idx)
         }
         else
         {
@@ -549,8 +578,7 @@ summary.SpatialSEIRModel = function(object, ...)
     nLoc = ncol(object$modelComponents$data_model$Y)
     nTpt = nrow(object$modelComponents$data_model$Y)
 
-    isExponential = (object$modelComponents$transition_priors$mode == 
-                     "exponential")
+    transitionMode = objects$modelComponents$transition_priors$mode
     hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
         (object$modelComponents$reinfection_model$integerMode != 3) 
@@ -575,7 +603,8 @@ summary.SpatialSEIRModel = function(object, ...)
        spatialParams = Ifelse(hasSpatial, 
             length(object$modelComponents$distance_model$distanceList),
             0),
-       transitionParams = Ifelse(isExponential, 2, 0)
+       transitionParams = Ifelse(transitionMode == "exponential", 2,
+                          Ifelse(transitionMode == "weibull", 4, 0))
        ), class = "summary.SpatialSEIRModel")
 }
 

@@ -142,10 +142,35 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     }
 
     if (transitionPriorsInstance -> mode != "exponential" && 
-            transitionPriorsInstance -> mode != "path_specific")
+            transitionPriorsInstance -> mode != "path_specific" &&
+            transitionPriorsInstance -> mode != "weibull")
     {
         Rcpp::stop("Invalid transition mode: " + 
                 (transitionPriorsInstance -> mode));
+    }
+
+    // Optionally, set up transition distribution
+
+    if (transitionPriorsInstance -> mode == "weibull")
+    {
+        EI_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
+                new weibullTransitionDistribution(
+                (transitionPriorsInstance -> E_to_I_params).col(0))); 
+        IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
+                new weibullTransitionDistribution(
+                (transitionPriorsInstance -> I_to_R_params).col(0))); 
+    }
+    else
+    {
+        Eigen::VectorXd DummyParams(4);
+        DummyParams(0) = 1.0;
+        DummyParams(1) = 1.0;
+        DummyParams(2) = 1.0;
+        DummyParams(3) = 1.0;
+        EI_transition_dist = std::unique_ptr<weibullTransitionDistribution>(new 
+            weibullTransitionDistribution(DummyParams));
+        IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(new 
+            weibullTransitionDistribution(DummyParams));
     }
 
     // Set up random number provider 
@@ -412,13 +437,13 @@ void spatialSEIRModel::updateParams_prior()
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    const bool hasTransition = (transitionPriorsInstance -> 
-            mode == "exponential");
+    std::string transitionMode = transitionPriorsInstance -> mode;
 
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    const int nTrans = (hasTransition ? 2 : 0);
+    const int nTrans = (transitionMode == "exponential" ? 2 :
+                       (transitionMode == "weibull" ? 4 : 0));
     const int bs = samplingControlInstance -> batch_size;
     int i, j;
 
@@ -429,21 +454,35 @@ void spatialSEIRModel::updateParams_prior()
     std::gamma_distribution<> rhoDist(
             (distanceModelInstance -> spatial_prior)(0),
         1.0/(distanceModelInstance -> spatial_prior)(1));
-    // gamma_ei 
-    std::gamma_distribution<> gammaEIDist(1.0,1.0);
-    std::gamma_distribution<> gammaIRDist(1.0,1.0);
+    // Hyperprior distributions for E to I and I to R transitions
+    std::vector<std::gamma_distribution<> > gammaEIDist;
+    std::vector<std::gamma_distribution<> > gammaIRDist;
 
-    if (hasTransition)
+    if (transitionMode == "exponential")
     {
-        gammaEIDist = std::gamma_distribution<>(
-                (transitionPriorsInstance -> gamma_ei_params)(0,0),
-            1.0/(transitionPriorsInstance -> gamma_ei_params)(1,0)); 
-        // gamma_ir
-        gammaIRDist = std::gamma_distribution<>(
-                (transitionPriorsInstance -> gamma_ir_params)(0,0),
-            1.0/(transitionPriorsInstance -> gamma_ir_params)(1,0)); 
-    }
+        gammaEIDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> E_to_I_params)(0,0),
+            1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
+        gammaIRDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> I_to_R_params)(0,0),
+            1.0/(transitionPriorsInstance -> I_to_R_params)(1,0)));
+    }   
+    else if (transitionMode == "weibull")
+    {
+        gammaEIDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> E_to_I_params)(0,0),
+            1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
+        gammaEIDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> E_to_I_params)(2,0),
+            1.0/(transitionPriorsInstance -> E_to_I_params)(3,0)));
 
+        gammaIRDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> I_to_R_params)(0,0),
+            1.0/(transitionPriorsInstance -> I_to_R_params)(1,0)));
+        gammaIRDist.push_back(std::gamma_distribution<>(
+                (transitionPriorsInstance -> I_to_R_params)(2,0),
+            1.0/(transitionPriorsInstance -> I_to_R_params)(3,0)));
+    }
     // If this is too slow, consider column-wise operations
     double rhoTot = 0.0;
     int rhoItrs = 0;
@@ -458,16 +497,24 @@ void spatialSEIRModel::updateParams_prior()
         }
     }
     // draw gammaEI, gammaIR
-    if (hasTransition)
+    if (transitionMode == "exponential")
     {
         for (i = 0; i < bs; i++)
         {
             // Draw gamma_ei
-            param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist(*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho) = 
+                gammaEIDist[0](*generator);
             // Draw gamma_ir
             param_matrix(i, nBeta + nBetaRS + nRho + 1) = 
-                gammaIRDist(*generator);
+                gammaIRDist[0](*generator);
         }
+    }
+    else if (transitionMode == "weibull")
+    {
+        param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist[0](*generator);
+        param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaEIDist[1](*generator);
+        param_matrix(i, nBeta + nBetaRS + nRho + 2) = gammaIRDist[0](*generator);
+        param_matrix(i, nBeta + nBetaRS + nRho + 3) = gammaIRDist[1](*generator);
     }
     // Draw reinfection parameters
     if (hasReinfection)
@@ -514,11 +561,12 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
     double constr = 0.0;
     const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    const bool hasTransition = (transitionPriorsInstance -> 
-            mode == "exponential");
+    std::string transitionMode = transitionPriorsInstance -> mode;
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nTrans = (transitionMode == "exponential" ? 2 : 
+                       (transitionMode == "weibull" ? 4 : 0));
     int i;
 
     int paramIdx = 0;
@@ -554,16 +602,30 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
         outPrior *= (constr <= 1);
     }
 
-    if (hasTransition)
+    if (transitionMode == "exponential")
     {
         outPrior *= R::dgamma(param_vector(paramIdx), 
-                (transitionPriorsInstance -> gamma_ei_params)(0,0),
-                1.0/(transitionPriorsInstance -> gamma_ei_params)(1,0), 0);
+                (transitionPriorsInstance -> E_to_I_params)(0,0),
+                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0), 0);
         paramIdx++;
 
         outPrior *= R::dgamma(param_vector(paramIdx), 
-                (transitionPriorsInstance -> gamma_ir_params)(0,0),
-                1.0/(transitionPriorsInstance -> gamma_ir_params)(1,0), 0);
+                (transitionPriorsInstance -> I_to_R_params)(0,0),
+                1.0/(transitionPriorsInstance -> I_to_R_params)(1,0), 0);
+    }
+    else if (transitionMode == "weibull")
+    {
+        // The following may be slow. Consider 
+        // 1. override of evalParamPrior for Weibull case
+        // 2. rewrite of evalParamPrior to accept Rcpp object
+        Eigen::Map<Eigen::VectorXd> eigen_param_vec( 
+            Rcpp::as<Eigen::Map<Eigen::VectorXd>>(param_vector));
+        outPrior *= EI_transition_dist -> evalParamPrior(
+                eigen_param_vec.segment(paramIdx, 2)); 
+        paramIdx += 2;
+        outPrior *= IR_transition_dist -> evalParamPrior(
+                eigen_param_vec.segment(paramIdx, 2)); 
+        paramIdx += 2;
     }
     return(outPrior);
 }
@@ -649,9 +711,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     numSamples = N;
     const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    const bool hasTransition = (transitionPriorsInstance -> 
-            mode == "exponential");
-
+    std::string transitionMode = transitionPriorsInstance -> mode;
 
     const double r = samplingControlInstance -> accept_fraction;
     const int bs = samplingControlInstance -> batch_size;
@@ -659,7 +719,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    const int nTrans = (hasTransition ? 2 : 0);
+    const int nTrans = (transitionMode == "exponential" ? 2 :
+                       (transitionMode == "weibull" ? 4 : 0));
     const int nParams = nBeta + nBetaRS + nRho + nTrans;
 
 
@@ -738,7 +799,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
             if (reweight != 0 || (!init && batchNum == 1))
             {
                 Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
-                    nBatches << ". Upd: " << updateFraction << ". Eps: [" << 
+                    nBatches << ". Eps: [" << 
                     minEps << ", " << maxEps << "] < " << 
                     currentEps/(samplingControlInstance -> shrinkage) << "\n";
             }
@@ -754,9 +815,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
         else if (verbose)
         {
             Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
-                nBatches << ". Upd: " << updateFraction << ". Eps: [" << 
+                nBatches << ". Eps: [" << 
                 minEps << ", " << maxEps << "]\n";
-
         }
         Rcpp::checkUserInterrupt();
         updateWeights();
@@ -859,9 +919,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    const bool hasTransition = (transitionPriorsInstance -> 
-            mode == "exponential");
-
+    std::string transitionMode = transitionPriorsInstance -> mode;
 
     if (!(sim_type_atom == sim_atom::value || 
          sim_type_atom == sim_result_atom::value || 
@@ -899,8 +957,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
                      exposureModelInstance -> X,
                      reinfectionModelInstance -> X_rs,
                      transitionPriorsInstance -> mode,
-                     transitionPriorsInstance -> gamma_ei_params,
-                     transitionPriorsInstance -> gamma_ir_params,
+                     transitionPriorsInstance -> E_to_I_params,
+                     transitionPriorsInstance -> I_to_R_params,
                      transitionPriorsInstance -> inf_mean,
                      distanceModelInstance -> spatial_prior,
                      exposureModelInstance -> betaPriorPrecision,
@@ -972,7 +1030,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
             subList["I_star"] = createRcppIntFromEigen(results_complete[i].I_star);
             subList["R_star"] = createRcppIntFromEigen(results_complete[i].R_star);
             subList["p_se"] = createRcppNumericFromEigen(results_complete[i].p_se);
-            if (hasTransition)
+            // We p_ei and p_ir not generally defined in non-exponential case.  
+            if (transitionMode == "exponential")
             {
                 subList["p_ei"] = createRcppNumericFromEigen(results_complete[i].p_ei);
                 subList["p_ir"] = createRcppNumericFromEigen(results_complete[i].p_ir);
@@ -988,7 +1047,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
             subList["X"] = createRcppNumericFromEigen(results_complete[i].X);
             if (hasReinfection)
             {
-                // output reinfection info
+                // TODO: output reinfection info
             }
             subList["result"] = results_complete[i].result;
             outList[std::to_string(i)] = subList;
