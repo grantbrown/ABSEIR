@@ -89,6 +89,13 @@ ps_transition_priors = PathSpecificTransitionPriors(Z1 = latent.distribution,
 plot(latent.distribution, xlim = c(0, 30), main = "Assumed Distribution of Latent Period")
 plot(infectious.distribution, xlim = c(0, 30), main = "Assumed Distribution of Infectious Period")
 
+# Parameterized Weibull
+
+wb_transition_priors = WeibullTransitionPriors(2,1,
+                                               2,1,
+                                               2,1,
+                                               2,1)
+
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
                                    n_cores = 14,
@@ -138,6 +145,19 @@ runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
                           sampling_control,
                           samples = 100,
                           verbose = FALSE))
+
+runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
+                          exposure_model_2,
+                          reinfection_model,
+                          distance_model,
+                          wb_transition_priors,
+                          initial_value_container,
+                          sampling_control,
+                          samples = 100,
+                          verbose = TRUE))
+
+
+
 
 timeMatrix = rbind(runtime1,runtime2,runtime3)
 rownames(timeMatrix) = paste("model", 1:3)

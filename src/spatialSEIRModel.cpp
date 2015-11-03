@@ -511,10 +511,13 @@ void spatialSEIRModel::updateParams_prior()
     }
     else if (transitionMode == "weibull")
     {
-        param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist[0](*generator);
-        param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaEIDist[1](*generator);
-        param_matrix(i, nBeta + nBetaRS + nRho + 2) = gammaIRDist[0](*generator);
-        param_matrix(i, nBeta + nBetaRS + nRho + 3) = gammaIRDist[1](*generator);
+        for (i = 0; i < bs; i++)
+        {
+            param_matrix(i, nBeta + nBetaRS + nRho) = gammaEIDist[0](*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho + 1) = gammaEIDist[1](*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho + 2) = gammaIRDist[0](*generator);
+            param_matrix(i, nBeta + nBetaRS + nRho + 3) = gammaIRDist[1](*generator);
+        }
     }
     // Draw reinfection parameters
     if (hasReinfection)
@@ -553,6 +556,7 @@ void spatialSEIRModel::updateParams_prior()
             }
         }
     }
+
 }
 
 double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
@@ -940,7 +944,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     unsigned int nrow =  (unsigned int) param_matrix.rows(); 
     unsigned int i, j, idx;
 
-
     for (i = 0; i < ncore; i++)
     {
         workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(
@@ -973,6 +976,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
                 workers[workers.size()-1]);
     }
 
+
     // Distribute jobs among workers
     Eigen::VectorXd outRow;
 
@@ -987,7 +991,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
     // Having two results containers is kinda ugly, better solution?
     std::vector<simulationResultSet> results_complete;
     std::vector<double> results_double;
-
 
     i = 0;
     if (sim_type_atom == sim_result_atom::value)

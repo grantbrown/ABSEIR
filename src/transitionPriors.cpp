@@ -150,6 +150,7 @@ RCPP_MODULE(mod_transitionPriors)
     .method("setUniformExpPriors", &transitionPriors::setUniformExpPriors)
     .method("setPathSpecificPriors", &transitionPriors::setPathSpecificPriors)
     .method("setPriorsFromProbabilities", &transitionPriors::setPriorsFromProbabilities)
+    .method("setPriorsForWeibull", &transitionPriors::setPriorsForWeibull)
     .method("summary", &transitionPriors::summary);
 }
 

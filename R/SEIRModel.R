@@ -105,7 +105,7 @@ SpatialSEIRModel = function(data_model,
     if (verbose){cat("Initializing Model Components\n")}
     hasSpatial = (ncol(data_model$Y) > 1) 
     hasReinfection = (reinfection_model$integerMode != 3) 
-    transitionMode= transitionPriors$mode
+    transitionMode= transition_priors$mode
     result = tryCatch({
         if (verbose) cat("...Building data model\n")
         modelComponents[["dataModel"]] = new(dataModel, data_model$Y,
@@ -578,7 +578,7 @@ summary.SpatialSEIRModel = function(object, ...)
     nLoc = ncol(object$modelComponents$data_model$Y)
     nTpt = nrow(object$modelComponents$data_model$Y)
 
-    transitionMode = objects$modelComponents$transition_priors$mode
+    transitionMode = object$modelComponents$transition_priors$mode
     hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
         (object$modelComponents$reinfection_model$integerMode != 3) 

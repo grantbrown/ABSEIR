@@ -92,18 +92,45 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
                        "requires the following parameters: ",
                        strParams, "\n", sep = ""))
         }
-        minEIShape = qgamma(0.001, params$latent_shape_prior_alpha,
+
+        minEIShape = qgamma(0.1, params$latent_shape_prior_alpha,
                                    params$latent_shape_prior_beta)
-        maxEIScale = qgamma(0.999, params$latent_scale_prior_alpha,
+        maxEIScale = qgamma(0.9, params$latent_scale_prior_alpha,
                                    params$latent_scale_prior_beta)
-        max_EI_idx = qweibull(1-1e-6, minEIShape, maxEIScale)
+        max_EI_idx = qweibull(1-1e-4, minEIShape, maxEIScale)
 
-        minIRShape = qgamma(0.001, params$infectious_shape_prior_alpha,
+        minIRShape = qgamma(0.1, params$infectious_shape_prior_alpha,
                                    params$infectious_shape_prior_beta)
-        maxIRScale = qgamma(0.999, params$infectious_scale_prior_alpha,
+        maxIRScale = qgamma(0.9, params$infectious_scale_prior_alpha,
                                    params$infectious_scale_prior_beta)
-        max_IR_idx = qweibull(1-1e-6, minIRShape, maxIRScale)
+        max_IR_idx = qweibull(1-1e-4, minIRShape, maxIRScale)
 
+        if (max_EI_idx > 10000)
+        {
+            stop(paste("Your E to I transition prior allows individuals",
+                          "to remain latent for up to ", max_EI_idx,  
+                          ". Not recommended."))
+        }
+        else if (max_EI_idx > 100)
+        {
+            warning(paste("Your E to I transition prior allows individuals",
+                          "to remain latent for up to ", max_EI_idx,  
+                          ". This may be less efficient."))
+        }
+        
+        if (max_IR_idx > 10000)
+        {
+            stop(paste("Your I to R transition prior allows individuals",
+                          "to remain infectious for up to ", max_EI_idx,  
+                          ". Not recommended."))
+        }
+        else if (max_IR_idx > 100)
+        {
+            warning(paste("Your I to R transition prior allows individuals",
+                          "to remain infectious for up to ", max_EI_idx,  
+                          ". This may be less efficient."))
+        }
+ 
 
         return(structure(list(mode="weibull",
                    latent_shape_prior_alpha = params$latent_shape_prior_alpha,
