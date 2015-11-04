@@ -11,6 +11,7 @@ class transitionDistribution
         virtual void setCurrentParams(Eigen::VectorXd currentParams){};
         virtual double getTransitionProb(int startIdx, 
                                          int stopIdx){}; 
+        virtual double getAvgMembership(){};
 };
 
 class weibullTransitionDistribution : public transitionDistribution
@@ -21,6 +22,7 @@ class weibullTransitionDistribution : public transitionDistribution
         void setCurrentParams(Eigen::VectorXd currentParams);
         double getTransitionProb(int startIdx, 
                                  int stopIdx);
+        double getAvgMembership();
         ~weibullTransitionDistribution();
     private:
         double shapePriorAlpha;

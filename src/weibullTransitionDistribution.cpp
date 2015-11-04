@@ -1,18 +1,15 @@
-#include<transitionDistribution.hpp>
+#include <transitionDistribution.hpp>
 #include <cmath>
 
-double gammapdf(double x, double shape, double scale, bool log)
+double gammapdf(double x, double shape, double rate, bool log)
 {
-    if (log)
+    if (x <= 0)
     {
-        return(
-            -std::lgamma(shape) - shape*std::log(scale)
-            + (shape - 1.0)*std::log(x) - x/scale);
+        return(log ? -std::numeric_limits<double>::infinity() : 0);
     }
-    return(
-        1.0/(std::tgamma(shape)*std::pow(scale, shape))
-        *std::pow(x,shape-1.0)
-        *std::exp(-1.0*x/scale));
+    double out = -std::lgamma(shape) + shape*std::log(rate)
+            + (shape - 1.0)*std::log(x) - x*rate;
+    return (log? out : std::exp(out));
 }
 
 weibullTransitionDistribution::weibullTransitionDistribution(
@@ -32,6 +29,9 @@ weibullTransitionDistribution::~weibullTransitionDistribution()
 
 double weibullTransitionDistribution::evalParamPrior(Eigen::VectorXd params)
 {
+
+    double out1 = gammapdf(params(0), shapePriorAlpha, shapePriorBeta, false);
+    double out2 = gammapdf(params(1), scalePriorAlpha, scalePriorBeta, false); 
     return(gammapdf(params(0), shapePriorAlpha, shapePriorBeta, false)
           *gammapdf(params(1), scalePriorAlpha, scalePriorBeta, false));
 }
@@ -39,8 +39,13 @@ double weibullTransitionDistribution::evalParamPrior(Eigen::VectorXd params)
 double weibullTransitionDistribution::getTransitionProb(int startIdx,
                                                         int stopIdx)
 {
-    return(1.0 - std::exp(std::pow(-stopIdx/currentScale, currentShape) 
-                        + std::pow(startIdx/currentScale, currentShape) ));
+    return(1.0 - std::exp(std::pow(startIdx/currentScale, currentShape) 
+                         - std::pow(stopIdx/currentScale, currentShape) ));
+}
+
+double weibullTransitionDistribution::getAvgMembership()
+{
+    return(currentScale*std::exp(std::lgamma(1 + 1.0/currentShape)));
 }
 
 void weibullTransitionDistribution::setCurrentParams(

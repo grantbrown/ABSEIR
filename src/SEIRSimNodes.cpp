@@ -77,7 +77,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
             E_paths = Eigen::MatrixXi((int) E_to_I_prior(4,0), Y.cols());
             I_paths = Eigen::MatrixXi((int) I_to_R_prior(4,0), Y.cols());
         }
-        if (transitionMode == "path_specific")
+        else if (transitionMode == "path_specific")
         {
             E_paths = Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols());
             I_paths = Eigen::MatrixXi(I_to_R_prior.rows(),Y.cols());
@@ -207,11 +207,29 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         rho = Eigen::VectorXd(1.0);
     }
    
+    // Should really unify these two code paths...
     double gamma_ei = (transitionMode == "exponential" ? 
             params(params.size() - 2) : -1.0);
     double gamma_ir = (transitionMode == "exponential" ? 
             params(params.size() - 1) : -1.0);
 
+    Eigen::VectorXd EI_params;
+    Eigen::VectorXd IR_params;
+    if (transitionMode == "weibull")
+    {
+        EI_params = params.segment(params.size() - 4, 2);
+        IR_params = params.segment(params.size() - 2, 2); 
+        EI_transition_dist -> setCurrentParams(EI_params);
+        IR_transition_dist -> setCurrentParams(IR_params);
+    } 
+    else
+    {
+        EI_params = Eigen::VectorXd::Zero(1);
+        IR_params = Eigen::VectorXd::Zero(1);
+    }
+
+    // Both Weibull and arbitrary path specific priors require
+    // Empty paths at beginning of sim
     if (transitionMode != "exponential")
     {
         // Clear out paths
@@ -349,8 +367,16 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se.row(0) = p_se;
-        compartmentResults.p_ei = p_ei.transpose(); 
-        compartmentResults.p_ir = p_ir.transpose(); 
+        if (transitionMode == "exponential")
+        {
+            compartmentResults.p_ei = p_ei.transpose(); 
+            compartmentResults.p_ir = p_ir.transpose(); 
+        }
+        else
+        {
+            compartmentResults.p_ei = EI_params;
+            compartmentResults.p_ir = IR_params; 
+        }
         if (has_spatial)
         {
             compartmentResults.rho = rho.transpose();
@@ -447,6 +473,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (E_paths(k,i) > 0)
                     {
+//                        aout(this) << "Nonzero at: (" << j << ", " << k << "), params: " << 
                         I_star_gen.param(std::binomial_distribution<>::param_type(
                                     E_paths(k,i),
                                     EI_transition_dist -> getTransitionProb(k, k+1)
@@ -482,7 +509,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     }
                 }
             }
-
         }
 
         if (cumulative)
@@ -752,6 +778,10 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     double component1, component2;
     // Fill in R0(t) and eff R0(t)
     // I_to_R_prior(k, 4)
+    if (transitionMode == "weibull")
+    {
+        IR_transition_dist -> setCurrentParams((*results).p_ir.col(0));
+    }
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
         (*results).r0t.row(time_idx) = p_se_components.row(time_idx);
@@ -764,12 +794,20 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                 (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
                                             *((*results).S(time_idx, l))/N(l);
             }
-            else
+            else if (transitionMode == "path_specific")
             {
                 (*results).r0t(time_idx, l) *= inf_mean;
                 (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
                                             *((*results).S(time_idx, l))/N(l);
                
+            }
+            else // Weibull
+            {
+                (*results).r0t(time_idx, l) *= 
+                    IR_transition_dist -> getAvgMembership();
+                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
+                                            *((*results).S(time_idx, l))/N(l);
+
             }
         }
     }

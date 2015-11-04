@@ -90,19 +90,22 @@ plot(latent.distribution, xlim = c(0, 30), main = "Assumed Distribution of Laten
 plot(infectious.distribution, xlim = c(0, 30), main = "Assumed Distribution of Infectious Period")
 
 # Parameterized Weibull
+#plot(function(x){dgamma(x, 50, 5)}, xlim = c(0,20))
 
-wb_transition_priors = WeibullTransitionPriors(2,1,
-                                               2,1,
-                                               2,1,
-                                               2,1)
+
+wb_transition_priors = WeibullTransitionPriors(15,10,
+                                               95,15,
+                                               80,15,
+                                               50,5)
+
 
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 14,
+                                   n_cores = 16,
                                    algorithm="Beaumont2009",
-                                    list(batch_size = 1000,
+                                    list(batch_size = 5000,
                                            epochs = 1e6,
-                                           max_batches = 150,
+                                           max_batches = 500,
                                            shrinkage = 0.99,
                                            multivariate_perturbation=TRUE
                                          )
@@ -124,7 +127,7 @@ runtime1 = system.time(result1 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE))
+                          verbose = TRUE))
 # Reasonable intensity, exponential transition
 runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -134,7 +137,7 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE))
+                          verbose = TRUE))
 # Reasonable intensity, path specific transition
 runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -144,7 +147,7 @@ runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE))
+                          verbose = TRUE))
 
 runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -159,7 +162,7 @@ runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
 
 
 
-timeMatrix = rbind(runtime1,runtime2,runtime3)
+timeMatrix = rbind(runtime1,runtime2,runtime3,runtime4)
 rownames(timeMatrix) = paste("model", 1:3)
 print(timeMatrix[,1:3])
 
@@ -172,12 +175,16 @@ compareModels(result1, result2, n_samples = 1000,
               batch_size = 2000)
 compareModels(result2, result3, n_samples = 1000, 
               batch_size = 2000)
+compareModels(result2, result4, n_samples = 1000, 
+              batch_size = 2000)
 
 summary(result1)
 
 summary(result2)
 
 summary(result3)
+
+summary(result4)
 
 
 ```
@@ -233,7 +240,7 @@ legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0)
 
 
 ```{r}
-# Simulate new epidemics based on the accepted parameters for model 2
+# Simulate new epidemics based on the accepted parameters for model 3
 simulated3 = epidemic.simulations(result3, replicates = 50)
 allSimulatedI_star = sapply(simulated3$simulationResults, function(x){x$I_star})
 
@@ -254,6 +261,29 @@ legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0)
 ```
 
 
+```{r}
+# Simulate new epidemics based on the accepted parameters for model 4
+simulated4 = epidemic.simulations(result4, replicates = 50)
+allSimulatedI_star = sapply(simulated4$simulationResults, function(x){x$I_star})
+
+
+lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
+posteriorMean = apply(allSimulatedI_star, 1, mean)
+upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
+
+
+plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
+     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 4: Posterior Predictive Distribution")
+lines(upperQuantile, lty = 2, col = "blue")
+lines(lowerQuantile, lty = 2, col = "blue")
+lines(posteriorMean, lty = 1, col = "blue")
+
+legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
+       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
+```
+
+
+
 7. Look at reproductive number estimates
 
 ```{r}
@@ -266,7 +296,11 @@ allSimulatedEA_R0_2 = sapply(simulated2$simulationResults, function(x){x$R_EA})
 allSimulatedR0_3 = sapply(simulated3$simulationResults, function(x){x$R0t})
 allSimulatedEA_R0_3 = sapply(simulated3$simulationResults, function(x){x$R_EA})
 
-par(mfrow = c(3,1))
+allSimulatedR0_4 = sapply(simulated4$simulationResults, function(x){x$R0t})
+allSimulatedEA_R0_4 = sapply(simulated4$simulationResults, function(x){x$R_EA})
+
+
+par(mfrow = c(4,1))
 plot(apply(allSimulatedR0_1, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
      ylab = "Reproductive Number", main = "Model 1: R0(t) and EA-R(t)")
 lines(apply(allSimulatedEA_R0_1, 1, mean), lwd = 2, lty = 2, col = "blue")
@@ -283,6 +317,11 @@ lines(apply(allSimulatedEA_R0_3, 1, mean), lwd =2, lty = 2, col = "blue")
 legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
        lwd = c(2,2), cex = 1.25)
   
+plot(apply(allSimulatedR0_4, 1, mean), type = "l", ylim = c(0, 3), lwd = 2,
+     ylab = "Reproductive Number", main = "Model 4: R0(t) and EA-R(t)")
+lines(apply(allSimulatedEA_R0_4, 1, mean), lwd =2, lty = 2, col = "blue")
+legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
+       lwd = c(2,2), cex = 1.25)
   
 
 ```

@@ -254,6 +254,16 @@ SpatialSEIRModel = function(data_model,
         { 
             cnames = c(cnames, "gamma_EI", "gamma_IR")
         }
+        else if (transitionMode == "weibull")
+        {
+            cnames = c(cnames, 
+                       "latent_shape", 
+                       "latent_scale",
+                       "infectious_shape",
+                       "infectious_scale"
+                       )
+
+        }
         colnames(params) = cnames 
         
         modelResults[["param.samples"]] = params
@@ -508,7 +518,22 @@ update.SpatialSEIRModel = function(object, ...)
                              sep = "")
             )
         }
-        cnames = c(cnames, "gamma_EI", "gamma_IR")
+
+        if (transitionMode == "exponential")
+        {
+            cnames = c(cnames, "gamma_EI", "gamma_IR")
+        }
+        else if (transitionMode == "weibull")
+        {
+            cnames = c(cnames, 
+                       "latent_shape", 
+                       "latent_scale",
+                       "infectious_shape",
+                       "infectious_scale"
+                       )
+
+        }
+
         colnames(params) = cnames 
         
         modelResults[["param.samples"]] = params

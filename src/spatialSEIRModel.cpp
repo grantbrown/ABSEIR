@@ -784,7 +784,6 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
                                         as<NumericVector>(tmpList["result"]),
                                         param_matrix);
 
-
         if (((samplingControlInstance -> algorithm) 
                 == ALG_ModifiedBeaumont2009) && reweight == 0
                 && batchNum != 0)
@@ -800,7 +799,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
         if (verbose && (samplingControlInstance -> algorithm) 
                 == ALG_ModifiedBeaumont2009)
         {
-            if (reweight != 0 || (!init && batchNum == 1))
+            if (reweight != 0 || (!init && batchNum == 1 
+                        && incompleteBatches == 0))
             {
                 Rcpp::Rcout << "Completed batch " << batchNum << " of " << 
                     nBatches << ". Eps: [" << 
