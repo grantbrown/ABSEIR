@@ -807,7 +807,6 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                     IR_transition_dist -> getAvgMembership();
                 (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
                                             *((*results).S(time_idx, l))/N(l);
-
             }
         }
     }
@@ -850,7 +849,6 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
         GVector.push_back(G);
     }    
 
-
     for (time_idx = 0; time_idx < nTpt; time_idx ++)
    {
         for (i = 0; i < nLoc; i++)
@@ -866,8 +864,6 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
             }
         }
     }
-
-
 
     double _1mpIR_cum = 1.0;
     int infTime = 0;
@@ -901,38 +897,46 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                 _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
                 infTime ++;
             }
-            for (l = time_idx+1; (l < nTpt && infTime < I_to_R_prior.rows()); l++)
+            if (transitionMode == "path_specific")
             {
-                (*results).rEA.row(time_idx) += 
-                    _1mpIR_cum*(*results).rEA.row(l);
-                for (i = 0; i < offset(time_idx); i++)
+                for (l = time_idx+1; (l < nTpt && infTime < I_paths.rows()); l++)
                 {
-                    if (transitionMode == "path_specific")
+                    (*results).rEA.row(time_idx) += 
+                        _1mpIR_cum*(*results).rEA.row(l);
+                    for (i = 0; i < offset(time_idx); i++)
                     {
                         _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
+                        infTime ++;
                     }
-                    else
+                }
+                while (_1mpIR_cum > 1e-6 && infTime < I_paths.rows())
+                {
+                    (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
+                    _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
+                    infTime ++;
+                }
+            }
+            else
+            {
+                for (l = time_idx+1; (l < nTpt && infTime < I_paths.rows()); l++)
+                {
+                    (*results).rEA.row(time_idx) += 
+                        _1mpIR_cum*(*results).rEA.row(l);
+                    for (i = 0; i < offset(time_idx); i++)
                     {
                         _1mpIR_cum *= (1 - 
                             IR_transition_dist -> getTransitionProb(
                                 infTime, infTime+1)); 
+                        infTime ++;
                     }
-                    infTime ++;
                 }
-            }
-            while (_1mpIR_cum > 1e-6 && infTime < I_to_R_prior.rows())
-            {
-                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
-                if (transitionMode == "path_specific")
+                while (_1mpIR_cum > 1e-6 && infTime < I_paths.rows())
                 {
-                    _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
-                }
-                else
-                {
+                    (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
                     _1mpIR_cum *= (1 - IR_transition_dist -> getTransitionProb(
                                 infTime, infTime+1));
+                    infTime ++;
                 }
-                infTime ++;
             }
         }
     }

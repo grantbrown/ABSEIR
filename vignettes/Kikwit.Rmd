@@ -101,11 +101,11 @@ wb_transition_priors = WeibullTransitionPriors(15,10,
 
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 16,
+                                   n_cores = 14,
                                    algorithm="Beaumont2009",
-                                    list(batch_size = 5000,
+                                    list(batch_size = 1000,
                                            epochs = 1e6,
-                                           max_batches = 500,
+                                           max_batches = 50,
                                            shrinkage = 0.99,
                                            multivariate_perturbation=TRUE
                                          )
@@ -127,7 +127,7 @@ runtime1 = system.time(result1 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE))
+                          verbose = FALSE))
 # Reasonable intensity, exponential transition
 runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -137,7 +137,7 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE))
+                          verbose = FALSE))
 # Reasonable intensity, path specific transition
 runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -147,8 +147,8 @@ runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE))
-
+                          verbose = FALSE))
+# Reasonable intensity, parameterized path specific transition
 runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
                           reinfection_model,
@@ -157,13 +157,13 @@ runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = TRUE))
+                          verbose = FALSE))
 
 
 
 
 timeMatrix = rbind(runtime1,runtime2,runtime3,runtime4)
-rownames(timeMatrix) = paste("model", 1:3)
+rownames(timeMatrix) = paste("model", 1:4)
 print(timeMatrix[,1:3])
 
 ```
@@ -186,7 +186,6 @@ summary(result3)
 
 summary(result4)
 
-
 ```
 
 We observe strong evidence for model 2 over model 1, and very minor evidence for model 2 over model 3. It appears that, 
@@ -197,131 +196,55 @@ particularly problematic.
 
 ```{r}
 # Simulate new epidemics based on the accepted parameters for model 1
-simulated1 = epidemic.simulations(result1, replicates = 50)
-allSimulatedI_star = sapply(simulated1$simulationResults, function(x){x$I_star})
 
+simulations1 = epidemic.simulations(result1, replicates = 50)
+simulations2 = epidemic.simulations(result2, replicates = 50)
+simulations3 = epidemic.simulations(result3, replicates = 50)
+simulations4 = epidemic.simulations(result4, replicates = 50)
 
-lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
-posteriorMean = apply(allSimulatedI_star, 1, mean)
-upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
+plotPosteriorPredictive = function(simulations, main)
+{
+  allSimulatedI_star = sapply(simulations$simulationResults, function(x){x$I_star})
+  
+  lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
+  posteriorMean = apply(allSimulatedI_star, 1, mean)
+  upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
+  
+  
+  plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
+       xlab = "Epidemic Day", ylab = "New Cases", main = main)
+  lines(upperQuantile, lty = 2, col = "blue")
+  lines(lowerQuantile, lty = 2, col = "blue")
+  lines(posteriorMean, lty = 1, col = "blue")
+  
+  legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
+         pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
+}
 
+plotPosteriorPredictive(simulations1, "Model 1: Posterior Predictive Distribution")
+plotPosteriorPredictive(simulations2, "Model 2: Posterior Predictive Distribution")
+plotPosteriorPredictive(simulations3, "Model 3: Posterior Predictive Distribution")
+plotPosteriorPredictive(simulations4, "Model 4: Posterior Predictive Distribution")
 
-plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
-     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 1: Posterior Predictive Distribution")
-lines(upperQuantile, lty = 2, col = "blue")
-lines(lowerQuantile, lty = 2, col = "blue")
-lines(posteriorMean, lty = 1, col = "blue")
-
-legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
-       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
 ```
-
-```{r}
-# Simulate new epidemics based on the accepted parameters for model 2
-simulated2 = epidemic.simulations(result2, replicates = 50)
-
-allSimulatedI_star = sapply(simulated2$simulationResults, function(x){x$I_star})
-
-
-lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
-posteriorMean = apply(allSimulatedI_star, 1, mean)
-upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
-
-
-plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
-     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 2: Posterior Predictive Distribution")
-lines(upperQuantile, lty = 2, col = "blue")
-lines(lowerQuantile, lty = 2, col = "blue")
-lines(posteriorMean, lty = 1, col = "blue")
-
-legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
-       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
-```
-
-
-```{r}
-# Simulate new epidemics based on the accepted parameters for model 3
-simulated3 = epidemic.simulations(result3, replicates = 50)
-allSimulatedI_star = sapply(simulated3$simulationResults, function(x){x$I_star})
-
-
-lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
-posteriorMean = apply(allSimulatedI_star, 1, mean)
-upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
-
-
-plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
-     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 3: Posterior Predictive Distribution")
-lines(upperQuantile, lty = 2, col = "blue")
-lines(lowerQuantile, lty = 2, col = "blue")
-lines(posteriorMean, lty = 1, col = "blue")
-
-legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
-       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
-```
-
-
-```{r}
-# Simulate new epidemics based on the accepted parameters for model 4
-simulated4 = epidemic.simulations(result4, replicates = 50)
-allSimulatedI_star = sapply(simulated4$simulationResults, function(x){x$I_star})
-
-
-lowerQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.025))
-posteriorMean = apply(allSimulatedI_star, 1, mean)
-upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
-
-
-plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
-     xlab = "Epidemic Day", ylab = "New Cases", main = "Model 4: Posterior Predictive Distribution")
-lines(upperQuantile, lty = 2, col = "blue")
-lines(lowerQuantile, lty = 2, col = "blue")
-lines(posteriorMean, lty = 1, col = "blue")
-
-legend(x = 100, y = 12, legend = c("Mean", "95% CI", "Observed"), lty = c(1,2,0), 
-       pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
-```
-
 
 
 7. Look at reproductive number estimates
 
 ```{r}
-allSimulatedR0_1 = sapply(simulated1$simulationResults, function(x){x$R0t})
-allSimulatedEA_R0_1 = sapply(simulated1$simulationResults, function(x){x$R_EA})
 
-allSimulatedR0_2 = sapply(simulated2$simulationResults, function(x){x$R0t})
-allSimulatedEA_R0_2 = sapply(simulated2$simulationResults, function(x){x$R_EA})
+plotR0 = function(simulations, main)
+{
+  allSimulatedR0 = sapply(simulations$simulationResults, function(x){x$R0t})
+  allSimulatedEA_R0 = sapply(simulations$simulationResults, function(x){x$R_EA})
 
-allSimulatedR0_3 = sapply(simulated3$simulationResults, function(x){x$R0t})
-allSimulatedEA_R0_3 = sapply(simulated3$simulationResults, function(x){x$R_EA})
-
-allSimulatedR0_4 = sapply(simulated4$simulationResults, function(x){x$R0t})
-allSimulatedEA_R0_4 = sapply(simulated4$simulationResults, function(x){x$R_EA})
-
-
-par(mfrow = c(4,1))
-plot(apply(allSimulatedR0_1, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
-     ylab = "Reproductive Number", main = "Model 1: R0(t) and EA-R(t)")
-lines(apply(allSimulatedEA_R0_1, 1, mean), lwd = 2, lty = 2, col = "blue")
-
-plot(apply(allSimulatedR0_2, 1, mean), type = "l", ylim = c(0, 3), lwd = 2,
-     ylab = "Reproductive Number", main = "Model 2: R0(t) and EA-R(t)")
-lines(apply(allSimulatedEA_R0_2, 1, mean), lwd =2, lty = 2, col = "blue")
-legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
-       lwd = c(2,2), cex = 1.25)
-
-plot(apply(allSimulatedR0_3, 1, mean), type = "l", ylim = c(0, 3), lwd = 2,
-     ylab = "Reproductive Number", main = "Model 3: R0(t) and EA-R(t)")
-lines(apply(allSimulatedEA_R0_3, 1, mean), lwd =2, lty = 2, col = "blue")
-legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
-       lwd = c(2,2), cex = 1.25)
-  
-plot(apply(allSimulatedR0_4, 1, mean), type = "l", ylim = c(0, 3), lwd = 2,
-     ylab = "Reproductive Number", main = "Model 4: R0(t) and EA-R(t)")
-lines(apply(allSimulatedEA_R0_4, 1, mean), lwd =2, lty = 2, col = "blue")
-legend(x = 130, y = 1.25, lty = c(1,2), col = c(1,4), legend = c("R0(t)", "EA-R(t)"),
-       lwd = c(2,2), cex = 1.25)
-  
+  plot(apply(allSimulatedR0, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
+       ylab = "Reproductive Number", main = main)
+  lines(apply(allSimulatedEA_R0, 1, mean), lwd = 2, lty = 2, col = "blue")
+}
+plotR0(simulations1, "Model 1: R0(t) and EA-R(t)")
+plotR0(simulations2, "Model 2: R0(t) and EA-R(t)")
+plotR0(simulations3, "Model 3: R0(t) and EA-R(t)")
+plotR0(simulations4, "Model 4: R0(t) and EA-R(t)")
 
 ```
