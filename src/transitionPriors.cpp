@@ -18,12 +18,12 @@ transitionPriors::transitionPriors(SEXP _mode)
     }
     else
     {
-        gamma_ei_params = Eigen::MatrixXd(1,5);
-        gamma_ir_params = Eigen::MatrixXd(1,5);
+        E_to_I_params = Eigen::MatrixXd(1,5);
+        I_to_R_params = Eigen::MatrixXd(1,5);
         for (int i = 0; i < 5; i++)
         {
-            gamma_ei_params(0,i) = 1.0;
-            gamma_ir_params(0,i) = 1.0;
+            E_to_I_params(0,i) = 1.0;
+            I_to_R_params(0,i) = 1.0;
         }
     }
 }
@@ -35,14 +35,40 @@ int transitionPriors::getModelComponentType()
 
 void transitionPriors::setUniformExpPriors()
 {
-    gamma_ei_params = Eigen::MatrixXd(2, 1);
-    gamma_ir_params = Eigen::MatrixXd(2, 1);
+    E_to_I_params = Eigen::MatrixXd(2, 1);
+    I_to_R_params = Eigen::MatrixXd(2, 1);
 
-    gamma_ei_params(0,0) = 1.0; 
-    gamma_ei_params(1,0) = 1.0;
-    gamma_ir_params(0,0) = 1.0; 
-    gamma_ir_params(1,0) = 1.0;
+    E_to_I_params(0,0) = 1.0; 
+    E_to_I_params(1,0) = 1.0;
+    I_to_R_params(0,0) = 1.0; 
+    I_to_R_params(1,0) = 1.0;
 }
+
+void transitionPriors::setPriorsForWeibull(SEXP _E_to_I_params,
+                                           SEXP _I_to_R_params,
+                                           SEXP _maxEI,
+                                           SEXP _maxIR)
+{
+    Rcpp::NumericVector EIP(_E_to_I_params);
+    Rcpp::NumericVector IRP(_I_to_R_params);
+    Rcpp::NumericVector maxEI(_maxEI);
+    Rcpp::NumericVector maxIR(_maxIR);
+    E_to_I_params = Eigen::MatrixXd(5, 1);   
+    I_to_R_params = Eigen::MatrixXd(5, 1);   
+    E_to_I_params(0,0) = EIP(0);
+    E_to_I_params(1,0) = EIP(1);
+    E_to_I_params(2,0) = EIP(2);
+    E_to_I_params(3,0) = EIP(3);
+    E_to_I_params(4,0) = maxEI(0);
+
+    I_to_R_params(0,0) = IRP(0);
+    I_to_R_params(1,0) = IRP(1);
+    I_to_R_params(2,0) = IRP(2);
+    I_to_R_params(3,0) = IRP(3);
+    I_to_R_params(4,0) = maxIR(0);
+    inf_mean = IRP(1)*std::tgamma(1+1.0/IRP(0));
+}
+
 
 void transitionPriors::setPathSpecificPriors(SEXP _Zmat1, SEXP _Zmat2, 
         SEXP _avgI)
@@ -52,32 +78,32 @@ void transitionPriors::setPathSpecificPriors(SEXP _Zmat1, SEXP _Zmat2,
     Rcpp::NumericVector avgI(_avgI);
     inf_mean = avgI(0);
 
-    gamma_ei_params = Eigen::MatrixXd(Zmat1.nrow(), Zmat1.ncol());   
-    gamma_ir_params = Eigen::MatrixXd(Zmat2.nrow(), Zmat2.ncol());   
+    E_to_I_params = Eigen::MatrixXd(Zmat1.nrow(), Zmat1.ncol());   
+    I_to_R_params = Eigen::MatrixXd(Zmat2.nrow(), Zmat2.ncol());   
     int i,j;
     for (i = 0; i < Zmat1.ncol(); i++)
     {
         for (j = 0; j < Zmat1.nrow(); j++)
         {
-            gamma_ei_params(j,i) = Zmat1(j,i);
+            E_to_I_params(j,i) = Zmat1(j,i);
         }
     }
     for (i = 0; i < Zmat2.ncol(); i++)
     {
         for (j = 0; j < Zmat2.nrow(); j++)
         {
-            gamma_ir_params(j,i) = Zmat2(j,i);
+            I_to_R_params(j,i) = Zmat2(j,i);
         }
     }
-    max_latent = gamma_ei_params.rows();
-    max_infectious = gamma_ir_params.rows();
+    max_latent = E_to_I_params.rows();
+    max_infectious = I_to_R_params.rows();
 }
 
 void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, 
                                                   SEXP p_ei_ess, SEXP p_ir_ess)
 {
-    gamma_ei_params = Eigen::MatrixXd(2, 1);
-    gamma_ir_params = Eigen::MatrixXd(2, 1);
+    E_to_I_params = Eigen::MatrixXd(2, 1);
+    I_to_R_params = Eigen::MatrixXd(2, 1);
 
     double pEI, pIR;
     int pEIess, pIRess;
@@ -94,18 +120,18 @@ void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir,
     gamma_ei = -std::log(1-pEI);
     gamma_ir = -std::log(1-pIR);
 
-    gamma_ei_params(0,0) = pEIess;
-    gamma_ei_params(1,0) = pEIess/(gamma_ei);
+    E_to_I_params(0,0) = pEIess;
+    E_to_I_params(1,0) = pEIess/(gamma_ei);
 
-    gamma_ir_params(0,0) = pIRess;
-    gamma_ir_params(1,0) = pIRess/(gamma_ir); 
+    I_to_R_params(0,0) = pIRess;
+    I_to_R_params(1,0) = pIRess/(gamma_ir); 
 }
 
 void transitionPriors::summary()
 {
-    if (gamma_ei_params.size() == 2){
-        Rcpp::Rcout << "gamma_ei parameters: " << gamma_ei_params(0) << ", " << 1/gamma_ei_params(1) << "\n";
-        Rcpp::Rcout << "gamma_ir parameters: " << gamma_ir_params(0) << ", " << 1/gamma_ir_params(1) << "\n";
+    if (E_to_I_params.size() == 2){
+        Rcpp::Rcout << "gamma_ei parameters: " << E_to_I_params(0) << ", " << 1/E_to_I_params(1) << "\n";
+        Rcpp::Rcout << "gamma_ir parameters: " << I_to_R_params(0) << ", " << 1/I_to_R_params(1) << "\n";
     }
 }
 
@@ -124,6 +150,7 @@ RCPP_MODULE(mod_transitionPriors)
     .method("setUniformExpPriors", &transitionPriors::setUniformExpPriors)
     .method("setPathSpecificPriors", &transitionPriors::setPathSpecificPriors)
     .method("setPriorsFromProbabilities", &transitionPriors::setPriorsFromProbabilities)
+    .method("setPriorsForWeibull", &transitionPriors::setPriorsForWeibull)
     .method("summary", &transitionPriors::summary);
 }
 

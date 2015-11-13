@@ -19,6 +19,7 @@ using wakeup_atom = atom_constant<atom("wakeup")>;
 using exit_atom = atom_constant<atom("exit")>;
 
 struct simulationResultSet;
+class transitionDistribution;
 
 class SEIR_sim_node : public event_based_actor {
     public:
@@ -74,13 +75,16 @@ class SEIR_sim_node : public event_based_actor {
         Eigen::VectorXd reinfection_precision;
         Eigen::VectorXd exposure_mean;
         Eigen::VectorXd reinfection_mean;
+        /** General E to I transition Distribution*/
+        std::unique_ptr<transitionDistribution> EI_transition_dist;
+        /** General I to R transition Distribution*/
+        std::unique_ptr<transitionDistribution> IR_transition_dist;
         double phi;
         int seed;
         double value;
         double inf_mean;
         bool has_spatial;
         bool has_reinfection;
-        bool exp_transition;
         int total_size;
         int data_compartment;
         bool cumulative;

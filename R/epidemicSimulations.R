@@ -117,7 +117,8 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
         if (verbose) cat("...building transition priors\n") 
         modelCache[["transitionPriors"]] = new(transitionPriors,
                                                transitionPriorsInstance$mode)
-        if (transitionPriorsInstance$mode == "exponential")
+        transitionMode = transitionPriorsInstance$mode
+        if (transitionMode == "exponential")
         {
             modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
                 transitionPriorsInstance$p_ei,
@@ -125,6 +126,20 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                 transitionPriorsInstance$p_ei_ess,
                 transitionPriorsInstance$p_ir_ess
             )
+        }
+        else if (transitionMode == "weibull")
+        {
+            modelCache[["transitionPriors"]]$setPriorsForWeibull(
+                              c(transitionPriorsInstance$latent_shape_prior_alpha,
+                                transitionPriorsInstance$latent_shape_prior_beta,
+                                transitionPriorsInstance$latent_scale_prior_alpha,
+                                transitionPriorsInstance$latent_scale_prior_beta),
+                              c(transitionPriorsInstance$infectious_shape_prior_alpha,
+                                transitionPriorsInstance$infectious_shape_prior_beta,
+                                transitionPriorsInstance$infectious_scale_prior_alpha,
+                                transitionPriorsInstance$infectious_scale_prior_beta),
+                                transitionPriorsInstance$max_EI_idx,
+                                transitionPriorsInstance$max_IR_idx)
         }
         else
         {
