@@ -55,7 +55,7 @@ shape and rate:
 These hyperparameters are specified by the eight arguments to WeibullTransitionPriors.
 }
 \examples{
-transitionPriors <- WeibullTransitionPriors(1,1,1,1,1,1,1,1)
+transitionPriors <- WeibullTransitionPriors(35,20,150,20,90,20,220,20)
 }
 \seealso{
 \code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}},

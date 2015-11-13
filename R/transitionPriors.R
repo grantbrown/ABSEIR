@@ -314,7 +314,7 @@ ExponentialTransitionPriors = function(p_ei, p_ir, p_ei_ess, p_ir_ess)
 #' These hyperparameters are specified by the eight arguments to WeibullTransitionPriors.
 #'
 #' 
-#' @examples transitionPriors <- WeibullTransitionPriors(1,1,1,1,1,1,1,1)
+#' @examples transitionPriors <- WeibullTransitionPriors(35,20,150,20,90,20,220,20)
 #' @seealso \code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}}, 
 #' \code{\link{ExponentialTransitionPriors}}
 #' @export
