@@ -3,7 +3,7 @@ title: "Kikwit Ebola Analysis"
 output: html_document
 ---
 
-** Note: ** This tutorial assumes that you have successfully installed ABSEIR, and are 
+**Note:** This tutorial assumes that you have successfully installed ABSEIR, and are 
 at least passingly familiar with compartmental models. Some introductory information is available
 in [this vignette](./Kikwit.html).
 
@@ -223,7 +223,7 @@ sampling_control = SamplingControl(seed = 123123,
 
 <h4><ul> Run the Models </ul></h4>
 
-Finally, we can combine these components and fit the models. In an interactive session,
+We can now combine these components and fit the models. In an interactive session,
 users can request verbose output to get an idea of the convergence status of the model. 
 
 ```{r}
@@ -248,25 +248,35 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           sampling_control,
                           samples = 100,
                           verbose = FALSE))
+```
 
+
+Let's take a look at the required runtimes:
+
+```{r}
 timeMatrix = rbind(runtime1,runtime2)
 rownames(timeMatrix) = paste("model", 1:2)
 print(timeMatrix[,1:3])
 
 ```
-<h4><ul> Model Comparison </ul></h4>
-Models can be compared using Bayes Factors, and by producing posterior predictive plots. We'll take a look at both techniques.
+
+We can also get a summary of parameter estimates:
 
 ```{r}
-compareModels(result1, result2, n_samples = 1000, 
-              batch_size = 2000)
-
 summary(result1)
 summary(result2)
 ```
 
-We observe strong evidence for model 2 over model 1 in this case, which is unsurprising given the presence of a public health intervention. 
+<h4><ul> Model Comparison </ul></h4>
+Models can be formally compared using [Bayes Factors](https://en.wikipedia.org/wiki/Bayes_factor), 
+and by producing posterior predictive plots. We'll take a look at both techniques.
 
+```{r}
+compareModels(result1, result2, n_samples = 1000, 
+              batch_size = 2000)
+```
+
+We observe strong evidence for model 2 over model 1 in this case, which is unsurprising given the presence of a public health intervention. 
 We can also consider model fit by looking at posterior predictive distribution of epidemic values. 
 
 ```{r}
@@ -283,7 +293,7 @@ plotPosteriorPredictive = function(simulations, main)
   upperQuantile = apply(allSimulatedI_star, 1, quantile, probs = c(0.975))
   
   
-  plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*1.2),
+  plot(Kikwit1995$Count, ylim = c(0, max(Kikwit1995$Count)*2),
        xlab = "Epidemic Day", ylab = "New Cases", main = main)
   lines(upperQuantile, lty = 2, col = "blue")
   lines(lowerQuantile, lty = 2, col = "blue")
@@ -321,3 +331,12 @@ plotR0(simulations1, "Model 1: R0(t) and EA-R(t)")
 plotR0(simulations2, "Model 2: R0(t) and EA-R(t)")
 
 ```
+
+Here, we also observe that model 2 provides much more reasonable reproductive number curves. Of course, numerous other modeling
+choices are possible. In particular, we did not explore different potential transition models. This can be easily accomplished, 
+in much the same way that we examined two potential exposure models in this example. 
+introduction to working with ABSEIR. 
+
+<h4><ul> Questions? </ul></h4>
+Questions and suggestions can be directed to the [issue page](https://github.com/grantbrown/ABSEIR/issues) of the ABSEIR repository. 
+
