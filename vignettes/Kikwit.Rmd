@@ -2,10 +2,18 @@
 title: "Kikwit Ebola Analysis"
 output: html_document
 ---
-**Disclaimer: ** tutorial in progress.
+
+** Note: ** This tutorial assumes that you have successfully installed ABSEIR, and are 
+at least passingly familiar with compartmental models. Some introductory information is available
+in [this vignette](./Kikwit.html).
 
 
-1. Load library and data
+
+Step 1: Setup
+------------------------------------------------
+The data set we will consider here records daily case counts of a 1995 outbreak of Ebola in the city of Kikwit, in the Democratic Republic of the Congo. A classic analysis of this data is
+available in the work of [Lekone and Finkenstädt, 2006](http://www.ncbi.nlm.nih.gov/pubmed/17156292). A copy is provided along with the ABSEIR library:
+
 ```{r}
 # load the ABSEIR library
 library(ABSEIR)
@@ -14,7 +22,9 @@ data(Kikwit1995)
 ```
 
 
-2. Plot cases
+Step 2: Exploration
+-------------------------
+We can now take a look at the raw case counts:
 ```{r}
 # make barplot of new case counts
 barplot(t(Kikwit1995$Count), main = "New Cases", xlab = "Day", ylab = "Cases")
@@ -22,14 +32,80 @@ barplot(t(Kikwit1995$Count), main = "New Cases", xlab = "Day", ylab = "Cases")
 axis(side = 1, at = seq(0, nrow(Kikwit1995), 50)) 
 ```
 
-3. Build model
+Step 3: Build some plausible models
+----------------------------------------
+We're now ready to start specifying models. Unfortunately, there are quite a 
+few moving parts to an epidemic model, so we'll address them one at a time. 
 
+<h4> <ul> Data Model </ul></h4>
+A data model describes the way in which the observed epidemic outcome relates
+to the underlying model. This single location analysis is defined over time 
+points $\{t_i : i = 1,...,T\}$, and divides individuals in the population 
+into four categories:
+
+<ul>
+  <li><strong>Susceptible:</strong> individuals capable of contracting an illness</li>
+  <li><strong>Exposed:</strong> individuals who have contracted the pathogen, but are not yet infectious</li>
+  <li><strong>Infectious:</strong> individuals who are capable of spreading the pathogen</li>
+  <li><strong>Removed:</strong> individuals who are no longer infectious, either through mortality or recovery with immunity.</li>
+</ul>
+
+Mathematically, we keep track of these counts in the $T\times 1$ column vectors:
+$\bf{S}$, $\bf{E}$, $\bf{I}$, and $\bf{R}$. In spatial analyses, these become $T \times n$ matrices, 
+where $n$ is equal to the number of spatial locations. 
+
+Our model needs to keep track of transitions between these categories, which we denote
+with asterisks. This gives rise to the following transition equations:
+
+$$ 
+  S_{i+1} = S_{i} - E^*_{i} \\
+  E_{i+1} = E_{i} + E^*_{i} - I^*_{i} \\
+  I_{i+1} = I_{i} + I^*_{i} - R^*_{i} \\
+  R_{i+1} = R_{i} + R^*_{i}
+$$
+
+The reason for all this exposition and discussion of notation is that 
+it explains the way we've allowed users to configure data models. In particular,
+we implement models for "I_star", or new infectious counts, "I", or current infectious
+size, and "R_star", or the newly removed individuals. In the case of the 
+Ebola data, we believe that it most closely resembles new infectious counts, and
+therefore choose the "I_star" compartment type. 
+
+In addition, we're going to choose the simplest type of data model, denoted
+"identity". The identity data model assumes that we observe, without error, 
+the values of the chosen epidemic compartment. We also allow users to model
+this quantity under overdispersion (i.e., with noise).
+
+Finally, users can specify whether a compartment is reported on a cumulative scale. 
+In this case, counts are not cumulative. Additional details are available
+in the help page of the DataModel function.
 ```{r}
 # Create a model to relate observe data to epidemic process
 data_model = DataModel(Kikwit1995$Count,
                        type = "identity",
                        compartment="I_star",
                        cumulative=FALSE)
+```
+
+<h4> <ul> Exposure Model </ul></h4>
+The next model component we need to specify is the "exposure model", which descscribes
+factors relating to changes in epidemic intensity. This model component specifically 
+relates to the probability of exposure, or moving from the susceptible to exposed
+category. Specification of the exposure model requires careful thought, and can be a
+little tricky. In particular, we need to specify the "design matrix" of covariates. 
+In the single location case, this is considerably simplified. The single location 
+design matrix is a $T \times p$ matrix, where $p$ is the number of covariates and 
+$T$ is the number of time points. Here we will consider two exposure models. The 
+first assumes a simple intercept model, and the second introduces a covariate
+which captures the effect of a public health intervention which was launched
+around May 9th.  
+
+In addition to the need to determine the temporal (and potentially spatial)
+structure of the epidemic intensity, we need to specify prior distributions 
+for the associated linear parameters. These are modeled as normal random 
+variables with mean vector "betaPriorMean" and precision vector "betaPriorPrecision".
+
+```{r}
 # Create a model to describe relationship of any covariates to epidemic intensity
 exposure_model_1 = ExposureModel(matrix(1, nrow = nrow(Kikwit1995)),
                                 nTpt = nrow(Kikwit1995),
@@ -40,72 +116,103 @@ exposure_model_1 = ExposureModel(matrix(1, nrow = nrow(Kikwit1995)),
 # In this analysis we know on which date interventions began, so we may include a linear term
 # starting on that date. 
 intervention_term = cumsum(Kikwit1995$Date >  as.Date("05-09-1995", "%m-%d-%Y"))
-intervention_term = intervention_term/max(intervention_term)
 exposure_model_2 = ExposureModel(cbind(1,intervention_term),
                                 nTpt = nrow(Kikwit1995),
                                 nLoc = 1,
                                 betaPriorPrecision = 0.5,
                                 betaPriorMean = 0)
+```
+
+<h4> <ul> Reinfection Model </ul></h4>
+Reinfection refers to the process of losing immunity, and returning to the susceptible population. 
+This isn't generally considered a concern for Ebola, so we'll just employ a SEIR model, rather
+than an SEIRS model.
+```{r}
 # There's no reinfection in this case, so we just use a "SEIR" model. 
 reinfection_model = ReinfectionModel("SEIR")
-# we have no distance model, because it's a non-spatial analysis, but we still
-# need to create an empty DistanceModel for ABSEIR. This approach is a bit clunky, 
-# so we're open to suggestions. One option may be the implmentation of new verisons
-# of the qSEIR functions included in libSpatialSEIR. 
-distance_model = DistanceModel(list(matrix(0)))
+```
+<h4> <ul> Distance Model </ul></h4>
 
+A distance model is the mechanism by which spatial dependence is introduced.
+In this analysis, we have only one spatial location, so the "distance model"
+is just a placeholder. We'll initialize it with an empty matrix. 
+```{r}
+distance_model = DistanceModel(list(matrix(0)))
+```
+
+<h4> <ul> Initial Values </ul></h4>
+The transition equations described above are helpful for understanding how
+the epidemic models fit by ABSEIR progress, but they don't describe
+how the models are initialized. Models require the specification of an initial 
+state: the number of susceptible, exposed, infectious, and removed individuals
+present at the beginning of the anlysis. 
+
+```{r}
 # Set initial population sizes
 initial_value_container = InitialValueContainer(S0=5.36e6,
                                                 E0=2,
                                                 I0=2,
                                                 R0=0)
-  
-  
-# Model to describe the E to I and I to R transitions.  
-# These can be constructed based on an exponential assumption (fast), 
-# or by a more general path-specific model (less fast). 
-# Here's an example of the exponential transition model, using
-# Prior values from Lekone and Finkenstadt 2006:
-exp_transition_priors = ExponentialTransitionPriors(p_ei = 1-exp(-1/5), 
+```
+
+<h4><ul> Other Transitions </ul></h4>
+Thus far, we have said little of the transition processes 
+between the E, I and R compartments. These processes are determined
+by specifying a "transition model". Transition models are implemented 
+in several forms. The simplest form is provided by the 
+"ExponentialTransitionPriors" function. The "exponential"
+in "ExponentialTransitionPriors" refers to the assumption that the time
+individuals spend in the latent and infectious states is exponentially
+distributed. This is a common assumption in compartmental models, and 
+provides computational benefits. Neverthe less, it may be unrealistic
+for some pathogens. We'll stick to the exponential case for the purposes
+of this tutorial, but ABSEIR also allows fully parameterized Weibull
+membership times and arbitrarily flexible fixed membership distributions
+using path specific compartmental modeling techniques. 
+
+Exponential transition models are specified by including an E to I
+and I to R transition probability, and an associated effective sample 
+size for each. 
+
+```{r}
+transition_priors = ExponentialTransitionPriors(p_ei = 1-exp(-1/5), 
                                      p_ir= 1-exp(-1/7),
                                      p_ei_ess = 100,
                                      p_ir_ess = 100)
-
-# Now let's specify a path specific transition model, which allows
-# us to incorporate arbitrary distributions for the latent
-# and infectious periods:
-
-latent.distribution = function(x)
-{
-  dweibull(x,2,8)
-}
-infectious.distribution = function(x)
-{
-  dweibull(x,5,12)
-}
-ps_transition_priors = PathSpecificTransitionPriors(Z1 = latent.distribution,
-                                                    Z2 = infectious.distribution)
-
-plot(latent.distribution, xlim = c(0, 30), main = "Assumed Distribution of Latent Period")
-plot(infectious.distribution, xlim = c(0, 30), main = "Assumed Distribution of Infectious Period")
-
-# Parameterized Weibull
-#plot(function(x){dgamma(x, 50, 5)}, xlim = c(0,20))
+```
 
 
-wb_transition_priors = WeibullTransitionPriors(15,10,
-                                               95,15,
-                                               80,15,
-                                               50,5)
+<h4><ul> Sampling Control </ul></h4>
 
+Finally, we need to specify and tune the algorithm ABSEIR should use to perform
+inference. The basic ABC rejection algorithm simulates epidemics from the prior
+distribution, and selects parameter values producing epidemics most closely
+resembling the data provided. We prefer to use the sequential Monte Carlo
+algorithm of Beaumont 2009, though both algorithms are implemented by ABSEIR. 
+Other algorithms may be introduced if a need is identified. 
 
+The sequential Monte Carlo approach requires the specification of several tuning 
+parameters:
+
+<ul>
+  <li><strong>n_cores: </strong> Number of CPU cores to use for simulation. </li>
+  <li><strong>batch_size: </strong> Number of epidemics to simulate in parallel
+    before reevaluating convergence.
+  </li>
+  <li><strong>epochs: </strong> Maximum number of complete updates to perform  before declaring convergence</li>
+  <li><strong>max_batches: </strong> Maximum number of incomplete sample batches to perform before declaring convergence</li>
+  <li><strong>shrinkage: </strong> Multiplicative decrease in maximum distance between simulated and observed epidemics between iterations</li>
+  <li><strong>multivariate_perturbation: </strong> Logical indicator determining whether new proposed parameter values are made
+  from a univariate or multivariate normal distribution. </li>
+</ul>
+```{r}
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
                                    n_cores = 14,
                                    algorithm="Beaumont2009",
-                                    list(batch_size = 1000,
+                                   list(batch_size = 2000,
                                            epochs = 1e6,
-                                           max_batches = 50,
+                                           max_batches = 100,
                                            shrinkage = 0.99,
                                            multivariate_perturbation=TRUE
                                          )
@@ -114,93 +221,58 @@ sampling_control = SamplingControl(seed = 123123,
 
 ```
 
-4. Run our three models
+<h4><ul> Run the Models </ul></h4>
+
+Finally, we can combine these components and fit the models. In an interactive session,
+users can request verbose output to get an idea of the convergence status of the model. 
 
 ```{r}
 
-# Underspecified intensity, exponential transition
+# Underspecified intensity
 runtime1 = system.time(result1 <- SpatialSEIRModel(data_model,
                           exposure_model_1,
                           reinfection_model,
                           distance_model,
-                          exp_transition_priors,
+                          transition_priors,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
                           verbose = FALSE))
-# Reasonable intensity, exponential transition
+# Reasonable intensity
 runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
                           reinfection_model,
                           distance_model,
-                          exp_transition_priors,
-                          initial_value_container,
-                          sampling_control,
-                          samples = 100,
-                          verbose = FALSE))
-# Reasonable intensity, path specific transition
-runtime3 = system.time(result3 <- SpatialSEIRModel(data_model,
-                          exposure_model_2,
-                          reinfection_model,
-                          distance_model,
-                          ps_transition_priors,
-                          initial_value_container,
-                          sampling_control,
-                          samples = 100,
-                          verbose = FALSE))
-# Reasonable intensity, parameterized path specific transition
-runtime4 = system.time(result4 <- SpatialSEIRModel(data_model,
-                          exposure_model_2,
-                          reinfection_model,
-                          distance_model,
-                          wb_transition_priors,
+                          transition_priors,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
                           verbose = FALSE))
 
-
-
-
-timeMatrix = rbind(runtime1,runtime2,runtime3,runtime4)
-rownames(timeMatrix) = paste("model", 1:4)
+timeMatrix = rbind(runtime1,runtime2)
+rownames(timeMatrix) = paste("model", 1:2)
 print(timeMatrix[,1:3])
 
 ```
-
-5. Compare the two models, and consider a summary of their parameter estimates.
+<h4><ul> Model Comparison </ul></h4>
+Models can be compared using Bayes Factors, and by producing posterior predictive plots. We'll take a look at both techniques.
 
 ```{r}
 compareModels(result1, result2, n_samples = 1000, 
               batch_size = 2000)
-compareModels(result2, result3, n_samples = 1000, 
-              batch_size = 2000)
-compareModels(result2, result4, n_samples = 1000, 
-              batch_size = 2000)
 
 summary(result1)
-
 summary(result2)
-
-summary(result3)
-
-summary(result4)
-
 ```
 
-We observe strong evidence for model 2 over model 1, and very minor evidence for model 2 over model 3. It appears that, 
-for these data (and these chosen path specific distributions), an intervention term is incredibly important, while the exponential assumption on transition times is not
-particularly problematic. 
+We observe strong evidence for model 2 over model 1 in this case, which is unsurprising given the presence of a public health intervention. 
 
-6. Consider model fit by looking at posterior predictive distribution of epidemic values. 
+We can also consider model fit by looking at posterior predictive distribution of epidemic values. 
 
 ```{r}
 # Simulate new epidemics based on the accepted parameters for model 1
-
 simulations1 = epidemic.simulations(result1, replicates = 50)
 simulations2 = epidemic.simulations(result2, replicates = 50)
-simulations3 = epidemic.simulations(result3, replicates = 50)
-simulations4 = epidemic.simulations(result4, replicates = 50)
 
 plotPosteriorPredictive = function(simulations, main)
 {
@@ -223,13 +295,16 @@ plotPosteriorPredictive = function(simulations, main)
 
 plotPosteriorPredictive(simulations1, "Model 1: Posterior Predictive Distribution")
 plotPosteriorPredictive(simulations2, "Model 2: Posterior Predictive Distribution")
-plotPosteriorPredictive(simulations3, "Model 3: Posterior Predictive Distribution")
-plotPosteriorPredictive(simulations4, "Model 4: Posterior Predictive Distribution")
 
 ```
 
+<h4><ul> Reproductive Numbers </ul></h4>
 
-7. Look at reproductive number estimates
+Reproductive numbers are an important tool to understand the behavior of epidemic processes, and
+capture the number of secondary infectious caused by a single infectious individual. Beyond that
+simple description, reproductive numbers differ in many details. We provide estimates of the time
+varying reproductive number, the effective reproductive number, and the empirically adjusted 
+reproductive number. A more complete discussion of these quantities is available [here](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf).
 
 ```{r}
 
@@ -244,7 +319,5 @@ plotR0 = function(simulations, main)
 }
 plotR0(simulations1, "Model 1: R0(t) and EA-R(t)")
 plotR0(simulations2, "Model 2: R0(t) and EA-R(t)")
-plotR0(simulations3, "Model 3: R0(t) and EA-R(t)")
-plotR0(simulations4, "Model 4: R0(t) and EA-R(t)")
 
 ```

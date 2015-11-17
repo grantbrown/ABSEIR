@@ -17,7 +17,9 @@ epidemic models known as spatial SEIR(S) models. This family of analytical
 techniques is more completely described in 
 [this recently accepted manuscript](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf),
 as well as in [my thesis work](http://ir.uiowa.edu/etd/1554), though a brief practical introduction
-is given here. 
+is also given here. Installation instructions for ABSEIR are available on the [wiki](https://github.com/grantbrown/ABSEIR/wiki/Installation), and any problems with the library or this series of tutorials can be directed to the [issues](https://github.com/grantbrown/ABSEIR/issues) page. 
+
+
 
 
 Spatial SEIR Models
