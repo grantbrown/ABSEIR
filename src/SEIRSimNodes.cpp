@@ -835,7 +835,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                         component2 += ((*results).rho(k))*((DM_vec[k](i,l))*component1);
                     }
                     G(i,l) = ((*results).I(time_idx, l) != 0 ? 
-                              (*results).S(time_idx, l)/((*results).I(time_idx, l))
+                              (*results).S(time_idx, i)/((*results).I(time_idx, l))
                               *(1-std::exp(-component2)) : 0.0);
                 }
                 else
