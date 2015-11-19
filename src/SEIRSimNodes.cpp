@@ -811,60 +811,39 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
         }
     }
 
+    // Calculate next generation matrices 
+    Eigen::MatrixXd CombinedDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
+    for (k = 0; k < DM_vec.size(); k++) 
+    {
+        CombinedDM += (DM_vec[k]*((*results).rho(k)));
+    }
+    for (k = 0; k < nLoc; k++)
+    {
+        CombinedDM(k,k) = 1.0;
+    }
 
-    // Calculate next generation matrices (more vector logic could be used here)
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
-        //Create and zero out G(t)
-        Eigen::MatrixXd G(nLoc, nLoc);
-        for (i = 0; i < nLoc; i++){for (l = 0; l < nLoc; l++){G(i,l) = 0.0;}}
-
-        // Out: rows
-        for (i = 0; i < nLoc; i++) 
-        {
-            // Out: columns
-            for (l = 0; l < nLoc; l++)
-            { 
-                component1 = ((*results).I(time_idx, l) 
-                        * (p_se_components(time_idx, l)))/N(l);
-                if (i != l)
-                {
-                    component2 = 0.0;
-                    for (k = 0; k < DM_vec.size(); k++)
-                    {
-                        component2 += ((*results).rho(k))*((DM_vec[k](i,l))*component1);
-                    }
-                    G(i,l) = ((*results).I(time_idx, l) != 0 ? 
-                              (*results).S(time_idx, i)/((*results).I(time_idx, l))
-                              *(1-std::exp(-component2)) : 0.0);
-                }
-                else
-                { 
-                    G(i,l) = ((*results).I(time_idx, l) != 0 ? 
-                              (*results).S(time_idx, l)/((*results).I(time_idx, l))
-                              * (1-std::exp(-component1)) : 0.0);
-                }
-            }
-        } 
-        GVector.push_back(G);
-    }    
-
-    for (time_idx = 0; time_idx < nTpt; time_idx ++)
-   {
-        for (i = 0; i < nLoc; i++)
-        {
-            (*results).rEA(time_idx, i) = 0.0;
-        }
-
+        Eigen::MatrixXd G(nLoc, nLoc); 
         for (i = 0; i < nLoc; i++)
         {
             for (l = 0; l < nLoc; l++)
             {
-                (*results).rEA(time_idx, l) += GVector[time_idx](l, i);        
+                G(i,l) = ((*results).I(time_idx, l) == 0 ? 
+                            0.0 :
+                            (*results).S(time_idx, i)/
+                            (1.0*(*results).I(time_idx, l)) *
+                            (1.0 - std::exp(-1.0 * CombinedDM(i,l)
+                                            * ((*results).I(time_idx, l) 
+                                            * (p_se_components(time_idx, l)
+                                            /  N(l)))
+                                            )));
             }
         }
+        Eigen::VectorXd colsums = G.colwise().sum();
+        (*results).rEA.row(time_idx) = colsums;
     }
-
+          
     double _1mpIR_cum = 1.0;
     int infTime = 0;
     Eigen::MatrixXd finalEARVal = (*results).rEA.row(nTpt - 1);
@@ -879,9 +858,9 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                     _1mpIR_cum*(*results).rEA.row(l);
                 _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
             }
-            while (_1mpIR_cum > 1e-6)
+            while (_1mpIR_cum > 1e-12)
             {
-                (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
+                (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
                 _1mpIR_cum*=(1-(*results).p_ir(nTpt - 1,0));
             }
         }
@@ -909,9 +888,9 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                         infTime ++;
                     }
                 }
-                while (_1mpIR_cum > 1e-6 && infTime < I_paths.rows())
+                while (_1mpIR_cum > 1e-12 && infTime < I_paths.rows())
                 {
-                    (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
+                    (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
                     _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
                     infTime ++;
                 }
@@ -930,9 +909,9 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                         infTime ++;
                     }
                 }
-                while (_1mpIR_cum > 1e-6 && infTime < I_paths.rows())
+                while (_1mpIR_cum > 1e-12 && infTime < I_paths.rows())
                 {
-                    (*results).rEA.row(nTpt - 1) += _1mpIR_cum*finalEARVal; 
+                    (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
                     _1mpIR_cum *= (1 - IR_transition_dist -> getTransitionProb(
                                 infTime, infTime+1));
                     infTime ++;
