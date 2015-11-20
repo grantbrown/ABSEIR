@@ -646,14 +646,15 @@ void spatialSEIRModel::updateWeights()
         // If we need to expand the weight vector, this is where it happens
         int oldN = weights.size(); 
         int nParams = currentSamples.params.ncol();
-        double tmpWeightComp = 1.0;
+        double tmpWeightComp;
         double totalWeight;
         double tmpWeight;
         Eigen::VectorXd newWeights(N);
         Eigen::VectorXd tmpParams;
         if (samplingControlInstance -> multivariatePerturbation)
         {
-            tmpWeightComp *= std::sqrt(parameterICovDet);
+            tmpWeightComp = (-nParams/2.0)*std::log(2.0*3.14159) 
+                - 0.5*std::log((parameterICovDet));
             totalWeight = 0.0;
             for (i = 0; i < N; i++)
             {
@@ -661,13 +662,11 @@ void spatialSEIRModel::updateWeights()
                 for (j = 0; j < oldN; j++) 
                 {
                     tmpWeight = tmpWeightComp;
-                    tmpWeight *= std::exp(-0.5*
+                    tmpWeight -= (0.5*
                             (parameterCentered.row(i)
                             *parameterICov*parameterCentered.transpose()
-                                .col(i))(0)
-                            );
-
-                    newWeights(i) += weights(j)*tmpWeight;
+                                .col(i))(0));
+                    newWeights(i) += weights(j)*std::exp(tmpWeight);
                 }
                 newWeights(i) = evalPrior(currentSamples.params(i, _))
                     /newWeights(i);
@@ -676,9 +675,10 @@ void spatialSEIRModel::updateWeights()
         }
         else
         {
+            tmpWeightComp = 0.0;
             for (k = 0; k < nParams; k++)
             {
-                tmpWeightComp *= (1.0/tau[k]);
+                tmpWeightComp -= (0.5*std::log(2*3.14159) + std::log(tau[k]));  
             }
             totalWeight = 0.0;
             for (i = 0; i < N; i++)
@@ -689,23 +689,30 @@ void spatialSEIRModel::updateWeights()
                     tmpWeight = tmpWeightComp;
                     for (k = 0; k < nParams; k++)
                     {
-                        tmpWeight *= std::exp(1.0*std::pow(
-                                    (currentSamples.params(i,k)
-                                     - previousSamples.params(j,k)/(2.0*tau[k])),
-                                    2));
+                        tmpWeight -= 1.0*std::pow(currentSamples.params(i,k)
+                                                - previousSamples.params(j,k), 
+                                                2)/(2.0*std::pow(tau[k], 2));
                     }
-                    newWeights(i) += weights(j)*tmpWeight;
+
+                    newWeights(i) += weights(j)*std::exp(tmpWeight);
                 }
                 newWeights(i) = evalPrior(currentSamples.params(i, _))/newWeights(i);
+                if (!std::isfinite(newWeights(i))){
+                    Rcpp::stop("newWeights(i) isn't finite 2");
+                }
+
                 totalWeight += newWeights(i);
             }
         }
+        if (!std::isfinite(totalWeight)){
+            Rcpp::stop("Non-finite weights were generated. ");
+        }
+
         weights = newWeights;
         for (i = 0; i < N; i++)
         {
             weights(i) = weights(i)/totalWeight;
         }
-
     }
 
 }
@@ -825,10 +832,11 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
         Rcpp::checkUserInterrupt();
         updateWeights();
     }
+
     Rcpp::NumericVector outputWeights(N);
     for (i = 0; i < N; i++)
     {
-        outputWeights(i) = weights(i);
+        outputWeights(i) = weights(i); 
     }
 
     outList["result"] = currentSamples.result;
@@ -912,6 +920,10 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
     weights = Eigen::VectorXd(wts.size());
     for (i = 0; i < wts.size(); i++)
     {
+        if (!std::isfinite(wts(i)))
+        {
+            Rcpp::stop("Non-finite weights encountered.\n");
+        }
         weights(i) = wts(i);
     }
     return(sample_internal(N, verbose, true));
