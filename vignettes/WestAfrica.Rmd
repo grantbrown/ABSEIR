@@ -109,11 +109,11 @@ sampling_control_init = SamplingControl(seed = 123123,
 sampling_control = SamplingControl(seed = 123124, 
                                    n_cores = 14,
                                    algorithm="Beaumont2009",
-                                   list(batch_size = 500,
+                                   list(batch_size = 1000,
                                            epochs = 1e6,
                                            #max_batches = 2000,
                                            max_batches = 500,
-                                           shrinkage = 0.98,
+                                           shrinkage = 0.99,
                                            multivariate_perturbation=TRUE
                                          )
                                    )
@@ -127,9 +127,9 @@ model.start = SpatialSEIRModel(data_model,
                           transition_priors1,
                           initial_value_container,
                           sampling_control_init,
-                          samples = 50,
+                          samples = 100,
                           verbose = FALSE)
-result1 <- update(model.start, sampling_control = sampling_control, verbose=TRUE)
+result1 <- update(model.start, sampling_control = sampling_control, verbose=FALSE)
 save("result1", file = "./result1.rda")
 
 ## Weibull Results:
@@ -141,12 +141,12 @@ model.start = SpatialSEIRModel(data_model,
                           transition_priors2,
                           initial_value_container,
                           sampling_control_init,
-                          samples = 50,
+                          samples = 100,
                           verbose = TRUE)
 result2 <- update(model.start, sampling_control = sampling_control, verbose=FALSE)
 save("result2", file = "./result2.rda")
 
-compareModels(result1, result2, n_samples = 50, batch_size = 300)
+compareModels(result1, result2, n_samples = 1000, batch_size = 300)
 ## Little evidence
 
 
