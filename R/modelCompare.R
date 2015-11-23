@@ -1,10 +1,8 @@
 #' compute approximate Bayes Factor in favor of one spatial SEIR model over another
 #' 
-#' @param model1 A model in favor of which one would like to compute a Bayes Factor 
+#' @param modelList A list of models to compare with approximate Bayes factors.  
 #' function. 
-#' @param model2 The model to which \code{model1} is to be compared 
-#' @param p1 The prior probability of \code{model1} 
-#' @param p2 The prior probability of \code{model2} 
+#' @param priors The prior probabilities of each model in \code{modelList} 
 #' @param n_samples The desired number of accepted simulation values on which the 
 #' Bayes Factor calculation is to be based
 #' @param batch_size The number of epidemics to simulate in parallel before 
@@ -17,21 +15,25 @@
 #' the parameter acceptance rate at a new iteration. 
 #' 
 #'
-#' @examples \dontrun{compareModels(model1, model2)}
+#' @examples \dontrun{compareModels(list(model1, model2))}
 #'                                                
 #' @export 
-compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
+compareModels = function(modelList, priors=NA, n_samples = 1000,
                          batch_size = 10000, max_itrs = 1000)
 {
-    if (class(model1) != "SpatialSEIRModel" || 
-        class(model2) != "SpatialSEIRModel")
+    correctClasses = sapply(modelList, function(x){class(x)  == 
+                            "SpatialSEIRModel"})
+
+    correctDim = sapply(modelList, function(x){
+                        all(dim(x$modelComponents$data_model$Y) == 
+                            dim(modelList[[1]]$modelComponents$data_model$Y)) &&
+                        all(x$modelComponents$data_model$Y == 
+                            modelList[[1]]$modelComponents$data_model$Y)})
+    if (any(!correctClasses))
     {
        stop("compareModels may only be used to compare SpatialSEIRModel objects.") 
     }
-    else if (any(dim(model1$modelComponents$data_model$Y) !=
-                 dim(model1$modelComponents$data_model$Y)) ||
-             any(model1$modelComponents$data_model$Y != 
-                 model1$modelComponents$data_model$Y))
+    else if (any(!correctDim))
     {
        stop(paste(
             "Only models of the same data should be compared in this fashion, ",
@@ -39,16 +41,18 @@ compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
     }
     else
     {
-        earlyTerm1 = (model1$completedEpochs != 
-                      model1$modelComponents$sampling_control$epochs)
-        earlyTerm2 = (model2$completedEpochs != 
-                      model2$modelComponents$sampling_control$epochs)
-        match1 = (model1$modelComponents$sampling_control$max_batches == 
-                  model1$modelComponents$sampling_control$max_batches)
-        match2 = (model1$modelComponents$sampling_control$batch_size ==
-                  model2$modelComponents$sampling_control$batch_size)
-        test1 = !(earlyTerm1 && earlyTerm2 && match1 && match2)
-        test2 = abs(model1$current_eps - model2$current_eps) > 1e-8  
+        earlyTerm = sapply(modelList, function(x){
+                           x$completedEpochs != 
+                                x$modelComponents$sampling_control$epochs})
+        match = sapply(modelList, function(x){
+                       x$modelComponents$sampling_control$max_batches ==
+               modelList[[1]]$modelComponents$sampling_control$max_batches
+                                })
+
+        test1 = !(all(earlyTerm) && all(match))
+        test2 = max(abs(sapply(modelList, function(x){
+                x$current_eps - modelList[[1]]$current_eps
+        }))) > 1e-8
         if (test1 && test2)
         {
             warning(paste(
@@ -58,58 +62,55 @@ compareModels = function(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
         }     
     }
 
-    if (all(is.na(p1)) && all(is.na(p2)))
+    if (all(is.na(priors)))
     {
-        p1 = 0.5
-        p2 = 0.5
+        priors = rep(1/length(modelList), length(modelList))
         print("Assuming equal prior probabilities.")
     }
-    else if (all(is.na(p1) != all(is.na(p2))))
+    else if (length(priors) != length(modelList) || sum(priors) != 1)
     {
-        stop("If some prior probabilities are supplied, all must be supplied.")
+        stop("If some prior probabilities are supplied, all must be supplied, and must sum to 1.")
     }
 
-
-
-    w1 = model1$weights
-    w2 = model1$weights
-    e1 = model1$current_eps
-    e2 = model2$current_eps
-    e.compare = max(c(e1, e2))
+    weightList = lapply(modelList, function(x){x$weights})
+    epsVec = sapply(modelList, function(x){x$current_eps})
+    e.compare = median(epsVec)
     
     drawSamples = function()
     {
-        mr1 = model1
-        mr2 = model2
-        s1 = model1$param.samples[sample(1:nrow(model1$param.samples), 
-                                         prob = w1, replace = TRUE,
-                                         size = batch_size),]
-        s2 = model2$param.samples[sample(1:nrow(model1$param.samples), 
-                                         prob = w1, replace = TRUE,
-                                         size = batch_size),]
-        mr1$param.samples = s1
-        mr2$param.samples = s2
-        e1 = epidemic.simulations(mr1, returnCompartments=FALSE
-                                  )$simulationResults$result
-        e2 = epidemic.simulations(mr2, returnCompartments=FALSE
-                                  )$simulationResults$result
-        c(sum(e1 < e.compare), sum(e2 < e.compare))
+        mr = modelList
+        s = lapply(modelList, function(x){
+                   x$param.samples[sample(1:nrow(x$param.samples),
+                                          prob = x$weights, replace = TRUE,
+                                          size = batch_size),]
+                                })
+        for (i in 1:length(s))
+        {
+            mr[[i]]$param.samples = s[[i]]
+        }
+
+        esim = lapply(mr, function(x){
+                      epidemic.simulations(x, 
+                        returnCompartments=FALSE)$simulationResults$result})
+        sapply(esim, function(x){
+               sum(x < e.compare)})
     }
 
     itrs = 0
-    accepted = c(0,0)
+    accepted = rep(0, length(modelList))
     while (itrs < max_itrs && sum(accepted) < n_samples)
     {
         itrs = itrs + 1
         accepted = accepted + drawSamples() 
     }
-    if (itrs == 1000)
+    if (itrs == max_itrs)
     {
         warning("n_samples not reached before max_itrs")
     }
 
-    accepted = accepted/(itrs*batch_size)
-    out = accepted[1]/accepted[2]
-    names(out) = "Approximate Bayes Factor: model1 vs. model2"
-    out
+    BF = accepted/(itrs*batch_size)
+    BF = BF*priors
+    return(matrix(BF, nrow = length(BF), ncol = length(BF)) /
+    matrix(BF, nrow = length(BF), ncol = length(BF), byrow = TRUE))
 }
+

@@ -272,7 +272,7 @@ Models can be formally compared using [Bayes Factors](https://en.wikipedia.org/w
 and by producing posterior predictive plots. We'll take a look at both techniques.
 
 ```{r}
-compareModels(result1, result2, n_samples = 1000, 
+compareModels(list(result1, result2), n_samples = 1000, 
               batch_size = 2000)
 ```
 
