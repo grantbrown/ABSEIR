@@ -175,7 +175,9 @@ SpatialSEIRModel = function(data_model,
               sampling_control$batch_size,sampling_control$epochs, 
               sampling_control$max_batches, 
               sampling_control$multivariate_perturbation),
-            c(sampling_control$acceptance_fraction, sampling_control$shrinkage)
+            c(sampling_control$acceptance_fraction, sampling_control$shrinkage,
+              sampling_control$target_eps
+              )
         )
 
         if (verbose) cat("...Building transition priors\n") 
@@ -432,7 +434,8 @@ update.SpatialSEIRModel = function(object, ...)
               samplingControlInstance$max_batches,
               samplingControlInstance$multivariate_perturbation),
             c(samplingControlInstance$acceptance_fraction, 
-              samplingControlInstance$shrinkage)
+              samplingControlInstance$shrinkage, 
+              samplingControlInstance$target_eps)
         )
 
         if (verbose) cat("...building transition priors\n") 

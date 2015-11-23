@@ -172,6 +172,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(new 
             weibullTransitionDistribution(DummyParams));
     }
+    currentEps = std::numeric_limits<double>::infinity();
 
     // Set up random number provider 
     std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
@@ -724,6 +725,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
+    const double target_eps = samplingControlInstance -> target_eps;
     const double r = samplingControlInstance -> accept_fraction;
     const int bs = samplingControlInstance -> batch_size;
     int i;
@@ -782,7 +784,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     int incompleteBatches = 0;
     param_matrix = Eigen::MatrixXd(bs, nParams);
     while (batchNum < nBatches && incompleteBatches < 
-            (samplingControlInstance -> max_batches))
+            (samplingControlInstance -> max_batches) && 
+            currentEps/(samplingControlInstance -> shrinkage) > target_eps)
     {
         updateParams();
         tmpList = this -> simulate(param_matrix, sample_atom::value);

@@ -40,6 +40,8 @@ Additional parameters which may be passed to the algorithms:
 the proportion of simulated epidemics to accept. The smaller the acceptance
 fraction, the better the approximation to the posterior distribution, and the
 more computation time required.}
+\item{target_eps:}{For both algorithms, this determines an epsilon value at which
+the program will terminate, declaring convergence.}
 \item{batch_size: }{For the both algorithms, this determines the number of
 epidemics to simulate in parallel, before returning to the main process to evaluate
 them. \code{batch_size} must be greater than the number of samples requested

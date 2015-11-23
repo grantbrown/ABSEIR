@@ -23,6 +23,8 @@
 #' the proportion of simulated epidemics to accept. The smaller the acceptance
 #' fraction, the better the approximation to the posterior distribution, and the 
 #' more computation time required.}
+#' \item{target_eps:}{For both algorithms, this determines an epsilon value at which 
+#' the program will terminate, declaring convergence.}
 #' \item{batch_size: }{For the both algorithms, this determines the number of
 #' epidemics to simulate in parallel, before returning to the main process to evaluate
 #' them. \code{batch_size} must be greater than the number of samples requested 
@@ -61,6 +63,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
         if (algorithm == "Beaumont2009")
         { 
             params = list(acceptance_fraction = -1,
+                 target_eps = 0,
                  batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
@@ -70,6 +73,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
         else
         {
             params = list(acceptance_fraction = 0.01,
+                 target_eps = 0,
                  batch_size = 10000,
                  epochs = 1,
                  shrinkage = 1,
@@ -81,6 +85,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
     {
         if (algorithm == "Beaumont2009")
         {
+            if (!("target_eps" %in% names(params))){
+                params[["target_eps"]] = 0
+            }
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 5000
             }
@@ -102,6 +109,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
         }
         else if (algorithm == "BasicABC")
         {
+            if (!("target_eps" %in% names(params))){
+                params[["target_eps"]] = 0
+            }
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 10000
             }
@@ -132,6 +142,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "seed" = seed,
                    "n_cores" = n_cores,
                    "acceptance_fraction" = params$acceptance_fraction,
+                   "target_eps" = params$target_eps,
                    "batch_size" = params$batch_size,
                    "algorithm" = alg,
                    "epochs" = params$epochs,

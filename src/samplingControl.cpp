@@ -11,9 +11,9 @@ samplingControl::samplingControl(SEXP integerParameters,
     Rcpp::NumericVector inNumericParams(numericParameters);
 
     if (inIntegerParams.size() != 8 ||
-        inNumericParams.size() != 2)
+        inNumericParams.size() != 3)
     {
-        Rcpp::stop("Exactly 10 samplingControl parameters are required.");
+        Rcpp::stop("Exactly 11 samplingControl parameters are required.");
     }
 
     simulation_width = inIntegerParams(0);
@@ -27,6 +27,7 @@ samplingControl::samplingControl(SEXP integerParameters,
 
     accept_fraction = inNumericParams(0);
     shrinkage = inNumericParams(1);
+    target_eps = inNumericParams(2);
 
     if (algorithm != ALG_BasicABC && algorithm != ALG_ModifiedBeaumont2009)
     {

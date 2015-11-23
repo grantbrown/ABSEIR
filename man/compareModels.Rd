@@ -4,18 +4,14 @@
 \alias{compareModels}
 \title{compute approximate Bayes Factor in favor of one spatial SEIR model over another}
 \usage{
-compareModels(model1, model2, p1 = NA, p2 = NA, n_samples = 1000,
+compareModels(modelList, priors = NA, n_samples = 1000,
   batch_size = 10000, max_itrs = 1000)
 }
 \arguments{
-\item{model1}{A model in favor of which one would like to compute a Bayes Factor
+\item{modelList}{A list of models to compare with approximate Bayes factors.
 function.}
 
-\item{model2}{The model to which \code{model1} is to be compared}
-
-\item{p1}{The prior probability of \code{model1}}
-
-\item{p2}{The prior probability of \code{model2}}
+\item{priors}{The prior probabilities of each model in \code{modelList}}
 
 \item{n_samples}{The desired number of accepted simulation values on which the
 Bayes Factor calculation is to be based}
@@ -35,6 +31,6 @@ approximate Bayes Factors of comparably converged models by assessing
 the parameter acceptance rate at a new iteration.
 }
 \examples{
-\dontrun{compareModels(model1, model2)}
+\dontrun{compareModels(list(model1, model2))}
 }
 

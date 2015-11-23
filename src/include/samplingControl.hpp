@@ -21,6 +21,7 @@ class samplingControl : public modelComponent
     int simulation_width;
     int random_seed;
     int algorithm;
+    double target_eps;
     double accept_fraction;
     double shrinkage;
     int batch_size;
