@@ -5,7 +5,7 @@
 \title{compute approximate Bayes Factor in favor of one spatial SEIR model over another}
 \usage{
 compareModels(modelList, priors = NA, n_samples = 1000,
-  batch_size = 10000, max_itrs = 1000)
+  batch_size = 10000, max_itrs = 1000, epsilon = NA, verbose = FALSE)
 }
 \arguments{
 \item{modelList}{A list of models to compare with approximate Bayes factors.
@@ -20,6 +20,14 @@ Bayes Factor calculation is to be based}
 assessing the number of accepted samples}
 
 \item{max_itrs}{The maximum number of parallel batches to execute before giving up}
+
+\item{epsilon}{The cutoff value used to determine whether simulated epidemics
+are accepted or rejected. If left blank, the mean of the two smallest terminating
+epsilon values models under comparison is used. If these are dramatically different,
+this approach may produce misleading results.}
+
+\item{verbose}{A logical value, indicating whether progress information should
+be displayed.}
 }
 \description{
 compute approximate Bayes Factor in favor of one spatial SEIR model over another

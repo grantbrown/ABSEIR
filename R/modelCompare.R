@@ -8,6 +8,12 @@
 #' @param batch_size The number of epidemics to simulate in parallel before 
 #' assessing the number of accepted samples
 #' @param max_itrs The maximum number of parallel batches to execute before giving up 
+#' @param epsilon The cutoff value used to determine whether simulated epidemics 
+#' are accepted or rejected. If left blank, the mean of the two smallest terminating
+#' epsilon values models under comparison is used. If these are dramatically different,
+#' this approach may produce misleading results. 
+#' @param verbose A logical value, indicating whether progress information should
+#' be displayed. 
 #' 
 #' @details A Bayes Factor is a measure of the posterior evidence in favor
 #' of one model compared to another. In the ABC setting, we may compute  
@@ -19,7 +25,8 @@
 #'                                                
 #' @export 
 compareModels = function(modelList, priors=NA, n_samples = 1000,
-                         batch_size = 10000, max_itrs = 1000)
+                         batch_size = 10000, max_itrs = 1000,
+                         epsilon=NA, verbose=FALSE)
 {
     correctClasses = sapply(modelList, function(x){class(x)  == 
                             "SpatialSEIRModel"})
@@ -74,7 +81,15 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
 
     weightList = lapply(modelList, function(x){x$weights})
     epsVec = sapply(modelList, function(x){x$current_eps})
-    e.compare = median(epsVec)
+
+    if (is.na(epsilon))
+    {
+        e.compare = mean(epsVec[order(epsVec)][1:2])
+    }
+    else
+    {
+        e.compare = epsilon
+    }
     
     drawSamples = function()
     {
@@ -89,9 +104,14 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
             mr[[i]]$param.samples = s[[i]]
         }
 
-        esim = lapply(mr, function(x){
-                      epidemic.simulations(x, 
-                        returnCompartments=FALSE)$simulationResults$result})
+        esim = lapply(1:length(mr), function(x){
+                      if (verbose)
+                      {
+                          cat(paste("  Evaluating model ", x, "\n", sep = ""))
+                      }
+                      epidemic.simulations(mr[[x]], 
+                        returnCompartments=FALSE)$simulationResults$result
+                                })
         sapply(esim, function(x){
                sum(x < e.compare)})
     }
@@ -101,7 +121,15 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
     while (itrs < max_itrs && sum(accepted) < n_samples)
     {
         itrs = itrs + 1
+        if (verbose)
+        {
+            cat(paste("Iteration ", itrs, "\n", sep = ""))
+        }
         accepted = accepted + drawSamples() 
+        if (verbose)
+        {
+            cat(paste(" ", sum(accepted), " of ", n_samples, " samples obtained.\n", sep = ""))
+        }
     }
     if (itrs == max_itrs)
     {
