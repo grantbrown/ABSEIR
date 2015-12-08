@@ -1,6 +1,7 @@
 # ABSEIR
-An experimental approach to spatial SEIR modeling using posterior approximation techniques implemented via the CAF library.  
+Spatial SEIR modeling via Approximate Bayesian Computation
 
-Detailed documentation will be made available once the API stabilizes, for now I would not expect this library to work well anywhere but my development machine.  
+** Installation Instructions: ** Available on the [wiki](https://github.com/grantbrown/ABSEIR/wiki/Installation).
+** Documentation: ** Available in the package, as well as via tutorial [vignettes](http://grantbrown.github.io/ABSEIR/vignettes/Introduction.html).
 
 <img src="https://travis-ci.org/grantbrown/ABSEIR.svg?branch=master"/>
