@@ -833,7 +833,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                             0.0 :
                             (*results).S(time_idx, i)/
                             (1.0*(*results).I(time_idx, l)) *
-                            (1.0 - std::exp(-1.0 * CombinedDM(i,l)
+                            (1.0 - std::exp(-offset(time_idx) * CombinedDM(i,l)
                                             * ((*results).I(time_idx, l) 
                                             * (p_se_components(time_idx, l)
                                             /  N(l)))
