@@ -1,8 +1,8 @@
 Package: ABSEIR
 Type: Package
 Title: Posterior Approximation to Fully Bayesian Spatial SEIR Models Using the C++ Actor Framework
-Version: 0.1
-Date: 2015-04-28
+Version: 1.0
+Date: 2015-12-08
 Author: Grant Brown
 Maintainer: Grant Brown <grant-brown@uiowa.edu>
 Description: Approximate Bayesian Computing is a natural mechanism to accelerate the fitting of compartmental epidemic models. ABSEIR implements several such algorithms to fit a broad class of spatial and non-spatial SEIR and SEIRS epidemic models. 

@@ -1,14 +1,17 @@
 \name{ABSEIR-package}
 \alias{ABSEIR-package}
 \docType{package}
-\title{Title goes here.}
-\description{A description goes here.}
+\title{ABSEIR}
+\description{Approximate Bayesian Computation for Stochastic Compartmental Models}
 \details{
-  A detailed description goes here. 
+  Approximate Bayesian Computation is a natural framework within which to fit
+  epidemic models, for it is often far easier to simulate epidemics than it is
+  to evaluate their posterior distribution. This package implements several ABC
+  algorithms in a user friendly context to fit models in the spatial SEIRS class. 
   \tabular{ll}{
     Package: \tab ABSEIR\cr
     Type: \tab Package\cr
-    Version: \tab 0.01\cr
+    Version: \tab 1.0\cr
     Date: \tab 2015-07-28\cr
     License: \tab GPL-3\cr}}
 \references{
@@ -28,5 +31,5 @@
 
 \author{Grant Brown <grant-brown@uiowa.edu>}
 \examples{
-    print("examples coming soon")
+    print("See the vignettes")
 }
