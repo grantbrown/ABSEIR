@@ -1,9 +1,6 @@
-EXT_PKGDR=`$(R_HOME)/bin/Rscript -e "RcppCAF:::LdFlags()"`
 CXX_STD=CXX11
-PKG_CPPFLAGS= -pthread -g -I./include -I./libcaf_core -I./libcaf_io
-PKG_LIBS=  -lm -L$(EXT_PKGDR) -lcaf_main
-OLDLIBS=$(LIBS)
-LIBS= $(OLDLIBS) -L$(EXT_PKGDR)
+PKG_CPPFLAGS= -pthread -g -I./include
+PKG_LIBS=  -lm 
 
 SOURCES = dataModel.cpp distanceModel.cpp exposureModel.cpp initialValueContainer.cpp RcppExports.cpp reinfectionModel.cpp samplingControl.cpp SEIRSimNodes.cpp spatialSEIRModel.cpp transitionPriors.cpp weibullTransitionDistribution.cpp
 

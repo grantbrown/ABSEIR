@@ -12,11 +12,8 @@
 #include <initialValueContainer.hpp>
 #include <samplingControl.hpp>
 #include <SEIRSimNodes.hpp>
-#include "caf/all.hpp"
 
 using namespace Rcpp;
-using namespace caf;
-
 
 std::vector<size_t> sort_indexes(Rcpp::NumericVector inVec)
 {
@@ -788,7 +785,7 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
             currentEps/(samplingControlInstance -> shrinkage) > target_eps)
     {
         updateParams();
-        tmpList = this -> simulate(param_matrix, sample_atom::value);
+        tmpList = this -> simulate(param_matrix, sim_atom);
         currentSamples = combineResults(currentSamples.result, 
                                         currentSamples.params,
                                         as<NumericVector>(tmpList["result"]),
@@ -877,7 +874,7 @@ Rcpp::List spatialSEIRModel::evaluate(SEXP inParams)
             param_matrix(i,j) = params(i,j);
         }
     }
-    return(this -> simulate(param_matrix, sim_atom::value));
+    return(this -> simulate(param_matrix, sim_atom));
 }
 
 Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
@@ -893,7 +890,7 @@ Rcpp::List spatialSEIRModel::simulate_given(SEXP inParams)
             param_matrix(i,j) = params(i,j);
         }
     }
-    return(this -> simulate(param_matrix, sim_result_atom::value));
+    return(this -> simulate(param_matrix, sim_result_atom));
 }
 
 Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
@@ -933,16 +930,15 @@ Rcpp::List spatialSEIRModel::update(SEXP nSample, SEXP inParams,
 }
 
 Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix, 
-                                      caf::atom_value sim_type_atom)
+                                      std::string sim_type_atom)
 {
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
-    if (!(sim_type_atom == sim_atom::value || 
-         sim_type_atom == sim_result_atom::value || 
-         sim_type_atom == sample_atom::value))
+    if (!(sim_type_atom == sim_atom || 
+         sim_type_atom == sim_result_atom))
     {
         Rcpp::Rcout << "Invalid simulation type requested\n";
         Rcpp::List outList;
@@ -950,20 +946,29 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         return(outList);
     }
 
-    self = new scoped_actor();
-    ncalls += 1;    
-    std::vector<caf::actor> workers;
 
-    auto worker_pool = actor_pool::make(actor_pool::round_robin());
+    ncalls += 1;    
+
+    // TODO: there should be some better way to synchronize this 
+    // so that we don't need to do all sorts of locking-pushing-sorting
+    std::vector<int> result_idx;
+    // Having two results containers is kinda ugly, better solution?
+    std::vector<simulationResultSet> results_complete;
+    std::vector<double> results_double;
+
+    void* result_pointer = (sim_type_atom == sim_atom ? (void*) &results_double 
+            : (void*) &results_complete);
+    std::vector<int>* index_pointer = &result_idx;
+
     unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
     unsigned int nrow =  (unsigned int) param_matrix.rows(); 
     unsigned int i, j, idx;
 
-    for (i = 0; i < ncore; i++)
-    {
-        workers.push_back((*self) -> spawn<SEIR_sim_node, monitored>(
-                     samplingControlInstance->random_seed + 1000*(i + 1) 
-                        + ncalls,
+    std::unique_ptr<NodePool> worker_pool = std::unique_ptr<NodePool>(
+                new NodePool(result_pointer,
+                     index_pointer,
+                     ncore,
+                     samplingControlInstance->random_seed + ncalls,
                      initialValueContainerInstance -> S0,
                      initialValueContainerInstance -> E0,
                      initialValueContainerInstance -> I0,
@@ -985,53 +990,23 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
                      reinfectionModelInstance -> betaPriorMean,
                      dataModelInstance -> phi,
                      dataModelInstance -> dataModelCompartment,
-                     dataModelInstance -> cumulative,
-                     (*self)));
-        (*self) -> send(worker_pool, sys_atom::value, put_atom::value, 
-                workers[workers.size()-1]);
-    }
-
-
-    // Distribute jobs among workers
+                     dataModelInstance -> cumulative
+            ));
     Eigen::VectorXd outRow;
-
     // Send simulation orders
     for (i = 0; i < nrow; i++)
     {
         outRow = param_matrix.row(i);
-        (*self) -> send(worker_pool, sim_type_atom, i, outRow); 
+        worker_pool -> enqueue(sim_type_atom, i, outRow);
     }
 
-    std::vector<int> result_idx;
-    // Having two results containers is kinda ugly, better solution?
-    std::vector<simulationResultSet> results_complete;
-    std::vector<double> results_double;
-
-    i = 0;
-    if (sim_type_atom == sim_result_atom::value)
-    {
-        (*self)->receive_for(i, nrow)(
-                         [&](unsigned int idx, simulationResultSet result) {
-                              results_complete.push_back(result);
-                              result_idx.push_back(idx);
-                            });
-    }
-    else if (sim_type_atom == sim_atom::value || sim_type_atom == sample_atom::value)
-    {
-        (*self)->receive_for(i, nrow)(
-                     [&](unsigned int idx, double result) {
-                          results_double.push_back(result);
-                          result_idx.push_back(idx);
-                        });
-    }
-
-    (*self) -> send_exit(worker_pool, exit_reason::user_shutdown); 
-    
+    worker_pool -> awaitFinished();
+   
     // Todo: keep an eye on this object handling. It may have unreasonable
     // overhead, and is kind of complex.  
     Rcpp::List outList;
 
-    if (sim_type_atom == sim_result_atom::value)
+    if (sim_type_atom == sim_result_atom)
     {
         // keep_samples indicates a debug mode, so don't worry if we can't make
         // a regular data frame from the list.
@@ -1071,7 +1046,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
             outList[std::to_string(i)] = subList;
         }
     }
-    else if (sim_type_atom == sim_atom::value)
+    else if (sim_type_atom == sim_atom)
     {
         Rcpp::NumericVector outResults(nrow);
         for (i = 0; i < nrow; i++)
@@ -1080,16 +1055,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         }
         outList["result"] = outResults;
     }
-    else if (sim_type_atom == sample_atom::value)
-    {
-        Rcpp::NumericVector outResults(nrow);
-        for (i = 0; i < nrow; i++)
-        {
-            outResults(result_idx[i]) = results_double[i];
-        }
-        outList["result"] = outResults;
-    }
-    delete self;
     return(outList);
 }
 

@@ -1,7 +1,7 @@
 #ifndef SPATIALSEIR_MODEL_INC
 #define SPATIALSEIR_MODEL_INC
 #include <Rcpp.h>
-#include "caf/all.hpp"
+#include <memory>
 #include "./dataModel.hpp"
 #include "./distanceModel.hpp"
 #include "./exposureModel.hpp"
@@ -49,7 +49,6 @@ class samplingControl;
 class transitionPriors;
 
 using namespace Rcpp;
-using namespace caf;
 
 class spatialSEIRModel
 {
@@ -154,7 +153,7 @@ class spatialSEIRModel
         std::unique_ptr<transitionDistribution> IR_transition_dist;
 
         /** Main simulation function. */
-        Rcpp::List simulate(Eigen::MatrixXd params, caf::atom_value sim_type);
+        Rcpp::List simulate(Eigen::MatrixXd params, std::string sim_type);
 
         /** General function to take new samples and use them to update the 
          * currently accepted ones. */
@@ -187,8 +186,6 @@ class spatialSEIRModel
         initialValueContainer* initialValueContainerInstance;
         /** Pointer to a samplingControl object.*/
         samplingControl* samplingControlInstance;
-        /** Pointer to a scoped_actor object - can't we delete this?*/
-        scoped_actor* self;
         /** A persistant pointer to a properly initialized random 
          * number generator.*/
         std::mt19937* generator;

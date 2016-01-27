@@ -3,13 +3,154 @@
 #include <random>
 #include <math.h>
 #include <Rmath.h>
-#include "caf/all.hpp"
 #include "SEIRSimNodes.hpp"
 #include "spatialSEIRModel.hpp"
 #include <chrono>
 #include <thread>
 using namespace std;
-using namespace caf;
+
+
+NodeWorker::NodeWorker(NodePool* pl,
+                       int sd,
+                       Eigen::VectorXi s,
+                       Eigen::VectorXi e,
+                       Eigen::VectorXi i,
+                       Eigen::VectorXi r,
+                       Eigen::VectorXd offs,
+                       Eigen::MatrixXi y,
+                       MatrixXb nm,
+                       std::vector<Eigen::MatrixXd> dmv,
+                       Eigen::MatrixXd x,
+                       Eigen::MatrixXd x_rs,
+                       std::string mode,
+                       Eigen::MatrixXd ei_prior,
+                       Eigen::MatrixXd ir_prior,
+                       double avgI,
+                       Eigen::VectorXd sp_prior,
+                       Eigen::VectorXd se_prec,
+                       Eigen::VectorXd rs_prec,
+                       Eigen::VectorXd se_mean,
+                       Eigen::VectorXd rs_mean,
+                       double ph,
+                       int dmc,
+                       bool cmltv)
+{
+    pool = pl;
+    node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(sd,s,e,i,
+                         r,offs,y,nm,dmv,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv));
+}
+
+void NodeWorker::operator()()
+{
+    instruction task;
+    while(true)
+    {
+        {
+            std::unique_lock<std::mutex> lock(pool -> queue_mutex);
+
+            while (!pool -> exit && (pool -> tasks).empty())
+            {
+                (pool -> condition).wait(lock);
+            }
+            if (pool -> exit)
+                return;
+            task = (pool -> tasks).front();
+            (pool -> nBusy)++;
+            (pool -> tasks).pop_front();
+        }
+        if (task.action_type == sim_atom)
+        {
+            double result = node -> simulate(task.params, false).result;
+            {
+                std::unique_lock<std::mutex> lock(pool -> result_mutex);
+                pool -> index_pointer -> push_back(task.param_idx);
+                ((std::vector<double>*) pool -> result_pointer) -> push_back(result);
+            }
+        }
+        else if (task.action_type == sim_result_atom)
+        {
+            simulationResultSet result = node -> simulate(task.params, true);
+            {
+                std::unique_lock<std::mutex> lock(pool -> result_mutex);
+                pool -> index_pointer -> push_back(task.param_idx);
+                ((std::vector<simulationResultSet>*) pool -> result_pointer) -> push_back(result);
+                (pool -> nBusy)--;
+            }
+        }
+    }
+}
+
+NodePool::NodePool(void* rslt_ptr,
+                   std::vector<int>* idx_ptr,
+                       int threads,
+                       int sd,
+                       Eigen::VectorXi s,
+                       Eigen::VectorXi e,
+                       Eigen::VectorXi i,
+                       Eigen::VectorXi r,
+                       Eigen::VectorXd offs,
+                       Eigen::MatrixXi y,
+                       MatrixXb nm,
+                       std::vector<Eigen::MatrixXd> dmv,
+                       Eigen::MatrixXd x,
+                       Eigen::MatrixXd x_rs,
+                       std::string mode,
+                       Eigen::MatrixXd ei_prior,
+                       Eigen::MatrixXd ir_prior,
+                       double avgI,
+                       Eigen::VectorXd sp_prior,
+                       Eigen::VectorXd se_prec,
+                       Eigen::VectorXd rs_prec,
+                       Eigen::VectorXd se_mean,
+                       Eigen::VectorXd rs_mean,
+                       double ph,
+                       int dmc,
+                       bool cmltv)
+{
+    result_pointer = rslt_ptr;
+    index_pointer = idx_ptr;
+    exit = false;
+    nBusy = 0;
+    for (int itr = 0; itr < threads; itr++)
+    {
+        nodes.push_back(std::thread(NodeWorker(this,
+                                               sd + 1000*(itr+1),s,e,i,
+                         r,offs,y,nm,dmv,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv
+                        )));
+    }
+}
+
+void NodePool::awaitFinished()
+{
+    std::unique_lock<std::mutex> lock(queue_mutex);
+    finished.wait(lock, [this](){ return tasks.empty() && (nBusy == 0); });
+}
+
+void NodePool::enqueue(std::string action_type, int param_idx, Eigen::VectorXd params)
+{
+    instruction inst;
+    inst.param_idx = param_idx;
+    inst.action_type = action_type;
+    inst.params = params;
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        tasks.push_back(inst);
+    }
+    condition.notify_one();
+}
+
+NodePool::~NodePool()
+{
+    exit = true;
+    condition.notify_all();
+    for (int i = 0; i < nodes.size(); i++)
+    {
+        nodes[i].join();
+    }
+}
+
 
 SEIR_sim_node::SEIR_sim_node(int sd,
                              Eigen::VectorXi s,
@@ -33,8 +174,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              Eigen::VectorXd rs_mean,
                              double ph,
                              int dmc,
-                             bool cmltv,
-                             actor pr
+                             bool cmltv
                              ) : random_seed(sd),
                                  S0(s),
                                  E0(e),
@@ -57,8 +197,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  reinfection_mean(rs_mean),
                                  phi(ph),
                                  data_compartment(dmc),
-                                 cumulative(cmltv),
-                                 parent(pr)
+                                 cumulative(cmltv)
 {
     try
     {
@@ -96,7 +235,8 @@ SEIR_sim_node::SEIR_sim_node(int sd,
     }
     catch (int e)
     {
-        aout(this) << "Error in constructor: " << e << "\n";
+        // TODO: handle these errors
+        //aout(this) << "Error in constructor: " << e << "\n"; 
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
@@ -106,68 +246,6 @@ SEIR_sim_node::SEIR_sim_node(int sd,
     const int nTrans = (transitionMode == "exponential" ? 2 : 
                        (transitionMode == "weibull" ? 4 : 0));
     total_size = nRho + nReinf + nBeta + nTrans;
-    
-    alive.assign(
-        [=](sim_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
-        {
-            if (total_size != param_vals.size())
-            {
-                aout(this) << "Invalid parameter vector of length " 
-                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
-                send(parent, param_idx, -2.0);
-
-            }
-            else 
-            {
-                //aout(this) << "Valid params observed, simulating.\n";
-                double result = simulate(param_vals, false).result;
-                send(parent, param_idx, result); 
-            }
-        },
-        [=](sample_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
-        {
-            if (total_size != param_vals.size())
-            {
-                aout(this) << "Invalid parameter vector of length " 
-                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
-                send(parent, param_idx, -2.0);
-
-            }
-            else 
-            {
-                //aout(this) << "Valid params observed, simulating.\n";
-                double result = simulate(param_vals, false).result;
-                send(parent, param_idx, result); 
-            }
-        },
-        [=](sim_result_atom, unsigned int param_idx, Eigen::VectorXd param_vals)
-        {
-            if (total_size != param_vals.size())
-            {
-                aout(this) << "Invalid parameter vector of length " 
-                 << param_vals.size() <<  ", looking for: " << total_size << ", ignoring.\n"; 
-                send(parent, param_idx, -2.0);
-
-            }
-            else 
-            {
-                //aout(this) << "Valid params observed, simulating result.\n";
-                simulationResultSet result = simulate(param_vals, true);
-                send(parent, param_idx, result); 
-            }
-        },
-
-        [=](exit_atom)
-        {
-            //aout(this) << "Node quitting.\n";
-            quit();
-        }
-    );
-}
-
-behavior SEIR_sim_node::make_behavior(){
-    send(this, wakeup_atom::value);
-    return([=](wakeup_atom){become(alive);});
 }
 
 simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCompartments)
@@ -473,7 +551,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (E_paths(k,i) > 0)
                     {
-//                        aout(this) << "Nonzero at: (" << j << ", " << k << "), params: " << 
                         I_star_gen.param(std::binomial_distribution<>::param_type(
                                     E_paths(k,i),
                                     EI_transition_dist -> getTransitionProb(k, k+1)

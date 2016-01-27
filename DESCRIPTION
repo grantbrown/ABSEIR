@@ -8,7 +8,7 @@ Maintainer: Grant Brown <grant-brown@uiowa.edu>
 Description: Approximate Bayesian Computing is a natural mechanism to accelerate the fitting of compartmental epidemic models. ABSEIR implements several such algorithms to fit a broad class of spatial and non-spatial SEIR and SEIRS epidemic models. 
 License: GPL (>= 3)
 Depends: R (>= 3.0), Rcpp (>= 0.11.5), methods
-LinkingTo: Rcpp, RcppEigen, RcppCAF
+LinkingTo: Rcpp, RcppEigen
 LazyData: true
 Suggests: knitr, testthat
 VignetteBuilder: knitr
