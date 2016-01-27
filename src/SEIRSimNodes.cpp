@@ -63,9 +63,10 @@ void NodeWorker::operator()()
         {
             double result = node -> simulate(task.params, false).result;
             {
-                std::unique_lock<std::mutex> lock(pool -> result_mutex);
-                pool -> index_pointer -> push_back(task.param_idx);
-                ((std::vector<double>*) pool -> result_pointer) -> push_back(result);
+                //std::unique_lock<std::mutex> lock(pool -> result_mutex);
+                //pool -> index_pointer -> push_back(task.param_idx);
+                // We're accessing unique locations, so no mutex required
+                (*(pool -> result_pointer))[task.param_idx] = result;
             }
         }
         else if (task.action_type == sim_result_atom)
@@ -74,7 +75,7 @@ void NodeWorker::operator()()
             {
                 std::unique_lock<std::mutex> lock(pool -> result_mutex);
                 pool -> index_pointer -> push_back(task.param_idx);
-                ((std::vector<simulationResultSet>*) pool -> result_pointer) -> push_back(result);
+                pool -> result_complete_pointer -> push_back(result);
             }
         }
 
@@ -83,11 +84,11 @@ void NodeWorker::operator()()
             (pool -> nBusy)--;
             (pool -> finished).notify_one();
         }
-
     }
 }
 
-NodePool::NodePool(void* rslt_ptr,
+NodePool::NodePool(std::vector<double>* rslt_ptr,
+                   std::vector<simulationResultSet>* rslt_c_ptr,
                    std::vector<int>* idx_ptr,
                        int threads,
                        int sd,
@@ -115,6 +116,7 @@ NodePool::NodePool(void* rslt_ptr,
                        bool cmltv)
 {
     result_pointer = rslt_ptr;
+    result_complete_pointer = rslt_c_ptr;
     index_pointer = idx_ptr;
     exit = false;
     nBusy = 0;

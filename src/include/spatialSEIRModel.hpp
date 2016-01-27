@@ -47,6 +47,7 @@ class initialValueContainer;
 class reinfectionModel;
 class samplingControl;
 class transitionPriors;
+class NodePool;
 
 using namespace Rcpp;
 
@@ -186,6 +187,14 @@ class spatialSEIRModel
         initialValueContainer* initialValueContainerInstance;
         /** Pointer to a samplingControl object.*/
         samplingControl* samplingControlInstance;
+        /** Result index vector */
+        std::vector<int> result_idx;
+        /** Results vector*/
+        std::vector<double> results_double;
+        /** Complete results vector */
+        std::vector<simulationResultSet> results_complete;
+        /** Thread pool */
+        std::unique_ptr<NodePool> worker_pool; 
         /** A persistant pointer to a properly initialized random 
          * number generator.*/
         std::mt19937* generator;

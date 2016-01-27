@@ -177,6 +177,53 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator));
     std::seed_seq q(std::begin(seed_data), std::end(seed_data));
     generator = new std::mt19937{q};   
+
+
+    // TODO: there should be some better way to synchronize this 
+    // so that we don't need to do all sorts of locking-pushing-sorting
+    result_idx = std::vector<int>();
+    // Having two results containers is kinda ugly, better solution?
+    results_complete = std::vector<simulationResultSet>();
+    results_double = std::vector<double>();
+    // Prefill results_double
+    for (int idx = 0; idx < samplingControlInstance -> batch_size; idx++)
+    {
+        results_double.push_back(0.0);
+    }
+
+    std::vector<int>* index_pointer = &result_idx;
+
+    unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
+
+    worker_pool = std::unique_ptr<NodePool>(
+                new NodePool(&results_double,
+                     &results_complete,
+                     index_pointer,
+                     ncore,
+                     samplingControlInstance->random_seed + ncalls,
+                     initialValueContainerInstance -> S0,
+                     initialValueContainerInstance -> E0,
+                     initialValueContainerInstance -> I0,
+                     initialValueContainerInstance -> R0,
+                     exposureModelInstance -> offset,
+                     dataModelInstance -> Y,
+                     dataModelInstance -> na_mask,
+                     distanceModelInstance -> dm_list,
+                     exposureModelInstance -> X,
+                     reinfectionModelInstance -> X_rs,
+                     transitionPriorsInstance -> mode,
+                     transitionPriorsInstance -> E_to_I_params,
+                     transitionPriorsInstance -> I_to_R_params,
+                     transitionPriorsInstance -> inf_mean,
+                     distanceModelInstance -> spatial_prior,
+                     exposureModelInstance -> betaPriorPrecision,
+                     reinfectionModelInstance -> betaPriorPrecision, 
+                     exposureModelInstance -> betaPriorMean,
+                     reinfectionModelInstance -> betaPriorMean,
+                     dataModelInstance -> phi,
+                     dataModelInstance -> dataModelCompartment,
+                     dataModelInstance -> cumulative
+            ));
 }
 
 
@@ -946,52 +993,16 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         return(outList);
     }
 
-
     ncalls += 1;    
+
+    unsigned int i,j,idx;
+    unsigned int nrow =  (unsigned int) param_matrix.rows(); 
 
     // TODO: there should be some better way to synchronize this 
     // so that we don't need to do all sorts of locking-pushing-sorting
-    std::vector<int> result_idx;
-    // Having two results containers is kinda ugly, better solution?
-    std::vector<simulationResultSet> results_complete;
-    std::vector<double> results_double;
-
-    void* result_pointer = (sim_type_atom == sim_atom ? (void*) &results_double 
-            : (void*) &results_complete);
-    std::vector<int>* index_pointer = &result_idx;
-
-    unsigned int ncore = (unsigned int) samplingControlInstance -> CPU_cores;
-    unsigned int nrow =  (unsigned int) param_matrix.rows(); 
-    unsigned int i, j, idx;
-
-    std::unique_ptr<NodePool> worker_pool = std::unique_ptr<NodePool>(
-                new NodePool(result_pointer,
-                     index_pointer,
-                     ncore,
-                     samplingControlInstance->random_seed + ncalls,
-                     initialValueContainerInstance -> S0,
-                     initialValueContainerInstance -> E0,
-                     initialValueContainerInstance -> I0,
-                     initialValueContainerInstance -> R0,
-                     exposureModelInstance -> offset,
-                     dataModelInstance -> Y,
-                     dataModelInstance -> na_mask,
-                     distanceModelInstance -> dm_list,
-                     exposureModelInstance -> X,
-                     reinfectionModelInstance -> X_rs,
-                     transitionPriorsInstance -> mode,
-                     transitionPriorsInstance -> E_to_I_params,
-                     transitionPriorsInstance -> I_to_R_params,
-                     transitionPriorsInstance -> inf_mean,
-                     distanceModelInstance -> spatial_prior,
-                     exposureModelInstance -> betaPriorPrecision,
-                     reinfectionModelInstance -> betaPriorPrecision, 
-                     exposureModelInstance -> betaPriorMean,
-                     reinfectionModelInstance -> betaPriorMean,
-                     dataModelInstance -> phi,
-                     dataModelInstance -> dataModelCompartment,
-                     dataModelInstance -> cumulative
-            ));
+    result_idx.clear();
+    results_complete.clear();
+    // Don't clear results_double
 
     Eigen::VectorXd outRow;
     // Send simulation orders
@@ -1052,7 +1063,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         Rcpp::NumericVector outResults(nrow);
         for (i = 0; i < nrow; i++)
         {
-            outResults(result_idx[i]) = results_double[i];
+            // No resorting
+            outResults(i) = results_double[i];
         }
         outList["result"] = outResults;
     }

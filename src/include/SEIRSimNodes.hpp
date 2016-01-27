@@ -139,7 +139,8 @@ class NodeWorker{
 
 class NodePool{
     public:
-        NodePool(void* result_pointer,
+        NodePool(std::vector<double>* result_pointer,
+                 std::vector<simulationResultSet>* result_complete_pointer,
                  std::vector<int>* index_pointer,
                  int,
                  int random_seed,
@@ -168,7 +169,8 @@ class NodePool{
               );
         void awaitFinished();
         void enqueue(std::string action_type, int param_idx, Eigen::VectorXd params);
-        void* result_pointer;
+        std::vector<double>* result_pointer;
+        std::vector<simulationResultSet>* result_complete_pointer;
         std::vector<int>* index_pointer;
         ~NodePool();
 
