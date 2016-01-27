@@ -24,6 +24,6 @@ before_install:
   - echo "options(repos = c(CRAN='http://cran.rstudio.com'))" > ~/.Rprofile
 
 r_github_packages:
-     - grantbrown/RcppCAF
+     - rstudio/rmarkdown
 
 
