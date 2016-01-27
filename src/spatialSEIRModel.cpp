@@ -992,6 +992,7 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
                      dataModelInstance -> dataModelCompartment,
                      dataModelInstance -> cumulative
             ));
+
     Eigen::VectorXd outRow;
     // Send simulation orders
     for (i = 0; i < nrow; i++)

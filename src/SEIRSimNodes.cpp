@@ -75,9 +75,15 @@ void NodeWorker::operator()()
                 std::unique_lock<std::mutex> lock(pool -> result_mutex);
                 pool -> index_pointer -> push_back(task.param_idx);
                 ((std::vector<simulationResultSet>*) pool -> result_pointer) -> push_back(result);
-                (pool -> nBusy)--;
             }
         }
+
+        {
+            std::unique_lock<std::mutex> lock(pool -> queue_mutex);
+            (pool -> nBusy)--;
+            (pool -> finished).notify_one();
+        }
+
     }
 }
 
@@ -124,8 +130,10 @@ NodePool::NodePool(void* rslt_ptr,
 
 void NodePool::awaitFinished()
 {
-    std::unique_lock<std::mutex> lock(queue_mutex);
-    finished.wait(lock, [this](){ return tasks.empty() && (nBusy == 0); });
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        finished.wait(lock, [this](){ return tasks.empty() && (nBusy == 0); });
+    }
 }
 
 void NodePool::enqueue(std::string action_type, int param_idx, Eigen::VectorXd params)
