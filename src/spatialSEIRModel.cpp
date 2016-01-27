@@ -261,10 +261,10 @@ samplingResultSet spatialSEIRModel::combineResults_basic(
 
 
     // Zipper merge
-    for (i = 0; i < numSamples; i++)
+    for (i = 0; i < (size_t) numSamples; i++)
     {
         // Make sure we don't run out of samples
-        if (idx1 >= currentResults.size() || 
+        if (idx1 >= (size_t) currentResults.size() || 
                 currentResults(currentIndex[idx1]) > newResults(newIndex[idx2]))
         {
             outResults(i) = newResults(newIndex[idx2]);
@@ -305,7 +305,6 @@ samplingResultSet spatialSEIRModel::combineResults_SMC(
     int idx = 0;
     int i,j;
     int nrow = newResults.size();
-    int oldN = currentSamples.params.nrow();
     int N = numSamples;
     while (idx < nrow && currentAccepted.size() < (size_t) N) 
     {
@@ -487,8 +486,6 @@ void spatialSEIRModel::updateParams_prior()
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    const int nTrans = (transitionMode == "exponential" ? 2 :
-                       (transitionMode == "weibull" ? 4 : 0));
     const int bs = samplingControlInstance -> batch_size;
     int i, j;
 
@@ -614,8 +611,6 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
-    const int nTrans = (transitionMode == "exponential" ? 2 : 
-                       (transitionMode == "weibull" ? 4 : 0));
     int i;
 
     int paramIdx = 0;
@@ -995,8 +990,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
 
     ncalls += 1;    
 
-    unsigned int i,j,idx;
-    unsigned int nrow =  (unsigned int) param_matrix.rows(); 
+    unsigned int i;
+    unsigned int nrow = (unsigned int) param_matrix.rows(); 
 
     // TODO: there should be some better way to synchronize this 
     // so that we don't need to do all sorts of locking-pushing-sorting

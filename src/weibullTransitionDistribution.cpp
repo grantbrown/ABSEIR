@@ -29,9 +29,6 @@ weibullTransitionDistribution::~weibullTransitionDistribution()
 
 double weibullTransitionDistribution::evalParamPrior(Eigen::VectorXd params)
 {
-
-    double out1 = gammapdf(params(0), shapePriorAlpha, shapePriorBeta, false);
-    double out2 = gammapdf(params(1), scalePriorAlpha, scalePriorBeta, false); 
     return(gammapdf(params(0), shapePriorAlpha, shapePriorBeta, false)
           *gammapdf(params(1), scalePriorAlpha, scalePriorBeta, false));
 }

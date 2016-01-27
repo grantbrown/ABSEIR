@@ -7,11 +7,11 @@ class transitionDistribution
 {
     public:
         virtual ~transitionDistribution(){};
-        virtual double evalParamPrior(Eigen::VectorXd params){};
-        virtual void setCurrentParams(Eigen::VectorXd currentParams){};
+        virtual double evalParamPrior(Eigen::VectorXd params) = 0;
+        virtual void setCurrentParams(Eigen::VectorXd currentParams) = 0;
         virtual double getTransitionProb(int startIdx, 
-                                         int stopIdx){}; 
-        virtual double getAvgMembership(){};
+                                         int stopIdx) = 0; 
+        virtual double getAvgMembership() = 0;
 };
 
 class weibullTransitionDistribution : public transitionDistribution

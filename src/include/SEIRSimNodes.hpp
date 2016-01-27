@@ -81,6 +81,7 @@ class SEIR_sim_node {
         std::string transitionMode;
         Eigen::MatrixXd E_to_I_prior;
         Eigen::MatrixXd I_to_R_prior;
+        double inf_mean;
         Eigen::VectorXd spatial_prior;
         Eigen::VectorXd exposure_precision;
         Eigen::VectorXd reinfection_precision;
@@ -93,7 +94,6 @@ class SEIR_sim_node {
         double phi;
         int seed;
         double value;
-        double inf_mean;
         bool has_spatial;
         bool has_reinfection;
         int total_size;

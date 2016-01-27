@@ -155,7 +155,7 @@ NodePool::~NodePool()
 {
     exit = true;
     condition.notify_all();
-    for (int i = 0; i < nodes.size(); i++)
+    for (unsigned int i = 0; i < nodes.size(); i++)
     {
         nodes[i].join();
     }
@@ -862,7 +862,6 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     int nLoc = (*results).S.cols();
     int nTpt = (*results).S.rows();
     std::vector<Eigen::MatrixXd> GVector;
-    double component1, component2;
     // Fill in R0(t) and eff R0(t)
     // I_to_R_prior(k, 4)
     if (transitionMode == "weibull")
@@ -899,10 +898,11 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     }
 
     // Calculate next generation matrices 
+    unsigned int size_idx;
     Eigen::MatrixXd CombinedDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
-    for (k = 0; k < DM_vec.size(); k++) 
+    for (size_idx = 0; size_idx < DM_vec.size(); size_idx++) 
     {
-        CombinedDM += (DM_vec[k]*((*results).rho(k)));
+        CombinedDM += (DM_vec[size_idx]*((*results).rho(size_idx)));
     }
     for (k = 0; k < nLoc; k++)
     {
