@@ -10,5 +10,5 @@ License: GPL (>= 3)
 Depends: R (>= 3.0), Rcpp (>= 0.11.5), methods
 LinkingTo: Rcpp, RcppEigen
 LazyData: true
-Suggests: knitr, testthat
-VignetteBuilder: knitr
+Suggests: knitr, rmarkdown, testthat
+VignetteBuilder: rmarkdown
