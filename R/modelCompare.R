@@ -102,6 +102,7 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
         for (i in 1:length(s))
         {
             mr[[i]]$param.samples = s[[i]]
+            mr[[i]]$modelComponents$sampling_control$batch_size = batch_size
         }
 
         esim = lapply(1:length(mr), function(x){
