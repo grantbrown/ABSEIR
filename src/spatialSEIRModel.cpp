@@ -91,14 +91,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     initialValueContainerInstance = &initialValueContainer_;
     samplingControlInstance = &samplingControl_;
 
-    dataModelInstance -> protect();
-    exposureModelInstance -> protect();
-    reinfectionModelInstance -> protect();
-    distanceModelInstance -> protect();
-    transitionPriorsInstance -> protect();
-    initialValueContainerInstance -> protect();
-    samplingControlInstance -> protect();
-
     if ((dataModelInstance -> nLoc) != (exposureModelInstance -> nLoc))
     { 
         Rcpp::stop(("Exposure model and data model imply different number of locations: " 
@@ -1069,13 +1061,6 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
 spatialSEIRModel::~spatialSEIRModel()
 {   
     delete generator;
-    dataModelInstance -> unprotect();
-    exposureModelInstance -> unprotect();
-    reinfectionModelInstance -> unprotect();
-    distanceModelInstance -> unprotect();
-    transitionPriorsInstance -> unprotect();
-    initialValueContainerInstance -> unprotect();
-    samplingControlInstance -> unprotect();
 }
 
 
