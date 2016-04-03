@@ -10,14 +10,19 @@ class distanceModel : public modelComponent
     public:
         distanceModel();
         virtual void addDistanceMatrix(NumericMatrix distMat);
+        virtual void setupTemporalDistanceMatrices(int nTpt);
+        virtual void addTDistanceMatrix(int tpt, NumericMatrix distMat);
         int getModelComponentType();
         virtual void summary();
         virtual void setPriorParameters(double alpha, double beta);
         virtual int getNumDistanceMatrices();
 
         int numLocations;
+        int currentTDistIdx;
         Eigen::VectorXd spatial_prior;
         std::vector<Eigen::MatrixXd> dm_list;
+        std::vector<std::vector<Eigen::MatrixXd> > tdm_list;
+
 
         ~distanceModel();
 };

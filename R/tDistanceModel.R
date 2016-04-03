@@ -1,14 +1,18 @@
 #' Create a DistanceModel object describing the network structure of the 
-#' population under study.
+#' population under study. The TDistanceModel function accepts lagged
+#` contact.
 
 #' @param distanceList a list of square, symmetric distance matrices.
+#' @param laggedDistanceList a list of lists, of dimension T by k, where
+#'  T is the number of time points and k is the number of time points being
+#'  carried forward.
 #' @param scaleMode an optional argument specifying the type of 
 #' preprocessing needed.
 #' @param priorAlpha the first shape parameter for the beta distributed
 #' autocorrelation terms
 #' @param priorBeta the second shape parameter for the beta distributed
 #' autocorrelation terms
-#' @return an object of type \code{\link{DistanceModel}}
+#' @return an object of type \code{\link{TDistanceModel}}
 #' @details
 #'  In stochastic spatial SEIR models as specified in Brown et al. 2015, 
 #'  populations are divided into homogeneous groups, or locations, with
@@ -23,12 +27,13 @@
 #'  model, and to correspondingly bias inference about other important
 #'  exposure process terms. 
 #' 
-#' @examples distanceModel <- DistanceModel(list(1-diag(4)))
+#' @examples distanceModel <- TDistanceModel(list(1-diag(4)))
 #' @export
-DistanceModel = function(distanceList, 
-                              scaleMode = c("none","rowscale","invsqrt"),
-                              priorAlpha=1.0,
-                              priorBeta=1.0)
+TDistanceModel = function(distanceList, 
+                         laggedDistanceList,
+                         scaleMode = c("none","rowscale","invsqrt"),
+                         priorAlpha=1.0,
+                         priorBeta=1.0)
 {
     scaleMode = scaleMode[1]
     rowScale = function(mat)
@@ -53,6 +58,14 @@ DistanceModel = function(distanceList,
     {
         stop("Error: distanceList must be a list of matrices.")
     }
+
+    if (class(laggedDistanceList) != "list")
+    {
+        stop("Error: laggedDistanceList must be a list of matrices.")
+    }
+    nLags <- ifelse(length(laggedDistanceList) == 0, 0, 
+                    length(laggedDistanceList[[1]]))
+
 
     # Check for valid matrices
     distanceDim = NA
@@ -83,8 +96,8 @@ DistanceModel = function(distanceList,
     } 
 
     structure(list("distanceList" = distanceList,
-                   "laggedDistanceList" = list(),
-                   "len" = length(distanceList),
+                   "laggedDistanceList" = laggedDistanceList,
+                   "len" = nLags*length(laggedDistanceList) + length(distanceList),
                    "priorAlpha" = priorAlpha,
                    "priorBeta" = priorBeta), class = "DistanceModel")
 }

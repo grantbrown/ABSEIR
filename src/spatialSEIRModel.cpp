@@ -201,6 +201,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      dataModelInstance -> Y,
                      dataModelInstance -> na_mask,
                      distanceModelInstance -> dm_list,
+                     distanceModelInstance -> tdm_list,
                      exposureModelInstance -> X,
                      reinfectionModelInstance -> X_rs,
                      transitionPriorsInstance -> mode,
@@ -215,9 +216,9 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      dataModelInstance -> phi,
                      dataModelInstance -> dataModelCompartment,
                      dataModelInstance -> cumulative
-            ));
+                ));
 }
-
+    
 
 samplingResultSet spatialSEIRModel::combineResults(
                                             Rcpp::NumericVector currentResults, 
@@ -477,7 +478,10 @@ void spatialSEIRModel::updateParams_prior()
 
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nRho = ((distanceModelInstance -> dm_list).size() + 
+                      (distanceModelInstance -> tdm_list).size() > 0 ? 
+                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
+
     const int bs = samplingControlInstance -> batch_size;
     int i, j;
 
@@ -602,7 +606,10 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
     std::string transitionMode = transitionPriorsInstance -> mode;
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nRho = ((distanceModelInstance -> dm_list).size() + 
+                      (distanceModelInstance -> tdm_list).size() > 0 ? 
+                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
+
     int i;
 
     int paramIdx = 0;
@@ -655,7 +662,7 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
         // 1. override of evalParamPrior for Weibull case
         // 2. rewrite of evalParamPrior to accept Rcpp object
         Eigen::Map<Eigen::VectorXd> eigen_param_vec( 
-            Rcpp::as<Eigen::Map<Eigen::VectorXd>>(param_vector));
+            Rcpp::as<Eigen::Map<Eigen::VectorXd> >(param_vector));
         outPrior *= EI_transition_dist -> evalParamPrior(
                 eigen_param_vec.segment(paramIdx, 2)); 
         paramIdx += 2;
@@ -762,7 +769,9 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     int i;
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    const int nRho = (distanceModelInstance -> dm_list).size()*hasSpatial;
+    const int nRho = ((distanceModelInstance -> dm_list).size() + 
+                      (distanceModelInstance -> tdm_list).size() > 0 ? 
+                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nParams = nBeta + nBetaRS + nRho + nTrans;

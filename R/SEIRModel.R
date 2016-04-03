@@ -123,6 +123,20 @@ SpatialSEIRModel = function(data_model,
                 distance_model$distanceList[[i]]
             )
         }
+        nLags <- ifelse(length(distance_model$laggedDistanceList == 0, 0, 
+                               length(distance_model$laggedDistanceList[[1]])))
+        modelComponents[["distanceModel"]]$setupTemporalDistanceMatrices(
+            length(distance_model$laggedDistanceList))
+        for (i in 1:length(distance_model)) 
+        {
+            for (j in 1:nLags)
+            {
+                modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
+                            distance_model$laggedDistanceList[[i]][[j]]
+                ) 
+            }
+        }
+
         modelComponents[["distanceModel"]]$setPriorParameters(
             distance_model$priorAlpha,
             distance_model$priorBeta
@@ -248,7 +262,7 @@ SpatialSEIRModel = function(data_model,
         {
             cnames = c(cnames, 
                        paste("rho_", 
-                            1:length(distance_model$distanceList), 
+                            1:distance_model$len, 
                              sep = "")
             )
         }
@@ -381,6 +395,21 @@ update.SpatialSEIRModel = function(object, ...)
                 distanceModelInstance$distanceList[[i]]
             )
         }
+        nLags <- ifelse(length(distanceModelInstance$laggedDistanceList == 0, 0, 
+                        length(distanceModelInstance$laggedDistanceList[[1]])))
+        modelComponents[["distanceModel"]]$setupTemporalDistanceMatrices(
+            length(distanceModelInstance$laggedDistanceList))
+        for (i in 1:length(distanceModelInstance)) 
+        {
+            for (j in 1:nLags)
+            {
+                modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
+                            distanceModelInstance$laggedDistanceList[[i]][[j]]
+                ) 
+            }
+        }
+
+
         modelCache[["distanceModel"]]$setPriorParameters(
             distanceModelInstance$priorAlpha,
             distanceModelInstance$priorBeta
@@ -517,7 +546,7 @@ update.SpatialSEIRModel = function(object, ...)
         {
             cnames = c(cnames, 
                        paste("rho_", 
-                            1:length(distanceModelInstance$distanceList), 
+                            1:(distanceModelInstance$len), 
                              sep = "")
             )
         }
