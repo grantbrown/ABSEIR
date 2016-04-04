@@ -3,6 +3,7 @@
 #include <random>
 #include <math.h>
 #include <Rmath.h>
+#include <util.hpp>
 #include "SEIRSimNodes.hpp"
 #include "spatialSEIRModel.hpp"
 #include <chrono>
@@ -254,7 +255,9 @@ SEIR_sim_node::SEIR_sim_node(int sd,
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
-    const int nRho = (has_spatial ? DM_vec.size() : 0);
+    has_ts_spatial = (TDM_vec.size() > 1);
+    const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec.size() :
+                     (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
     const int nTrans = (transitionMode == "exponential" ? 2 : 
@@ -285,10 +288,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         beta_rs = Eigen::VectorXd(1);
     }
 
+    int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec.size() :
+                     (has_spatial ? DM_vec.size() : 0));
     Eigen::VectorXd rho;
     if (has_spatial && has_reinfection)
     {
-        rho = params.segment(X.cols() + X_rs.cols(), DM_vec.size());
+        rho = params.segment(X.cols() + X_rs.cols(), nRho);
     }
     else if (has_spatial)
     {
@@ -351,6 +356,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXi current_I(S0.size());
     Eigen::VectorXi current_R(S0.size());
 
+    compartment_tap I_lag(Eigen::MatrixXi(TDM_vec[0].size(), S0.size()));
+
     Eigen::VectorXi previous_S(S0.size());
     Eigen::VectorXi previous_E(S0.size());
     Eigen::VectorXi previous_I(S0.size());
@@ -386,6 +393,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     previous_E = E0;
     previous_I = I0;
     previous_R = R0;
+    I_lag.push(previous_I);
 
     if (transitionMode != "exponential")
     {
@@ -408,6 +416,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         {
             p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
         }
+    }
+    if (has_ts_spatial)
+    {
+        p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
     }
 
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
@@ -646,8 +658,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     previous_I = current_I;
     previous_R = current_R;
 
-    // Simulation: iterative case
+    I_lag.push(previous_I);
 
+    // Simulation: iterative case
+    int lag;
     for (time_idx = 1; time_idx < Y.rows(); time_idx++)
     {
         p_se_cache = (((p_se_components.row(time_idx).array().transpose())
@@ -665,6 +679,23 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
             }
         }
+
+
+        if (has_ts_spatial)
+        {
+            for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
+            {
+                p_se_cache = (((p_se_components.row(time_idx - lag).array().transpose())
+                           * (I_lag.get(lag).cast<double>().array())) 
+                           * (((N.cast<double>().array()).unaryExpr([](double e)
+                            {
+                                return(1.0/e);
+                            })).array()));
+
+                p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
+            }
+        }
+
 
         p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
  

@@ -97,6 +97,7 @@ class SEIR_sim_node {
         int seed;
         double value;
         bool has_spatial;
+        bool has_ts_spatial;
         bool has_reinfection;
         int total_size;
         int data_compartment;
