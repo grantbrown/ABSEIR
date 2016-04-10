@@ -212,6 +212,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      dataModelInstance -> na_mask,
                      distanceModelInstance -> dm_list,
                      distanceModelInstance -> tdm_list,
+                     distanceModelInstance -> tdm_empty,
                      exposureModelInstance -> X,
                      reinfectionModelInstance -> X_rs,
                      transitionPriorsInstance -> mode,
@@ -489,9 +490,7 @@ void spatialSEIRModel::updateParams_prior()
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
-                      (distanceModelInstance -> tdm_list).size() > 0 ? 
-                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
-
+                      (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
     const int bs = samplingControlInstance -> batch_size;
     int i, j;
 
@@ -617,8 +616,7 @@ double spatialSEIRModel::evalPrior(Rcpp::NumericVector param_vector)
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
-                      (distanceModelInstance -> tdm_list).size() > 0 ? 
-                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
+                      (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
 
     int i;
 
@@ -780,8 +778,8 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
-                      (distanceModelInstance -> tdm_list).size() > 0 ? 
-                      (distanceModelInstance -> tdm_list)[0].size() : 0)*hasSpatial;
+                      (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
+
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nParams = nBeta + nBetaRS + nRho + nTrans;

@@ -22,6 +22,7 @@ NodeWorker::NodeWorker(NodePool* pl,
                        MatrixXb nm,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
+                       std::vector<int> tdme,
                        Eigen::MatrixXd x,
                        Eigen::MatrixXd x_rs,
                        std::string mode,
@@ -39,7 +40,7 @@ NodeWorker::NodeWorker(NodePool* pl,
 {
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(sd,s,e,i,
-                         r,offs,y,nm,dmv,tdmv,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv));
 }
 
@@ -103,6 +104,7 @@ NodePool::NodePool(std::vector<double>* rslt_ptr,
                        MatrixXb nm,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
+                       std::vector<int> tdme,
                        Eigen::MatrixXd x,
                        Eigen::MatrixXd x_rs,
                        std::string mode,
@@ -127,7 +129,7 @@ NodePool::NodePool(std::vector<double>* rslt_ptr,
     {
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
-                         r,offs,y,nm,dmv,tdmv,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv
                         )));
     }
@@ -175,6 +177,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              MatrixXb nm,
                              std::vector<Eigen::MatrixXd> dmv,
                              std::vector<std::vector<Eigen::MatrixXd> > tdmv,
+                             std::vector<int> tdme,
                              Eigen::MatrixXd x,
                              Eigen::MatrixXd x_rs,
                              std::string mode,
@@ -199,6 +202,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  na_mask(nm),
                                  DM_vec(dmv),
                                  TDM_vec(tdmv),
+                                 TDM_empty(tdme),
                                  X(x),
                                  X_rs(x_rs),
                                  transitionMode(mode),
@@ -297,7 +301,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
     else if (has_spatial)
     {
-        rho = params.segment(X.cols(), DM_vec.size());
+        rho = params.segment(X.cols(), nRho);
     }
     else
     {
@@ -422,7 +426,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
     if (has_ts_spatial)
     {
-        p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
+        if (!TDM_empty[0])
+        {
+            p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
+        }
     }
 
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
@@ -687,7 +694,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
 
 
-        if (has_ts_spatial)
+        if (has_ts_spatial && !TDM_empty[time_idx])
         {
             for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
             {

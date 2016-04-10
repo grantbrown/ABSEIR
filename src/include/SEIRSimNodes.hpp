@@ -46,6 +46,7 @@ class SEIR_sim_node {
                       MatrixXb na_mask,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       std::vector<std::vector<Eigen::MatrixXd> > tdm_vec,
+                      std::vector<int> tdm_empty,
                       Eigen::MatrixXd X, 
                       Eigen::MatrixXd X_rs,
                       std::string transitionMode,
@@ -78,6 +79,7 @@ class SEIR_sim_node {
         MatrixXb na_mask;
         std::vector<Eigen::MatrixXd> DM_vec;
         std::vector<std::vector<Eigen::MatrixXd> > TDM_vec;
+        std::vector<int> TDM_empty;
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;
         std::string transitionMode;
@@ -121,6 +123,7 @@ class NodeWorker{
                    MatrixXb na_mask,
                    std::vector<Eigen::MatrixXd> DM_vec,
                    std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
+                   std::vector<int> TDM_empty,
                    Eigen::MatrixXd X, 
                    Eigen::MatrixXd X_rs,
                    std::string transitionMode,
@@ -157,6 +160,7 @@ class NodePool{
                  MatrixXb na_mask,
                  std::vector<Eigen::MatrixXd> DM_vec,
                  std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
+                 std::vector<int> TDM_empty,
                  Eigen::MatrixXd X, 
                  Eigen::MatrixXd X_rs,
                  std::string transitionMode,

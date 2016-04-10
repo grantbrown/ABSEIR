@@ -132,7 +132,7 @@ SpatialSEIRModel = function(data_model,
             for (i in 1:length(distance_model$laggedDistanceList)) 
             {
                 for (j in 1:nLags)
-                {
+                { 
                     modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
                                 distance_model$laggedDistanceList[[i]][[j]]
                     ) 

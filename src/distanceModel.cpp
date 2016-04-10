@@ -10,6 +10,7 @@ distanceModel::distanceModel()
     spatial_prior = Eigen::VectorXd(2);
     dm_list = std::vector<Eigen::MatrixXd>();
     tdm_list = std::vector<std::vector<Eigen::MatrixXd> >();
+    tdm_empty = std::vector<int>();
     currentTDistIdx = 0;
 }
 
@@ -29,6 +30,7 @@ void distanceModel::setupTemporalDistanceMatrices(int nTpt)
     for (int i = 0; i < nTpt; i++)
     {
         tdm_list.push_back(std::vector<Eigen::MatrixXd>());
+        tdm_empty.push_back(1);
     }
 }
 
@@ -36,14 +38,27 @@ void distanceModel::addTDistanceMatrix(int tpt, NumericMatrix distMat)
 {
     Eigen::MatrixXd new_mat(distMat.nrow(), distMat.ncol());
     int i,j;
+    tpt--;
+    bool empty = true;
+    if (tpt < 0 || tpt >= tdm_list.size())
+    {
+        Rcpp::stop("Invalid Time Index");
+    }
     for (i = 0; i < distMat.nrow(); i++)
     {
         for (j = 0; j < distMat.ncol(); j++)
         {
+            if (distMat(i,j) != 0){
+                empty = false;
+            }
             new_mat(i,j) = distMat(i,j);
         }
     }
     tdm_list[tpt].push_back(new_mat);
+    if (!empty)
+    {
+        tdm_empty[tpt] = 0;
+    }
 }
 
 void distanceModel::addDistanceMatrix(NumericMatrix distMat)

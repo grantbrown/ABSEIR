@@ -21,6 +21,7 @@ class distanceModel : public modelComponent
         int currentTDistIdx;
         Eigen::VectorXd spatial_prior;
         std::vector<Eigen::MatrixXd> dm_list;
+        std::vector<int> tdm_empty; 
         std::vector<std::vector<Eigen::MatrixXd> > tdm_list;
 
 

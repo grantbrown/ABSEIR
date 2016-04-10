@@ -97,7 +97,7 @@ TDistanceModel = function(distanceList,
 
     structure(list("distanceList" = distanceList,
                    "laggedDistanceList" = laggedDistanceList,
-                   "len" = nLags*length(laggedDistanceList) + length(distanceList),
+                   "len" = nLags + length(distanceList),
                    "priorAlpha" = priorAlpha,
                    "priorBeta" = priorBeta), class = "DistanceModel")
 }
