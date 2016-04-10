@@ -95,6 +95,9 @@ RCPP_MODULE(mod_distanceModel)
     class_<distanceModel>( "distanceModel" )
     .constructor()
     .method("addDistanceMatrix", &distanceModel::addDistanceMatrix)
+    .method("addTDistanceMatrix", &distanceModel::addTDistanceMatrix)
+    .method("setupTemporalDistanceMatrices", 
+            &distanceModel::setupTemporalDistanceMatrices)
     .method("summary", &distanceModel::summary)
     .method("setPriorParameters", &distanceModel::setPriorParameters)
     .property("numMatrices", &distanceModel::getNumDistanceMatrices, "Number of distict distance matrices.");

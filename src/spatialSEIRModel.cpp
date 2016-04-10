@@ -11,6 +11,7 @@
 #include <transitionPriors.hpp>
 #include <initialValueContainer.hpp>
 #include <samplingControl.hpp>
+#include <util.hpp>
 #include <SEIRSimNodes.hpp>
 
 using namespace Rcpp;
@@ -110,6 +111,18 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                     + std::to_string(distanceModelInstance -> numLocations) + ".\n").c_str()
                 );
     }
+    if ((distanceModelInstance -> tdm_list).size() != (dataModelInstance -> nTpt))
+    {
+        Rcpp::stop("TDistance model and data model imply a different number of time points.\n");
+    }
+    int sz1 = (distanceModelInstance -> tdm_list)[0].size();
+    for (int i = 0; i < (distanceModelInstance -> tdm_list).size(); i++)
+    {
+        if (distanceModelInstance -> tdm_list[i].size() != sz1)
+        {
+            Rcpp::stop("Differing number of lagged contact matrices across time points.\n");
+        }
+    }
     if ((dataModelInstance -> nLoc) != (initialValueContainerInstance -> S0.size())) 
     { 
         Rcpp::stop("Data model and initial value container have different dimensions\n");
@@ -170,9 +183,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     std::seed_seq q(std::begin(seed_data), std::end(seed_data));
     generator = new std::mt19937{q};   
 
-
-    // TODO: there should be some better way to synchronize this 
-    // so that we don't need to do all sorts of locking-pushing-sorting
     result_idx = std::vector<int>();
     // Having two results containers is kinda ugly, better solution?
     results_complete = std::vector<simulationResultSet>();
@@ -775,7 +785,6 @@ Rcpp::List spatialSEIRModel::sample_internal(int N, bool verbose, bool init)
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nParams = nBeta + nBetaRS + nRho + nTrans;
-
 
     const int nBatches = (samplingControlInstance -> algorithm == ALG_BasicABC ? 
                         std::ceil(((1.0*N)/r)/bs) :  

@@ -11,13 +11,21 @@
 using namespace std;
 
 
-compartment_tap::compartment_tap(Eigen::MatrixXi comp)
+compartment_tap::compartment_tap(int nrow, int ncol)
 {
-    compartment = comp;
+    int i,j;
+    compartment = Eigen::MatrixXi(nrow, ncol);
+    for (i = 0; i < compartment.rows(); i++)
+    {
+        for (j = 0; j < compartment.cols(); j++)
+        {
+            compartment(i,j) = -1;
+        }
+    }
     idx = 0;
     beenSet = std::vector<int>();
-    nLags = comp.rows();
-    for (int i = 0; i < nLags; i++)
+    nLags = compartment.rows();
+    for (i = 0; i < nLags; i++)
     {
         beenSet.push_back(0);
     }
@@ -33,8 +41,13 @@ void compartment_tap::push(Eigen::VectorXi newComp)
 
 Eigen::VectorXi compartment_tap::get(int lag)
 {
-    int proposed = idx - lag; 
-    proposed = (proposed < 0 ? nLags + proposed : proposed);
+    int i, j;
+    int proposed = idx - lag - 1; 
+    int itr = 0;
+    while (proposed < 0 && itr < 1e6){
+        proposed += nLags;
+        itr++;
+    }
     if (!beenSet[proposed])
     {
         // Error

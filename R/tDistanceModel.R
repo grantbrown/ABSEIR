@@ -27,7 +27,7 @@
 #'  model, and to correspondingly bias inference about other important
 #'  exposure process terms. 
 #' 
-#' @examples distanceModel <- TDistanceModel(list(1-diag(4)))
+#' @examples distanceModel <- DistanceModel(list(1-diag(4)))
 #' @export
 TDistanceModel = function(distanceList, 
                          laggedDistanceList,

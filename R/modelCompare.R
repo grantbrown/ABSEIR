@@ -112,6 +112,7 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
                       }
                       epidemic.simulations(mr[[x]], 
                         returnCompartments=FALSE)$simulationResults$result
+                      
                                 })
         sapply(esim, function(x){
                sum(x < e.compare)})

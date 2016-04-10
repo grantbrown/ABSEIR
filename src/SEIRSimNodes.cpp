@@ -255,8 +255,8 @@ SEIR_sim_node::SEIR_sim_node(int sd,
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
-    has_ts_spatial = (TDM_vec.size() > 1);
-    const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec.size() :
+    has_ts_spatial = (TDM_vec[0].size() > 0);
+    const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
@@ -288,7 +288,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         beta_rs = Eigen::VectorXd(1);
     }
 
-    int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec.size() :
+    int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
                      (has_spatial ? DM_vec.size() : 0));
     Eigen::VectorXd rho;
     if (has_spatial && has_reinfection)
@@ -356,7 +356,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXi current_I(S0.size());
     Eigen::VectorXi current_R(S0.size());
 
-    compartment_tap I_lag(Eigen::MatrixXi(TDM_vec[0].size(), S0.size()));
+    compartment_tap I_lag(TDM_vec[0].size(), S0.size());
 
     Eigen::VectorXi previous_S(S0.size());
     Eigen::VectorXi previous_E(S0.size());
@@ -393,7 +393,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     previous_E = E0;
     previous_I = I0;
     previous_R = R0;
-    I_lag.push(previous_I);
+    if (has_ts_spatial)
+    {
+        I_lag.push(previous_I);
+    }
 
     if (transitionMode != "exponential")
     {
@@ -658,7 +661,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     previous_I = current_I;
     previous_R = current_R;
 
-    I_lag.push(previous_I);
+    if (has_ts_spatial)
+    {
+        I_lag.push(previous_I);
+    }
 
     // Simulation: iterative case
     int lag;

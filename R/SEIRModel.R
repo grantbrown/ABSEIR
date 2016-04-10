@@ -123,17 +123,20 @@ SpatialSEIRModel = function(data_model,
                 distance_model$distanceList[[i]]
             )
         }
-        nLags <- ifelse(length(distance_model$laggedDistanceList == 0, 0, 
-                               length(distance_model$laggedDistanceList[[1]])))
+        nLags <- length(distance_model$laggedDistanceList[[1]]) 
         modelComponents[["distanceModel"]]$setupTemporalDistanceMatrices(
-            length(distance_model$laggedDistanceList))
-        for (i in 1:length(distance_model)) 
+                                    exposure_model$nTpt
+                                )
+        if (nLags > 0)
         {
-            for (j in 1:nLags)
+            for (i in 1:length(distance_model$laggedDistanceList)) 
             {
-                modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
-                            distance_model$laggedDistanceList[[i]][[j]]
-                ) 
+                for (j in 1:nLags)
+                {
+                    modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
+                                distance_model$laggedDistanceList[[i]][[j]]
+                    ) 
+                }
             }
         }
 
@@ -395,17 +398,20 @@ update.SpatialSEIRModel = function(object, ...)
                 distanceModelInstance$distanceList[[i]]
             )
         }
-        nLags <- ifelse(length(distanceModelInstance$laggedDistanceList == 0, 0, 
-                        length(distanceModelInstance$laggedDistanceList[[1]])))
-        modelComponents[["distanceModel"]]$setupTemporalDistanceMatrices(
-            length(distanceModelInstance$laggedDistanceList))
-        for (i in 1:length(distanceModelInstance)) 
-        {
-            for (j in 1:nLags)
-            {
-                modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
-                            distanceModelInstance$laggedDistanceList[[i]][[j]]
+        nLags <- length(distanceModelInstance$laggedDistanceList[[1]]) 
+        modelCache[["distanceModel"]]$setupTemporalDistanceMatrices(
+                    exposureModelInstance$nTpt
                 ) 
+        if (nLags > 0)
+        {
+            for (i in 1:length(distanceModelInstance$laggedDistanceList)) 
+            {
+                for (j in 1:nLags)
+                {
+                    modelCache[["distanceModel"]]$addTDistanceMatrix(i,
+                                distanceModelInstance$laggedDistanceList[[i]][[j]]
+                    ) 
+                }
             }
         }
 

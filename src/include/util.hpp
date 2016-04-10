@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 class compartment_tap{
     public:
-        compartment_tap(Eigen::MatrixXi comp);
+        compartment_tap(int nrow, int ncol);
         virtual void push(Eigen::VectorXi current_comp);
         Eigen::VectorXi get(int lag);
 

@@ -49,7 +49,6 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                                             dataModelInstance$phi,
                                             dataModelInstance$na_mask)
 
-
         if (verbose) cat("...Building distance model\n")
         modelCache[["distanceModel"]] = new(distanceModel)
         for (i in 1:length(distanceModelInstance$distanceList))
@@ -58,6 +57,24 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                 distanceModelInstance$distanceList[[i]]
             )
         }
+        nLags <- length(distanceModelInstance$laggedDistanceList[[1]]) 
+        modelCache[["distanceModel"]]$setupTemporalDistanceMatrices(
+                    exposureModelInstance$nTpt
+                ) 
+        if (nLags > 0)
+        {
+            for (i in 1:length(distanceModelInstance$laggedDistanceList)) 
+            {
+                for (j in 1:nLags)
+                {
+                    modelCache[["distanceModel"]]$addTDistanceMatrix(i,
+                                distanceModelInstance$laggedDistanceList[[i]][[j]]
+                    ) 
+                }
+            }
+        }
+
+
         modelCache[["distanceModel"]]$setPriorParameters(
             distanceModelInstance$priorAlpha,
             distanceModelInstance$priorBeta
