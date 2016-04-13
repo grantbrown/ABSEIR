@@ -947,7 +947,9 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
 
     // Calculate next generation matrices 
     unsigned int size_idx;
+    has_ts_spatial = (TDM_vec[0].size() > 0);
     Eigen::MatrixXd CombinedDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
+    Eigen::MatrixXd tmpDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
     for (size_idx = 0; size_idx < DM_vec.size(); size_idx++) 
     {
         CombinedDM += (DM_vec[size_idx]*((*results).rho(size_idx)));
@@ -956,6 +958,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
     {
         CombinedDM(k,k) = 1.0;
     }
+    tmpDM = CombinedDM;
 
     for (time_idx = 0; time_idx < nTpt; time_idx++)
     {
@@ -964,11 +967,21 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
         {
             for (l = 0; l < nLoc; l++)
             {
+                if (has_ts_spatial)
+                {
+                    tmpDM = CombinedDM;
+                    for (size_idx = 0; 
+                         size_idx < TDM_vec[time_idx].size(); size_idx++) 
+                    {
+                        tmpDM += (TDM_vec[time_idx][size_idx]*
+                                ((*results).rho(size_idx + DM_vec.size())));
+                    }
+                }
                 G(i,l) = ((*results).I(time_idx, l) == 0 ? 
                             0.0 :
                             (*results).S(time_idx, i)/
                             (1.0*(*results).I(time_idx, l)) *
-                            (1.0 - std::exp(-offset(time_idx) * CombinedDM(i,l)
+                            (1.0 - std::exp(-offset(time_idx) * tmpDM(i,l)
                                             * ((*results).I(time_idx, l) 
                                             * (p_se_components(time_idx, l)
                                             /  N(l)))
