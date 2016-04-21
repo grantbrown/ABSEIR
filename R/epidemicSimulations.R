@@ -63,6 +63,11 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                 ) 
         if (nLags > 0)
         {
+            if (exposureModelInstance$nTpt != length(distanceModelInstance$laggedDistanceList))
+            {
+                stop("Lagged distance model and exposure model imply different number of time points.")
+            }
+
             for (i in 1:length(distanceModelInstance$laggedDistanceList)) 
             {
                 for (j in 1:nLags)

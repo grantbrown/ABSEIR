@@ -129,6 +129,11 @@ SpatialSEIRModel = function(data_model,
                                 )
         if (nLags > 0)
         {
+            if (exposure_model$nTpt != length(distance_model$laggedDistanceList))
+            {
+                stop("Lagged distance model and exposure model imply different number of time points.")
+            }
+
             for (i in 1:length(distance_model$laggedDistanceList)) 
             {
                 for (j in 1:nLags)
@@ -404,6 +409,11 @@ update.SpatialSEIRModel = function(object, ...)
                 ) 
         if (nLags > 0)
         {
+            if (exposureModelInstance$nTpt != length(distanceModelInstance$laggedDistanceList))
+            {
+                stop("Lagged distance model and exposure model imply different number of time points.")
+            }
+
             for (i in 1:length(distanceModelInstance$laggedDistanceList)) 
             {
                 for (j in 1:nLags)
@@ -641,6 +651,7 @@ summary.SpatialSEIRModel = function(object, ...)
     nLoc = ncol(object$modelComponents$data_model$Y)
     nTpt = nrow(object$modelComponents$data_model$Y)
 
+    nLags = length(object$modelComponents$distance_model$laggedDistanceList[[1]]) 
     transitionMode = object$modelComponents$transition_priors$mode
     hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
@@ -664,7 +675,7 @@ summary.SpatialSEIRModel = function(object, ...)
             ncol(object$modelComponents$reinfection_model$X_prs), 
             0),
        spatialParams = Ifelse(hasSpatial, 
-            length(object$modelComponents$distance_model$distanceList),
+            length(object$modelComponents$distance_model$distanceList) + nLags,
             0),
        transitionParams = Ifelse(transitionMode == "exponential", 2,
                           Ifelse(transitionMode == "weibull", 4, 0))
