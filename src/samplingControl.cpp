@@ -10,10 +10,10 @@ samplingControl::samplingControl(SEXP integerParameters,
     Rcpp::IntegerVector inIntegerParams(integerParameters);
     Rcpp::NumericVector inNumericParams(numericParameters);
 
-    if (inIntegerParams.size() != 8 ||
+    if (inIntegerParams.size() != 9 ||
         inNumericParams.size() != 3)
     {
-        Rcpp::stop("Exactly 11 samplingControl parameters are required.");
+        Rcpp::stop("Exactly 12 samplingControl parameters are required.");
     }
 
     simulation_width = inIntegerParams(0);
@@ -24,6 +24,8 @@ samplingControl::samplingControl(SEXP integerParameters,
     epochs = inIntegerParams(5);
     max_batches = inIntegerParams(6);
     multivariatePerturbation = inIntegerParams(7) != 0;
+    multivariatePerturbation = inIntegerParams(8);
+
 
     accept_fraction = inNumericParams(0);
     shrinkage = inNumericParams(1);
