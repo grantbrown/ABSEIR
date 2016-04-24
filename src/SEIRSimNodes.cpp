@@ -36,12 +36,13 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::VectorXd rs_mean,
                        double ph,
                        int dmc,
-                       bool cmltv)
+                       bool cmltv,
+                       int m)
 {
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(sd,s,e,i,
                          r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv));
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
 }
 
 void NodeWorker::operator()()
@@ -118,7 +119,8 @@ NodePool::NodePool(std::vector<double>* rslt_ptr,
                        Eigen::VectorXd rs_mean,
                        double ph,
                        int dmc,
-                       bool cmltv)
+                       bool cmltv,
+                       int m)
 {
     result_pointer = rslt_ptr;
     result_complete_pointer = rslt_c_ptr;
@@ -130,7 +132,7 @@ NodePool::NodePool(std::vector<double>* rslt_ptr,
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
                          r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                         )));
     }
 }
@@ -191,7 +193,8 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              Eigen::VectorXd rs_mean,
                              double ph,
                              int dmc,
-                             bool cmltv
+                             bool cmltv,
+                             int m_
                              ) : random_seed(sd),
                                  S0(s),
                                  E0(e),
@@ -216,7 +219,8 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                                  reinfection_mean(rs_mean),
                                  phi(ph),
                                  data_compartment(dmc),
-                                 cumulative(cmltv)
+                                 cumulative(cmltv),
+                                 m(m_)
 {
     try
     {
@@ -504,26 +508,21 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     // Initialize Random Draws
     time_idx = 0;     
-    std::binomial_distribution<int> S_star_gen(previous_S(0,0) ,p_rs(0));            
-    std::binomial_distribution<int> E_star_gen(previous_E(0,0) ,p_se(0));            
-    std::binomial_distribution<int> I_star_gen(previous_I(0,0) ,p_ei(0));            
-    std::binomial_distribution<int> R_star_gen(previous_R(0,0) ,p_ir(0));            
 
     int tmpDraw;
     for (i = 0; i < Y.cols(); i++)
     {
-        S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(i) ,p_rs(0)));
-        E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(i) ,p_se(i)));
-
-        previous_S_star(i) = S_star_gen(*generator);
-        previous_E_star(i) = E_star_gen(*generator);
+        previous_S_star(i) = std::binomial_distribution<int>(
+                previous_R(i), p_rs(0))(*generator);
+        previous_E_star(i) = std::binomial_distribution<int>(
+                previous_S(i), p_se(i))(*generator);
 
         if (transitionMode == "exponential")
         {
-            I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(0)));
-            R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(0)));
-            previous_I_star(i) = I_star_gen(*generator);
-            previous_R_star(i) = R_star_gen(*generator);
+            previous_I_star(i) = std::binomial_distribution<int>(
+                    previous_E(i), p_ei(0))(*generator);
+            previous_R_star(i) = std::binomial_distribution<int>(
+                    previous_I(i), p_ir(0))(*generator);
         }
         else if (transitionMode == "path_specific")
         {
@@ -533,6 +532,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             E_paths(E_paths.rows() -1, i) = 0;
             for (j = 0; j < offset(0); j++)
             {
+                //zzz
                 // TODO: stop early when possible
                 // idea: cache previous max?
                 for (k = E_paths.rows() - 2; 
@@ -540,9 +540,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (E_paths(k,i) > 0)
                     {
-                        I_star_gen.param(std::binomial_distribution<>::param_type(
-                                    E_paths(k,i),E_to_I_prior(k, 5)));
-                        tmpDraw = I_star_gen(*generator);
+                        tmpDraw = std::binomial_distribution<int>(
+                                E_paths(k,i), E_to_I_prior(k,5))(*generator);
                         previous_I_star(i) += tmpDraw;
                         E_paths(k,i) -= tmpDraw;
                         E_paths(k+1, i) = E_paths(k,i);
@@ -561,13 +560,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (I_paths(k,i) > 0)
                     {
-                        R_star_gen.param(std::binomial_distribution<>::param_type(
-                                    I_paths(k,i),I_to_R_prior(k, 5)));
-                        tmpDraw = R_star_gen(*generator);
+                        tmpDraw = std::binomial_distribution<int>(
+                                I_paths(k,i), I_to_R_prior(k,5))(*generator);
                         previous_R_star(i) += tmpDraw;
-                        I_paths(k,i) -= tmpDraw;
+                        I_paths(k, i) -= tmpDraw;
                         I_paths(k+1, i) = I_paths(k,i);
-                        I_paths(k,i) = 0; // not needed?
+                        I_paths(k, i) = 0; // not needed?
                     }
                 }
             }
@@ -587,11 +585,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (E_paths(k,i) > 0)
                     {
-                        I_star_gen.param(std::binomial_distribution<>::param_type(
+                        
+                        tmpDraw = std::binomial_distribution<int>(
                                     E_paths(k,i),
                                     EI_transition_dist -> getTransitionProb(k, k+1)
-                                    ));
-                        tmpDraw = I_star_gen(*generator);
+                                    )(*generator);
                         previous_I_star(i) += tmpDraw;
                         E_paths(k,i) -= tmpDraw;
                         E_paths(k+1, i) = E_paths(k,i);
@@ -610,11 +608,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     if (I_paths(k,i) > 0)
                     {
-                        R_star_gen.param(std::binomial_distribution<>::param_type(
+                        tmpDraw = std::binomial_distribution<int>(
                                     I_paths(k,i),
                                     IR_transition_dist -> getTransitionProb(k, k+1)
-                                    ));
-                        tmpDraw = R_star_gen(*generator);
+                                    )(*generator);
                         previous_R_star(i) += tmpDraw;
                         I_paths(k,i) -= tmpDraw;
                         I_paths(k+1, i) = I_paths(k,i);
@@ -714,20 +711,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
  
         for (i = 0; i < Y.cols(); i++)
         {
-            S_star_gen.param(std::binomial_distribution<>::param_type(previous_R(i) ,p_rs(time_idx)));
-            E_star_gen.param(std::binomial_distribution<>::param_type(previous_S(i) ,p_se(i)));
-            I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(time_idx)));
-            R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(time_idx)));
-
-            previous_S_star(i) = S_star_gen(*generator);
-            previous_E_star(i) = E_star_gen(*generator);
+            previous_S_star(i) = std::binomial_distribution<int>(previous_R(i), p_rs(time_idx))(*generator);
+            previous_E_star(i) = std::binomial_distribution<int>(previous_S(i), p_se(i))(*generator);
 
             if (transitionMode == "exponential")
             {
-                I_star_gen.param(std::binomial_distribution<>::param_type(previous_E(i) ,p_ei(time_idx)));
-                R_star_gen.param(std::binomial_distribution<>::param_type(previous_I(i) ,p_ir(time_idx)));
-                previous_I_star(i) = I_star_gen(*generator);
-                previous_R_star(i) = R_star_gen(*generator);
+                previous_I_star(i) = std::binomial_distribution<int>(previous_E(i), p_ei(time_idx))(*generator);
+                previous_R_star(i) = std::binomial_distribution<int>(previous_I(i), p_ir(time_idx))(*generator);
             }
             else if (transitionMode == "path_specific")
             {
@@ -744,9 +734,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     {
                         if (E_paths(k,i) > 0)
                         {
-                            I_star_gen.param(std::binomial_distribution<>::param_type(
-                                        E_paths(k,i),E_to_I_prior(k, 5)));
-                            tmpDraw = I_star_gen(*generator);
+                            tmpDraw = std::binomial_distribution<int>(E_paths(k,i), E_to_I_prior(k,5))(*generator);
                             previous_I_star(i) += tmpDraw;
                             E_paths(k,i) -= tmpDraw;
                             E_paths(k+1, i) = E_paths(k,i);
@@ -765,9 +753,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     {
                         if (I_paths(k,i) > 0)
                         {
-                            R_star_gen.param(std::binomial_distribution<>::param_type(
-                                        I_paths(k,i),I_to_R_prior(k, 5)));
-                            tmpDraw = R_star_gen(*generator);
+                            tmpDraw = std::binomial_distribution<int>(I_paths(k,i), I_to_R_prior(k,5))(*generator);
                             previous_R_star(i) += tmpDraw;
                             I_paths(k,i) -= tmpDraw;
                             I_paths(k+1, i) = I_paths(k,i);
@@ -791,11 +777,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     {
                         if (E_paths(k,i) > 0)
                         {
-                            I_star_gen.param(std::binomial_distribution<>::param_type(
-                                        E_paths(k,i),
-                                        EI_transition_dist -> getTransitionProb(k, k+1)
-                                        ));
-                            tmpDraw = I_star_gen(*generator);
+                            tmpDraw = std::binomial_distribution<int>(
+                                    E_paths(k,i), 
+                                    EI_transition_dist -> getTransitionProb(k, k+1))(*generator); 
                             previous_I_star(i) += tmpDraw;
                             E_paths(k,i) -= tmpDraw;
                             E_paths(k+1, i) = E_paths(k,i);
@@ -814,11 +798,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     {
                         if (I_paths(k,i) > 0)
                         {
-                            R_star_gen.param(std::binomial_distribution<>::param_type(
-                                        I_paths(k,i),
-                                        IR_transition_dist -> getTransitionProb(k, k+1)
-                                        ));
-                            tmpDraw = R_star_gen(*generator);
+                            tmpDraw = std::binomial_distribution<int>(
+                                    I_paths(k,i), 
+                                    IR_transition_dist -> getTransitionProb(k,k+1)
+                                    )(*generator); 
                             previous_R_star(i) += tmpDraw;
                             I_paths(k,i) -= tmpDraw;
                             I_paths(k+1, i) = I_paths(k,i);

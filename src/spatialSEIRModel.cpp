@@ -226,7 +226,8 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      reinfectionModelInstance -> betaPriorMean,
                      dataModelInstance -> phi,
                      dataModelInstance -> dataModelCompartment,
-                     dataModelInstance -> cumulative
+                     dataModelInstance -> cumulative,
+                     samplingControlInstance -> m
                 ));
 }
     

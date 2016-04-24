@@ -60,7 +60,8 @@ class SEIR_sim_node {
                       Eigen::VectorXd rs_mean,
                       double phi,
                       int data_compartment,
-                      bool cumulative);
+                      bool cumulative,
+                      int m);
         ~SEIR_sim_node();
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
 
@@ -104,6 +105,7 @@ class SEIR_sim_node {
         int total_size;
         int data_compartment;
         bool cumulative;
+        int m;
         mt19937* generator;
         std::normal_distribution<double> overdispersion_distribution;
 };
@@ -137,7 +139,8 @@ class NodeWorker{
                    Eigen::VectorXd rs_mean,
                    double phi,
                    int data_compartment,
-                   bool cumulative);
+                   bool cumulative,
+                   int m);
         void operator()();
     private:
         NodePool* pool;
@@ -174,7 +177,8 @@ class NodePool{
                  Eigen::VectorXd rs_mean,
                  double phi,
                  int data_compartment,
-                 bool cumulative
+                 bool cumulative,
+                 int m
               );
         void awaitFinished();
         void enqueue(std::string action_type, int param_idx, Eigen::VectorXd params);
