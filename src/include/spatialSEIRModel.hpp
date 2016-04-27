@@ -37,7 +37,7 @@ struct simulationResultSet
     Eigen::MatrixXd p_ir;
     Eigen::MatrixXd rho;
     Eigen::MatrixXd beta;
-    double result;
+    Eigen::VectorXd result; 
 };
 
 class dataModel;
@@ -184,7 +184,7 @@ class spatialSEIRModel
         /** Result index vector */
         std::vector<int> result_idx;
         /** Results vector*/
-        std::vector<double> results_double;
+        Eigen::MatrixXd results_double;
         /** Complete results vector */
         std::vector<simulationResultSet> results_complete;
         /** Thread pool */

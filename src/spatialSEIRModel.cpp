@@ -186,12 +186,8 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     result_idx = std::vector<int>();
     // Having two results containers is kinda ugly, better solution?
     results_complete = std::vector<simulationResultSet>();
-    results_double = std::vector<double>();
-    // Prefill results_double
-    for (int idx = 0; idx < samplingControlInstance -> batch_size; idx++)
-    {
-        results_double.push_back(0.0);
-    }
+    results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+                                           samplingControlInstance -> m);
 
     std::vector<int>* index_pointer = &result_idx;
 
@@ -1068,7 +1064,8 @@ Rcpp::List spatialSEIRModel::simulate(Eigen::MatrixXd param_matrix,
         for (i = 0; i < nrow; i++)
         {
             // No resorting
-            outResults(i) = results_double[i];
+            // zzz fix
+            outResults(i) = results_double.col(0)[i];
         }
         outList["result"] = outResults;
     }

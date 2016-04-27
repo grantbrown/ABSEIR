@@ -65,12 +65,12 @@ void NodeWorker::operator()()
         }
         if (task.action_type == sim_atom)
         {
-            double result = node -> simulate(task.params, false).result;
+            Eigen::VectorXd result = node -> simulate(task.params, false).result;
             {
                 //std::unique_lock<std::mutex> lock(pool -> result_mutex);
                 //pool -> index_pointer -> push_back(task.param_idx);
                 // We're accessing unique locations, so no mutex required
-                (*(pool -> result_pointer))[task.param_idx] = result;
+                (*(pool -> result_pointer)).row(task.param_idx) = result;
             }
         }
         else if (task.action_type == sim_result_atom)
@@ -229,6 +229,10 @@ SEIR_sim_node::SEIR_sim_node(int sd,
         std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator));
         std::seed_seq q(std::begin(seed_data), std::end(seed_data));
         generator = new mt19937{q};   
+        int i;
+
+        E_paths = std::vector<Eigen::MatrixXi>();
+        I_paths = std::vector<Eigen::MatrixXi>();
 
         if (transitionMode == "weibull")
         {
@@ -236,18 +240,25 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                     new weibullTransitionDistribution(E_to_I_prior.col(0)));
             IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
                     new weibullTransitionDistribution(I_to_R_prior.col(0)));
-            E_paths = Eigen::MatrixXi((int) E_to_I_prior(4,0), Y.cols());
-            I_paths = Eigen::MatrixXi((int) I_to_R_prior(4,0), Y.cols());
+            for (i = 0; i < m; i++){
+                E_paths.push_back(Eigen::MatrixXi((int) E_to_I_prior(4,0), Y.cols()));
+                I_paths.push_back(Eigen::MatrixXi((int) I_to_R_prior(4,0), Y.cols()));
+            }
         }
         else if (transitionMode == "path_specific")
         {
-            E_paths = Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols());
-            I_paths = Eigen::MatrixXi(I_to_R_prior.rows(),Y.cols());
+            for (i = 0; i < m; i++){
+                E_paths.push_back(Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols()));
+                I_paths.push_back(Eigen::MatrixXi(I_to_R_prior.rows(),Y.cols()));
+            }
         }
         else
         {
-            E_paths = Eigen::MatrixXi(1,Y.cols());
-            I_paths = Eigen::MatrixXi(1,Y.cols());
+            for (i = 0; i < m; i++)
+            {
+                E_pathsi.push_back(Eigen::MatrixXi(1,Y.cols()));
+                I_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
+            }
         }
         if (phi > 0)
         {   
@@ -282,9 +293,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     simulationResultSet compartmentResults;
  
-    Eigen::VectorXd results = Eigen::VectorXd(1); 
-    results(0) = 0.0;
-
+    Eigen::VectorXd results = Eigen::VectorXd::Zero(m); 
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
     if (has_reinfection) 
@@ -338,18 +347,21 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     if (transitionMode != "exponential")
     {
         // Clear out paths
-        for (i = 0; i < E_paths.cols(); i++)
+        for (k = 0; k < m; k++)
         {
-            for(j = 0; j < E_paths.rows(); j++)
+            for (i = 0; i < E_paths[k].cols(); i++)
             {
-                E_paths(j,i) = 0;
+                for(j = 0; j < E_paths[k].rows(); j++)
+                {
+                    E_paths[k](j,i) = 0;
+                }
             }
-        }
-        for (i = 0; i < I_paths.cols(); i++)
-        {
-            for(j = 0; j < I_paths.rows(); j++)
+            for (i = 0; i < I_paths[k].cols(); i++)
             {
-                I_paths(j,i) = 0;
+                for(j = 0; j < I_paths[k].rows(); j++)
+                {
+                    I_paths[k](j,i) = 0;
+                }
             }
         }
     }
@@ -357,29 +369,33 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXi N(S0.size());
     N = (S0 + E0 + I0 + R0);
 
-    Eigen::VectorXd p_se_cache(S0.size());
+    Eigen::MatrixXd p_se_cache(S0.size(), m);
 
-    Eigen::VectorXi current_S(S0.size());
-    Eigen::VectorXi current_E(S0.size());
-    Eigen::VectorXi current_I(S0.size());
-    Eigen::VectorXi current_R(S0.size());
+    Eigen::MatrixXi current_S(S0.size(), m);
+    Eigen::MatrixXi current_E(S0.size(), m);
+    Eigen::MatrixXi current_I(S0.size(), m);
+    Eigen::MatrixXi current_R(S0.size(), m);
 
-    compartment_tap I_lag(TDM_vec[0].size(), S0.size());
+    std::vector<compartment_tap> I_lag();
+    for (i = 0; i < m; i++)
+    {
+        compartment_tap.push_back(compartment_tap(TDM_vec[0].size(), S0.size()));
+    }
 
-    Eigen::VectorXi previous_S(S0.size());
-    Eigen::VectorXi previous_E(S0.size());
-    Eigen::VectorXi previous_I(S0.size());
-    Eigen::VectorXi previous_R(S0.size());
+    Eigen::MatrixXi previous_S(S0.size(), m);
+    Eigen::MatrixXi previous_E(S0.size(), m);
+    Eigen::MatrixXi previous_I(S0.size(), m);
+    Eigen::MatrixXi previous_R(S0.size(), m);
 
 
-    Eigen::VectorXi previous_S_star(S0.size());
-    Eigen::VectorXi previous_E_star(S0.size());
-    Eigen::VectorXi previous_I_star(S0.size());
-    Eigen::VectorXi previous_R_star(S0.size()); 
+    Eigen::MatrixXi previous_S_star(S0.size(), m);
+    Eigen::MatrixXi previous_E_star(S0.size(), m);
+    Eigen::MatrixXi previous_I_star(S0.size(), m);
+    Eigen::MatrixXi previous_R_star(S0.size(), m); 
 
-    Eigen::VectorXi cumulative_compartment(S0.size());
+    Eigen::MatrixXi cumulative_compartment(S0.size(), m);
 
-    Eigen::VectorXi* comparison_compartment = (data_compartment == 0 ?
+    Eigen::MatrixXi* comparison_compartment = (data_compartment == 0 ?
                                                &previous_I_star : 
                                               (data_compartment == 1 ? 
                                                &previous_R_star : 
@@ -397,29 +413,52 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 Y.rows(), Y.cols());
 
     time_idx = 0;
-    previous_S = S0;
-    previous_E = E0;
-    previous_I = I0;
-    previous_R = R0;
+    for (i = 0; i < m; i++)
+    {
+        previous_S.col(i) = S0;
+        previous_E.col(i) = E0;
+        previous_I.col(i) = I0;
+        previous_R.col(i) = R0;
+    }
     if (has_ts_spatial)
     {
-        I_lag.push(previous_I);
+        for (i = 0; i < m; i++)
+        {
+            I_lag[i].push(previous_I.col(i));
+        }
     }
 
     if (transitionMode != "exponential")
     {
-        I_paths.row(0) = I0;
-        E_paths.row(0) = E0;
+        for (i = 0; i < m; i++)
+        {
+            I_paths[i].row(0) = I0;
+            E_paths[i].row(0) = E0;
+        }
     }
 
 
+
+    p_se_cache = (((p_se_components.row(0).array().transpose())
+                   * (previous_I.cast<double>().array().colwise())).colwise() 
+                   * (((N.cast<double>().array()).unaryExpr([](double e)
+                    {
+                        return(1.0/e);
+                    })).array()));
+
+    /*
+    Before m > 0:
     p_se_cache = (((p_se_components.row(0).array().transpose())
                    * (previous_I.cast<double>().array())) 
                    * (((N.cast<double>().array()).unaryExpr([](double e)
                     {
                         return(1.0/e);
                     })).array()));
-    Eigen::VectorXd p_se = 1*p_se_cache; 
+    */
+
+
+
+    Eigen::MatrixXd p_se = 1*p_se_cache; 
 
     if (has_spatial)
     {
@@ -439,9 +478,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
-
-
-
 
     // Not used if transitionMode != "exponential"
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -484,7 +520,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
-        compartmentResults.p_se.row(0) = p_se;
+        compartmentResults.p_se.row(0) = p_se.col(0);
         if (transitionMode == "exponential")
         {
             compartmentResults.p_ei = p_ei.transpose(); 
@@ -510,128 +546,129 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     time_idx = 0;     
 
     int tmpDraw;
-    for (i = 0; i < Y.cols(); i++)
+    for (w = 0; w < m; w++)
     {
-        previous_S_star(i) = std::binomial_distribution<int>(
-                previous_R(i), p_rs(0))(*generator);
-        previous_E_star(i) = std::binomial_distribution<int>(
-                previous_S(i), p_se(i))(*generator);
+        for (i = 0; i < Y.cols(); i++)
+        {
+            previous_S_star(i, w) = std::binomial_distribution<int>(
+                    previous_R(i, w), p_rs(0))(*generator);
+            previous_E_star(i, w) = std::binomial_distribution<int>(
+                    previous_S(i, w), p_se(i, w))(*generator);
 
-        if (transitionMode == "exponential")
-        {
-            previous_I_star(i) = std::binomial_distribution<int>(
-                    previous_E(i), p_ei(0))(*generator);
-            previous_R_star(i) = std::binomial_distribution<int>(
-                    previous_I(i), p_ir(0))(*generator);
-        }
-        else if (transitionMode == "path_specific")
-        {
-            // Updating E_paths and I_paths is repetative - factor out into a function?
-            // That might be costly, unless it's inlined...
-            previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
-            E_paths(E_paths.rows() -1, i) = 0;
-            for (j = 0; j < offset(0); j++)
+            if (transitionMode == "exponential")
             {
-                //zzz
-                // TODO: stop early when possible
-                // idea: cache previous max?
-                for (k = E_paths.rows() - 2; 
-                        k >= 0; k--)
+                previous_I_star(i, w) = std::binomial_distribution<int>(
+                        previous_E(i, w), p_ei(0))(*generator);
+                previous_R_star(i, w) = std::binomial_distribution<int>(
+                        previous_I(i, w), p_ir(0))(*generator);
+            }
+            else if (transitionMode == "path_specific")
+            {
+                // Updating E_paths and I_paths is repetative - factor out into a function?
+                // That might be costly, unless it's inlined...
+                previous_I_star(i, w) = E_paths[w](E_paths[w].rows() - 1, i); // could take outside loop
+                E_paths[w](E_paths[w].rows() -1, i) = 0;
+                for (j = 0; j < offset(0); j++)
                 {
-                    if (E_paths(k,i) > 0)
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = E_paths[w].rows() - 2; 
+                            k >= 0; k--)
                     {
-                        tmpDraw = std::binomial_distribution<int>(
-                                E_paths(k,i), E_to_I_prior(k,5))(*generator);
-                        previous_I_star(i) += tmpDraw;
-                        E_paths(k,i) -= tmpDraw;
-                        E_paths(k+1, i) = E_paths(k,i);
-                        E_paths(k,i) = 0; // not needed?
+                        if (E_paths[w](k,i) > 0)
+                        {
+                            tmpDraw = std::binomial_distribution<int>(
+                                    E_paths[w](k,i), E_to_I_prior(k,5))(*generator);
+                            previous_I_star(i, w) += tmpDraw;
+                            E_paths[w](k,i) -= tmpDraw;
+                            E_paths[w](k+1, i) = E_paths[w](k,i);
+                            E_paths[w](k,i) = 0; // not needed?
+                        }
+                    }
+                }
+                previous_R_star(i, w) = I_paths[w](I_paths[w].rows() - 1, i); // could take outside loop
+                I_paths[w](I_paths[w].rows() -1, i) = 0;
+                for (j = 0; j < offset(0); j++)
+                {
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = I_paths[w].rows() - 2; 
+                            k >= 0; k--)
+                    {
+                        if (I_paths[w](k,i) > 0)
+                        {
+                            tmpDraw = std::binomial_distribution<int>(
+                                    I_paths[w](k,i), I_to_R_prior(k,5))(*generator);
+                            previous_R_star(i,w) += tmpDraw;
+                            I_paths[w](k, i) -= tmpDraw;
+                            I_paths[w](k+1, i) = I_paths[w](k,i);
+                            I_paths[w](k, i) = 0; // not needed?
+                        }
                     }
                 }
             }
-            previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
-            I_paths(I_paths.rows() -1, i) = 0;
-            for (j = 0; j < offset(0); j++)
+            else
             {
-                // TODO: stop early when possible
-                // idea: cache previous max?
-                for (k = I_paths.rows() - 2; 
-                        k >= 0; k--)
+                // Updating E_paths and I_paths is repetative - factor out into a function?
+                // That might be costly, unless it's inlined...
+                previous_I_star(i, w) = E_paths[w](E_paths[w].rows() - 1, i); // could take outside loop
+                E_paths[w](E_paths[w].rows() - 1, i) = 0;
+                for (j = 0; j < offset(0); j++)
                 {
-                    if (I_paths(k,i) > 0)
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = E_paths[w].rows() - 2; 
+                            k >= 0; k--)
                     {
-                        tmpDraw = std::binomial_distribution<int>(
-                                I_paths(k,i), I_to_R_prior(k,5))(*generator);
-                        previous_R_star(i) += tmpDraw;
-                        I_paths(k, i) -= tmpDraw;
-                        I_paths(k+1, i) = I_paths(k,i);
-                        I_paths(k, i) = 0; // not needed?
+                        if (E_paths[w](k,i) > 0)
+                        { 
+                            tmpDraw = std::binomial_distribution<int>(
+                                        E_paths[w](k,i),
+                                        EI_transition_dist -> getTransitionProb(k, k+1)
+                                        )(*generator);
+                            previous_I_star(i,w) += tmpDraw;
+                            E_paths[w](k,i) -= tmpDraw;
+                            E_paths[w](k+1, i) = E_paths[w](k,i);
+                            E_paths[w](k,i) = 0; // not needed?
+                        }
+                    }
+                }
+                previous_R_star(i,w) = I_paths[w](I_paths[w].rows() - 1, i); // could take outside loop
+                I_paths[w](I_paths[w].rows() -1, i) = 0;
+                for (j = 0; j < offset(0); j++)
+                {
+                    // TODO: stop early when possible
+                    // idea: cache previous max?
+                    for (k = I_paths[w].rows() - 2; 
+                            k >= 0; k--)
+                    {
+                        if (I_paths[w](k,i) > 0)
+                        {
+                            tmpDraw = std::binomial_distribution<int>(
+                                        I_paths[w](k,i),
+                                        IR_transition_dist -> getTransitionProb(k, k+1)
+                                        )(*generator);
+                            previous_R_star(i,w) += tmpDraw;
+                            I_paths[w](k,i) -= tmpDraw;
+                            I_paths[w](k+1, i) = I_paths[w](k,i);
+                            I_paths[w](k,i) = 0; // not needed?
+                        }
                     }
                 }
             }
-        }
-        else
-        {
-            // Updating E_paths and I_paths is repetative - factor out into a function?
-            // That might be costly, unless it's inlined...
-            previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
-            E_paths(E_paths.rows() - 1, i) = 0;
-            for (j = 0; j < offset(0); j++)
-            {
-                // TODO: stop early when possible
-                // idea: cache previous max?
-                for (k = E_paths.rows() - 2; 
-                        k >= 0; k--)
-                {
-                    if (E_paths(k,i) > 0)
-                    {
-                        
-                        tmpDraw = std::binomial_distribution<int>(
-                                    E_paths(k,i),
-                                    EI_transition_dist -> getTransitionProb(k, k+1)
-                                    )(*generator);
-                        previous_I_star(i) += tmpDraw;
-                        E_paths(k,i) -= tmpDraw;
-                        E_paths(k+1, i) = E_paths(k,i);
-                        E_paths(k,i) = 0; // not needed?
-                    }
-                }
-            }
-            previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
-            I_paths(I_paths.rows() -1, i) = 0;
-            for (j = 0; j < offset(0); j++)
-            {
-                // TODO: stop early when possible
-                // idea: cache previous max?
-                for (k = I_paths.rows() - 2; 
-                        k >= 0; k--)
-                {
-                    if (I_paths(k,i) > 0)
-                    {
-                        tmpDraw = std::binomial_distribution<int>(
-                                    I_paths(k,i),
-                                    IR_transition_dist -> getTransitionProb(k, k+1)
-                                    )(*generator);
-                        previous_R_star(i) += tmpDraw;
-                        I_paths(k,i) -= tmpDraw;
-                        I_paths(k+1, i) = I_paths(k,i);
-                        I_paths(k,i) = 0; // not needed?
-                    }
-                }
-            }
-        }
 
-        if (cumulative)
-        {
-            cumulative_compartment(i) = (*comparison_compartment)(i);
-        }
+            if (cumulative)
+            {
+                cumulative_compartment(i) = (*comparison_compartment)(i);
+            }
 
-        results(0) += (na_mask(0,i) ? 0 : 
-                pow(((*comparison_compartment)(i) + 
-                        (phi > 0 ? 
-                         std::floor(overdispersion_distribution(*generator)) : 0)
-                        - Y(0, i)), 2.0)); 
-    }
+            results(w) += (na_mask(0,i) ? 0 : 
+                    pow(((*comparison_compartment)(i,w) + 
+                            (phi > 0 ? 
+                             std::floor(overdispersion_distribution(*generator)) : 0)
+                            - Y(0, i)), 2.0)); 
+        }// End i loop
+    }// End w loop
 
     if (keepCompartments)
     {
@@ -642,10 +679,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             compartmentResults.I(time_idx, i) = I0(i);
             compartmentResults.R(time_idx, i) = R0(i);
 
-            compartmentResults.S_star(time_idx, i) = previous_S_star(i);
-            compartmentResults.E_star(time_idx, i) = previous_E_star(i);
-            compartmentResults.I_star(time_idx, i) = previous_I_star(i);
-            compartmentResults.R_star(time_idx, i) = previous_R_star(i);
+            compartmentResults.S_star(time_idx, i) = previous_S_star(i,0);
+            compartmentResults.E_star(time_idx, i) = previous_E_star(i,0);
+            compartmentResults.I_star(time_idx, i) = previous_I_star(i,0);
+            compartmentResults.R_star(time_idx, i) = previous_R_star(i,0);
         }
     }
 
@@ -656,8 +693,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     if (transitionMode != "exponential")
     {
-        E_paths.row(0) = previous_E_star;
-        I_paths.row(0) = previous_I_star;
+        for (w = 0; w < m; w++)
+        {
+            E_paths[w].row(0) = previous_E_star.col(w);
+            I_paths[w].row(0) = previous_I_star.col(w);
+        }
     }
 
     previous_S = current_S;
@@ -667,212 +707,216 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
     if (has_ts_spatial)
     {
-        I_lag.push(previous_I);
+        for (w = 0; w < m; w++)
+        {
+            I_lag[w].push(previous_I.col(w));
+        }
     }
 
     // Simulation: iterative case
     int lag;
-    for (time_idx = 1; time_idx < Y.rows(); time_idx++)
+    for (w = 0; w < m; w++)
     {
-        p_se_cache = (((p_se_components.row(time_idx).array().transpose())
-                   * (previous_I.cast<double>().array())) 
-                   * (((N.cast<double>().array()).unaryExpr([](double e)
-                    {
-                        return(1.0/e);
-                    })).array()));
-        
-        p_se = 1*p_se_cache; 
-        if (has_spatial)
+        for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
-            for (idx = 0; idx < DM_vec.size(); idx++)
+            p_se_cache = (((p_se_components.row(time_idx).array().transpose())
+                       * (previous_I.cast<double>().array().colwise())).colwise() 
+                       * (((N.cast<double>().array()).unaryExpr([](double e)
+                        {
+                            return(1.0/e);
+                        })).array()));   
+
+            p_se = 1*p_se_cache; 
+            if (has_spatial)
             {
-                p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
+                for (idx = 0; idx < DM_vec.size(); idx++)
+                {
+                    p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
+                }
             }
-        }
 
-
-        if (has_ts_spatial && !TDM_empty[time_idx])
-        {
-            for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
+            if (has_ts_spatial && !TDM_empty[time_idx])
             {
-                p_se_cache = (((p_se_components.row(time_idx - lag).array().transpose())
-                           * (I_lag.get(lag).cast<double>().array())) 
-                           * (((N.cast<double>().array()).unaryExpr([](double e)
+                for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
+                {
+                    p_se_cache = (((p_se_components.row(time_idx - lag).array().transpose())
+                               * (I_lag[w].get(lag).cast<double>().array().colwise())).colwise() 
+                               * (((N.cast<double>().array()).unaryExpr([](double e)
+                                {
+                                    return(1.0/e);
+                                })).array()));
+
+                    p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
+                }
+            }
+
+
+            p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()
+                    ).unaryExpr([](double e){return(1-std::exp(e));});
+     
+            for (i = 0; i < Y.cols(); i++)
+            {
+                previous_S_star(i,w) = std::binomial_distribution<int>(previous_R(i,w), p_rs(time_idx))(*generator);
+                previous_E_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,w))(*generator);
+
+                if (transitionMode == "exponential")
+                {
+                    previous_I_star(i,w) = std::binomial_distribution<int>(previous_E(i,w), p_ei(time_idx))(*generator);
+                    previous_R_star(i,w) = std::binomial_distribution<int>(previous_I(i,w), p_ir(time_idx))(*generator);
+                }
+                else if (transitionMode == "path_specific")
+                {
+                    // Updating E_paths and I_paths is repetative - factor out into a function?
+                    // That might be costly, unless it's inlined...
+                    previous_I_star(i,w) = E_paths[w](E_paths[w].rows() - 1, i); // could take outside loop
+                    E_paths[w](E_paths[w].rows() -1, i) = 0;
+                    for (j = 0; j < offset(time_idx); j++)
+                    {
+                        // TODO: stop early when possible
+                        // idea: cache previous max?
+                        for (k = E_paths[w].rows() - 2; 
+                                k >= 0; k--)
+                        {
+                            if (E_paths[w](k,i) > 0)
                             {
-                                return(1.0/e);
-                            })).array()));
-
-                p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
-            }
-        }
-
-
-        p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()).unaryExpr([](double e){return(1-std::exp(e));});
- 
-        for (i = 0; i < Y.cols(); i++)
-        {
-            previous_S_star(i) = std::binomial_distribution<int>(previous_R(i), p_rs(time_idx))(*generator);
-            previous_E_star(i) = std::binomial_distribution<int>(previous_S(i), p_se(i))(*generator);
-
-            if (transitionMode == "exponential")
-            {
-                previous_I_star(i) = std::binomial_distribution<int>(previous_E(i), p_ei(time_idx))(*generator);
-                previous_R_star(i) = std::binomial_distribution<int>(previous_I(i), p_ir(time_idx))(*generator);
-            }
-            else if (transitionMode == "path_specific")
-            {
-                // Updating E_paths and I_paths is repetative - factor out into a function?
-                // That might be costly, unless it's inlined...
-                previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
-                E_paths(E_paths.rows() -1, i) = 0;
-                for (j = 0; j < offset(time_idx); j++)
-                {
-                    // TODO: stop early when possible
-                    // idea: cache previous max?
-                    for (k = E_paths.rows() - 2; 
-                            k >= 0; k--)
+                                tmpDraw = std::binomial_distribution<int>(E_paths[w](k,i), E_to_I_prior(k,5))(*generator);
+                                previous_I_star(i,w) += tmpDraw;
+                                E_paths[w](k,i) -= tmpDraw;
+                                E_paths[w](k+1, i) = E_paths[w](k,i);
+                                E_paths[w](k,i) = 0; // not needed?
+                            }
+                        }
+                    }
+                    previous_R_star(i,w) = I_paths[w](I_paths[w].rows() - 1, i); // could take outside loop
+                    I_paths[w](I_paths[w].rows() -1, i) = 0;
+                    for (j = 0; j < offset(time_idx); j++)
                     {
-                        if (E_paths(k,i) > 0)
+                        // TODO: stop early when possible
+                        // idea: cache previous max?
+                        for (k = I_paths[w].rows() - 2; 
+                                k >= 0; k--)
                         {
-                            tmpDraw = std::binomial_distribution<int>(E_paths(k,i), E_to_I_prior(k,5))(*generator);
-                            previous_I_star(i) += tmpDraw;
-                            E_paths(k,i) -= tmpDraw;
-                            E_paths(k+1, i) = E_paths(k,i);
-                            E_paths(k,i) = 0; // not needed?
+                            if (I_paths[w](k,i) > 0)
+                            {
+                                tmpDraw = std::binomial_distribution<int>(I_paths[w](k,i), I_to_R_prior(k,5))(*generator);
+                                previous_R_star(i,w) += tmpDraw;
+                                I_paths[w](k,i) -= tmpDraw;
+                                I_paths[w](k+1, i) = I_paths[w](k,i);
+                                I_paths[w](k,i) = 0; // not needed?
+                            }
                         }
                     }
                 }
-                previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
-                I_paths(I_paths.rows() -1, i) = 0;
-                for (j = 0; j < offset(time_idx); j++)
+                else
                 {
-                    // TODO: stop early when possible
-                    // idea: cache previous max?
-                    for (k = I_paths.rows() - 2; 
-                            k >= 0; k--)
+                    // Updating E_paths and I_paths is repetative - factor out into a function?
+                    // That might be costly, unless it's inlined...
+                    previous_I_star(i,w) = E_paths[w](E_paths[w].rows() - 1, i); // could take outside loop
+                    E_paths[w](E_paths[w].rows() - 1, i) = 0;
+                    for (j = 0; j < offset(time_idx); j++)
                     {
-                        if (I_paths(k,i) > 0)
+                        // TODO: stop early when possible
+                        // idea: cache previous max?
+                        for (k = E_paths[w].rows() - 2; 
+                                k >= 0; k--)
                         {
-                            tmpDraw = std::binomial_distribution<int>(I_paths(k,i), I_to_R_prior(k,5))(*generator);
-                            previous_R_star(i) += tmpDraw;
-                            I_paths(k,i) -= tmpDraw;
-                            I_paths(k+1, i) = I_paths(k,i);
-                            I_paths(k,i) = 0; // not needed?
+                            if (E_paths[w](k,i) > 0)
+                            {
+                                tmpDraw = std::binomial_distribution<int>(
+                                        E_paths[w](k,i), 
+                                        EI_transition_dist -> getTransitionProb(k, k+1))(*generator); 
+                                previous_I_star(i,w) += tmpDraw;
+                                E_paths[w](k,i) -= tmpDraw;
+                                E_paths[w](k+1, i) = E_paths[w](k,i);
+                                E_paths[w](k,i) = 0; // not needed?
+                            }
                         }
                     }
-                }
-            }
-            else
-            {
-                // Updating E_paths and I_paths is repetative - factor out into a function?
-                // That might be costly, unless it's inlined...
-                previous_I_star(i) = E_paths(E_paths.rows() - 1, i); // could take outside loop
-                E_paths(E_paths.rows() -1, i) = 0;
-                for (j = 0; j < offset(time_idx); j++)
-                {
-                    // TODO: stop early when possible
-                    // idea: cache previous max?
-                    for (k = E_paths.rows() - 2; 
-                            k >= 0; k--)
+                    previous_R_star(i,w) = I_paths[w](I_paths[w].rows() - 1, i); // could take outside loop
+                    I_paths[w](I_paths[w].rows() -1, i) = 0;
+                    for (j = 0; j < offset(time_idx); j++)
                     {
-                        if (E_paths(k,i) > 0)
+                        // TODO: stop early when possible
+                        // idea: cache previous max?
+                        for (k = I_paths[w].rows() - 2; 
+                                k >= 0; k--)
                         {
-                            tmpDraw = std::binomial_distribution<int>(
-                                    E_paths(k,i), 
-                                    EI_transition_dist -> getTransitionProb(k, k+1))(*generator); 
-                            previous_I_star(i) += tmpDraw;
-                            E_paths(k,i) -= tmpDraw;
-                            E_paths(k+1, i) = E_paths(k,i);
-                            E_paths(k,i) = 0; // not needed?
+                            if (I_paths[w](k,i) > 0)
+                            {
+                                tmpDraw = std::binomial_distribution<int>(
+                                        I_paths[w](k,i), 
+                                        IR_transition_dist -> getTransitionProb(k,k+1)
+                                        )(*generator); 
+                                previous_R_star(i,w) += tmpDraw;
+                                I_paths[w](k,i) -= tmpDraw;
+                                I_paths[w](k+1, i) = I_paths[w](k,i);
+                                I_paths[w](k,i) = 0; // not needed?
+                            }
                         }
                     }
+
                 }
-                previous_R_star(i) = I_paths(I_paths.rows() - 1, i); // could take outside loop
-                I_paths(I_paths.rows() -1, i) = 0;
-                for (j = 0; j < offset(time_idx); j++)
+                if (cumulative)
                 {
-                    // TODO: stop early when possible
-                    // idea: cache previous max?
-                    for (k = I_paths.rows() - 2; 
-                            k >= 0; k--)
-                    {
-                        if (I_paths(k,i) > 0)
-                        {
-                            tmpDraw = std::binomial_distribution<int>(
-                                    I_paths(k,i), 
-                                    IR_transition_dist -> getTransitionProb(k,k+1)
-                                    )(*generator); 
-                            previous_R_star(i) += tmpDraw;
-                            I_paths(k,i) -= tmpDraw;
-                            I_paths(k+1, i) = I_paths(k,i);
-                            I_paths(k,i) = 0; // not needed?
-                        }
-                    }
+                    cumulative_compartment(i,w) += (*comparison_compartment)(i,w); 
+
+                    results(w) += (na_mask(time_idx, i) ? 0 : 
+                        pow(((cumulative_compartment)(i,w) 
+                                + (phi > 0 ? 
+                                    std::floor(overdispersion_distribution(*generator)) 
+                                    : 0)
+                                - Y(time_idx, i)), 2.0)); 
                 }
-
+                else
+                {
+                    results(w) += (na_mask(time_idx, i) ? 0 : 
+                            pow(((*comparison_compartment)(i,w) + (phi > 0 ? 
+                                        std::floor(overdispersion_distribution(*generator))
+                                        : 0)- Y(time_idx, i)), 2.0)); 
+                }
             }
-            if (cumulative)
+
+            if (keepCompartments)
             {
-                cumulative_compartment(i) += (*comparison_compartment)(i); 
+                for (i = 0; i < S0.size(); i++)
+                {
+                    compartmentResults.S(time_idx, i) = previous_S(i,0);
+                    compartmentResults.E(time_idx, i) = previous_E(i,0);
+                    compartmentResults.I(time_idx, i) = previous_I(i,0);
+                    compartmentResults.R(time_idx, i) = previous_R(i,0);
 
-                results(0) += (na_mask(time_idx, i) ? 0 : 
-                    pow(((cumulative_compartment)(i) 
-                            + (phi > 0 ? 
-                                std::floor(overdispersion_distribution(*generator)) 
-                                : 0)
-                            - Y(time_idx, i)), 2.0)); 
+                    compartmentResults.S_star(time_idx, i) = previous_S_star(i,0);
+                    compartmentResults.E_star(time_idx, i) = previous_E_star(i,0);
+                    compartmentResults.I_star(time_idx, i) = previous_I_star(i,0);
+                    compartmentResults.R_star(time_idx, i) = previous_R_star(i,0);
+
+                    compartmentResults.p_se.row(time_idx) = p_se.col(0);
+                }
             }
-            else
+
+            current_S = previous_S + previous_S_star - previous_E_star;
+            current_E = previous_E + previous_E_star - previous_I_star;
+            current_I = previous_I + previous_I_star - previous_R_star;
+            current_R = previous_R + previous_R_star - previous_S_star;
+
+            if (transitionMode != "exponential")
             {
-                results(0) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((*comparison_compartment)(i) + (phi > 0 ? 
-                                    std::floor(overdispersion_distribution(*generator))
-                                    : 0)- Y(time_idx, i)), 2.0)); 
+                E_paths[w].row(0) = previous_E_star.col(w);
+                I_paths[w].row(0) = previous_I_star.col(w);
             }
+
+            previous_S = current_S;
+            previous_E = current_E;
+            previous_I = current_I;
+            previous_R = current_R;
         }
-
-        if (keepCompartments)
-        {
-            for (i = 0; i < S0.size(); i++)
-            {
-                compartmentResults.S(time_idx, i) = previous_S(i);
-                compartmentResults.E(time_idx, i) = previous_E(i);
-                compartmentResults.I(time_idx, i) = previous_I(i);
-                compartmentResults.R(time_idx, i) = previous_R(i);
-
-                compartmentResults.S_star(time_idx, i) = previous_S_star(i);
-                compartmentResults.E_star(time_idx, i) = previous_E_star(i);
-                compartmentResults.I_star(time_idx, i) = previous_I_star(i);
-                compartmentResults.R_star(time_idx, i) = previous_R_star(i);
-
-                compartmentResults.p_se.row(time_idx) = p_se;
-            }
-        }
-
-        current_S = previous_S + previous_S_star - previous_E_star;
-        current_E = previous_E + previous_E_star - previous_I_star;
-        current_I = previous_I + previous_I_star - previous_R_star;
-        current_R = previous_R + previous_R_star - previous_S_star;
-
-        if (transitionMode != "exponential")
-        {
-            E_paths.row(0) = previous_E_star;
-            I_paths.row(0) = previous_I_star;
-        }
-
-        previous_S = current_S;
-        previous_E = current_E;
-        previous_I = current_I;
-        previous_R = current_R;
     }
 
-
-    double resultVal = std::sqrt(results(0)); 
     if (keepCompartments)
     {
         calculateReproductiveNumbers(&compartmentResults);
     }
-    compartmentResults.result = resultVal; 
+    compartmentResults.result = results; 
     return(compartmentResults);
 }
 

@@ -75,8 +75,8 @@ class SEIR_sim_node {
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
         Eigen::MatrixXi Y;
-        Eigen::MatrixXi E_paths;
-        Eigen::MatrixXi I_paths;
+        std::vector<Eigen::MatrixXi> E_paths;
+        std::vector<Eigen::MatrixXi> I_paths;
         MatrixXb na_mask;
         std::vector<Eigen::MatrixXd> DM_vec;
         std::vector<std::vector<Eigen::MatrixXd> > TDM_vec;
@@ -149,7 +149,7 @@ class NodeWorker{
 
 class NodePool{
     public:
-        NodePool(std::vector<double>* result_pointer,
+        NodePool(Eigen::MatrixXd* result_pointer,
                  std::vector<simulationResultSet>* result_complete_pointer,
                  std::vector<int>* index_pointer,
                  int,
@@ -182,7 +182,7 @@ class NodePool{
               );
         void awaitFinished();
         void enqueue(std::string action_type, int param_idx, Eigen::VectorXd params);
-        std::vector<double>* result_pointer;
+        Eigen::MatrixXd* result_pointer;
         std::vector<simulationResultSet>* result_complete_pointer;
         std::vector<int>* index_pointer;
         ~NodePool();
