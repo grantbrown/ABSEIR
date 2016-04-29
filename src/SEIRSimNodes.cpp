@@ -40,7 +40,7 @@ NodeWorker::NodeWorker(NodePool* pl,
                        int m)
 {
     pool = pl;
-    node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(sd,s,e,i,
+    node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
                          r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
 }
