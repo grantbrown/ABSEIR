@@ -91,7 +91,7 @@ void NodeWorker::operator()()
     }
 }
 
-NodePool::NodePool(std::vector<double>* rslt_ptr,
+NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                    std::vector<simulationResultSet>* rslt_c_ptr,
                    std::vector<int>* idx_ptr,
                        int threads,
@@ -256,7 +256,7 @@ SEIR_sim_node::SEIR_sim_node(int sd,
         {
             for (i = 0; i < m; i++)
             {
-                E_pathsi.push_back(Eigen::MatrixXi(1,Y.cols()));
+                E_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
                 I_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
             }
         }
@@ -376,10 +376,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXi current_I(S0.size(), m);
     Eigen::MatrixXi current_R(S0.size(), m);
 
-    std::vector<compartment_tap> I_lag();
+    std::vector<compartment_tap> I_lag;
     for (i = 0; i < m; i++)
     {
-        compartment_tap.push_back(compartment_tap(TDM_vec[0].size(), S0.size()));
+        I_lag.push_back(compartment_tap(TDM_vec[0].size(), S0.size()));
     }
 
     Eigen::MatrixXi previous_S(S0.size(), m);
@@ -437,26 +437,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
-
-
-    p_se_cache = (((p_se_components.row(0).array().transpose())
-                   * (previous_I.cast<double>().array().colwise())).colwise() 
-                   * (((N.cast<double>().array()).unaryExpr([](double e)
-                    {
-                        return(1.0/e);
-                    })).array()));
-
-    /*
-    Before m > 0:
-    p_se_cache = (((p_se_components.row(0).array().transpose())
-                   * (previous_I.cast<double>().array())) 
-                   * (((N.cast<double>().array()).unaryExpr([](double e)
-                    {
-                        return(1.0/e);
-                    })).array()));
-    */
-
-
+    p_se_cache = ((previous_I.cast<double>().array().colwise())
+        /N.cast<double>().array())*p_se_components.row(0).array();
 
     Eigen::MatrixXd p_se = 1*p_se_cache; 
 
@@ -500,7 +482,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     // Initialize debug info if applicable
     if (keepCompartments)
     {
-        compartmentResults.result = 0.0;
+        compartmentResults.result = Eigen::VectorXd(m);
+        for (i = 0; i < m; i++)
+        {
+            compartmentResults.result(i) = 0.0;
+        }
         compartmentResults.S = Eigen::MatrixXi(Y.rows(), Y.cols());
         compartmentResults.E = Eigen::MatrixXi(Y.rows(), Y.cols());
         compartmentResults.I = Eigen::MatrixXi(Y.rows(), Y.cols());
@@ -545,7 +531,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     // Initialize Random Draws
     time_idx = 0;     
 
-    int tmpDraw;
+    int tmpDraw, w;
     for (w = 0; w < m; w++)
     {
         for (i = 0; i < Y.cols(); i++)
@@ -719,12 +705,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
-            p_se_cache = (((p_se_components.row(time_idx).array().transpose())
-                       * (previous_I.cast<double>().array().colwise())).colwise() 
-                       * (((N.cast<double>().array()).unaryExpr([](double e)
-                        {
-                            return(1.0/e);
-                        })).array()));   
+            p_se_cache = (previous_I.cast<double>().array().col(w))
+                /N.cast<double>().array()*p_se_components.row(time_idx).array();
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
@@ -739,13 +721,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             {
                 for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
                 {
-                    p_se_cache = (((p_se_components.row(time_idx - lag).array().transpose())
-                               * (I_lag[w].get(lag).cast<double>().array().colwise())).colwise() 
-                               * (((N.cast<double>().array()).unaryExpr([](double e)
-                                {
-                                    return(1.0/e);
-                                })).array()));
-
+                    p_se_cache = (I_lag[w].get(lag).cast<double>().array())
+                        /N.cast<double>().array()*p_se_components.row(time_idx - lag).array();
                     p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
                 }
             }
@@ -894,10 +871,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 }
             }
 
-            current_S = previous_S + previous_S_star - previous_E_star;
-            current_E = previous_E + previous_E_star - previous_I_star;
-            current_I = previous_I + previous_I_star - previous_R_star;
-            current_R = previous_R + previous_R_star - previous_S_star;
+            current_S.col(w) = previous_S.col(w) + previous_S_star.col(w) - previous_E_star.col(w);
+            current_E.col(w) = previous_E.col(w) + previous_E_star.col(w) - previous_I_star.col(w);
+            current_I.col(w) = previous_I.col(w) + previous_I_star.col(w) - previous_R_star.col(w);
+            current_R.col(w) = previous_R.col(w) + previous_R_star.col(w) - previous_S_star.col(w);
 
             if (transitionMode != "exponential")
             {
@@ -905,10 +882,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 I_paths[w].row(0) = previous_I_star.col(w);
             }
 
-            previous_S = current_S;
-            previous_E = current_E;
-            previous_I = current_I;
-            previous_R = current_R;
+            previous_S.col(w) = current_S.col(w);
+            previous_E.col(w) = current_E.col(w);
+            previous_I.col(w) = current_I.col(w);
+            previous_R.col(w) = current_R.col(w);
         }
     }
 
@@ -1053,7 +1030,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
             }
             if (transitionMode == "path_specific")
             {
-                for (l = time_idx+1; (l < nTpt && infTime < I_paths.rows()); l++)
+                for (l = time_idx+1; (l < nTpt && infTime < I_paths[0].rows()); l++)
                 {
                     (*results).rEA.row(time_idx) += 
                         _1mpIR_cum*(*results).rEA.row(l);
@@ -1063,7 +1040,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                         infTime ++;
                     }
                 }
-                while (_1mpIR_cum > 1e-12 && infTime < I_paths.rows())
+                while (_1mpIR_cum > 1e-12 && infTime < I_paths[0].rows())
                 {
                     (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
                     _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
@@ -1072,7 +1049,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
             }
             else
             {
-                for (l = time_idx+1; (l < nTpt && infTime < I_paths.rows()); l++)
+                for (l = time_idx+1; (l < nTpt && infTime < I_paths[0].rows()); l++)
                 {
                     (*results).rEA.row(time_idx) += 
                         _1mpIR_cum*(*results).rEA.row(l);
@@ -1084,7 +1061,7 @@ void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
                         infTime ++;
                     }
                 }
-                while (_1mpIR_cum > 1e-12 && infTime < I_paths.rows())
+                while (_1mpIR_cum > 1e-12 && infTime < I_paths[0].rows())
                 {
                     (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
                     _1mpIR_cum *= (1 - IR_transition_dist -> getTransitionProb(
