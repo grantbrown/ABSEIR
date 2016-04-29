@@ -36,7 +36,8 @@ struct instruction{
 
 class SEIR_sim_node {
     public:
-        SEIR_sim_node(int random_seed,
+        SEIR_sim_node(NodeWorker* worker,
+                      int random_seed,
                       Eigen::VectorXi S0,
                       Eigen::VectorXi E0,
                       Eigen::VectorXi I0,
@@ -143,6 +144,8 @@ class NodeWorker{
                    int m);
         void operator()();
     private:
+        friend class SEIR_sim_node;
+        void broadcast(std::string);
         NodePool* pool;
         std::unique_ptr<SEIR_sim_node> node;
 };
@@ -190,9 +193,11 @@ class NodePool{
     private:
         friend class NodeWorker;
         std::vector<std::thread> nodes;
+        std::deque<std::string> messages;
         std::deque<instruction>  tasks;
         std::atomic_int nBusy;
 
+        std::mutex broadcast_mutex;
         std::mutex queue_mutex;
         std::mutex result_mutex;
         std::condition_variable condition;
