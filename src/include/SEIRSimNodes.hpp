@@ -27,6 +27,7 @@ using exit_atom = "exit";
 struct simulationResultSet;
 class transitionDistribution;
 class NodePool;
+class NodeWorker;
 
 struct instruction{
    int param_idx; 
@@ -64,9 +65,11 @@ class SEIR_sim_node {
                       bool cumulative,
                       int m);
         ~SEIR_sim_node();
+        std::deque<std::string> messages;
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
 
     private: 
+        NodeWorker* parent;
         void calculateReproductiveNumbers(simulationResultSet* input);
         int sim_width;
         unsigned int random_seed;
@@ -97,6 +100,7 @@ class SEIR_sim_node {
         std::unique_ptr<transitionDistribution> EI_transition_dist;
         /** General I to R transition Distribution*/
         std::unique_ptr<transitionDistribution> IR_transition_dist;
+        void nodeMessage(std::string);
         double phi;
         int seed;
         double value;
@@ -143,9 +147,10 @@ class NodeWorker{
                    bool cumulative,
                    int m);
         void operator()();
+        void addMessage(std::string);
+
     private:
         friend class SEIR_sim_node;
-        void broadcast(std::string);
         NodePool* pool;
         std::unique_ptr<SEIR_sim_node> node;
 };
@@ -155,7 +160,7 @@ class NodePool{
         NodePool(Eigen::MatrixXd* result_pointer,
                  std::vector<simulationResultSet>* result_complete_pointer,
                  std::vector<int>* index_pointer,
-                 int,
+                 int threads,
                  int random_seed,
                  Eigen::VectorXi S0,
                  Eigen::VectorXi E0,
@@ -184,8 +189,10 @@ class NodePool{
                  int m
               );
         void awaitFinished();
+        void resolveMessages();
         void enqueue(std::string action_type, int param_idx, Eigen::VectorXd params);
         Eigen::MatrixXd* result_pointer;
+        std::deque<std::string> messages;
         std::vector<simulationResultSet>* result_complete_pointer;
         std::vector<int>* index_pointer;
         ~NodePool();
@@ -193,11 +200,9 @@ class NodePool{
     private:
         friend class NodeWorker;
         std::vector<std::thread> nodes;
-        std::deque<std::string> messages;
         std::deque<instruction>  tasks;
         std::atomic_int nBusy;
 
-        std::mutex broadcast_mutex;
         std::mutex queue_mutex;
         std::mutex result_mutex;
         std::condition_variable condition;

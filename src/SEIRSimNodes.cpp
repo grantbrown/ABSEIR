@@ -3,6 +3,7 @@
 #include <random>
 #include <math.h>
 #include <Rmath.h>
+#include <Rcpp.h>
 #include <util.hpp>
 #include "SEIRSimNodes.hpp"
 #include "spatialSEIRModel.hpp"
@@ -67,10 +68,13 @@ void NodeWorker::operator()()
         {
             Eigen::VectorXd result = node -> simulate(task.params, false).result;
             {
-                //std::unique_lock<std::mutex> lock(pool -> result_mutex);
-                //pool -> index_pointer -> push_back(task.param_idx);
-                // We're accessing unique locations, so no mutex required
-                (*(pool -> result_pointer)).row(task.param_idx) = result;
+                std::unique_lock<std::mutex> lock(pool -> result_mutex);
+                (*(pool -> result_pointer)).row(task.param_idx) = result; 
+                while (!(node -> messages).empty()) 
+                {
+                    (pool -> messages).push_back((node -> messages).front()); 
+                    (node -> messages).pop_front();
+                }
             }
         }
         else if (task.action_type == sim_result_atom)
@@ -80,6 +84,11 @@ void NodeWorker::operator()()
                 std::unique_lock<std::mutex> lock(pool -> result_mutex);
                 pool -> index_pointer -> push_back(task.param_idx);
                 pool -> result_complete_pointer -> push_back(result);
+                while (!((node -> messages).empty())) 
+                {
+                    (pool -> messages).push_back((node -> messages).front()); 
+                    (node -> messages).pop_front();
+                }
             }
         }
 
@@ -137,11 +146,25 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     }
 }
 
+
 void NodePool::awaitFinished()
 {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
-        finished.wait(lock, [this](){ return tasks.empty() && (nBusy == 0); });
+        finished.wait(lock, [this](){ resolveMessages();
+                return tasks.empty() && (nBusy == 0); });
+    }
+}
+
+void NodePool::resolveMessages()
+{
+    {
+        std::unique_lock<std::mutex> lock(result_mutex);
+        while (!(messages.empty())) 
+        {
+            Rcpp::Rcout << messages.front() << "\n"; 
+            messages.pop_front();
+        }
     }
 }
 
@@ -155,6 +178,7 @@ void NodePool::enqueue(std::string action_type, int param_idx, Eigen::VectorXd p
         std::unique_lock<std::mutex> lock(queue_mutex);
         tasks.push_back(inst);
     }
+    resolveMessages();
     condition.notify_one();
 }
 
@@ -169,7 +193,8 @@ NodePool::~NodePool()
 }
 
 
-SEIR_sim_node::SEIR_sim_node(int sd,
+SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
+                             int sd,
                              Eigen::VectorXi s,
                              Eigen::VectorXi e,
                              Eigen::VectorXi i,
@@ -195,7 +220,8 @@ SEIR_sim_node::SEIR_sim_node(int sd,
                              int dmc,
                              bool cmltv,
                              int m_
-                             ) : random_seed(sd),
+                             ) : parent(worker),
+                                 random_seed(sd),
                                  S0(s),
                                  E0(e),
                                  I0(i),
@@ -895,6 +921,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
     compartmentResults.result = results; 
     return(compartmentResults);
+}
+
+void SEIR_sim_node::nodeMessage(std::string msg)
+{
+    messages.push_back(msg);
 }
 
 void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
