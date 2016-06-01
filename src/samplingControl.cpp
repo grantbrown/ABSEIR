@@ -25,7 +25,6 @@ samplingControl::samplingControl(SEXP integerParameters,
     max_batches = inIntegerParams(6);
     multivariatePerturbation = inIntegerParams(7) != 0;
     m = inIntegerParams(8);
-    Rcpp::Rcout <<"LOOK: m = " << m << "\n";
 
 
     accept_fraction = inNumericParams(0);
