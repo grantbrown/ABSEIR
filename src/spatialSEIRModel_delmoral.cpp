@@ -22,7 +22,7 @@ Eigen::VectorXd calculate_weights(double cur_e,
     Eigen::VectorXd out_wts = Eigen::VectorXd::Zero(eps.rows());
     int i, j;
     int M = eps.cols();
-    double num, denom;
+    double num, denom, tot;
     for (i = 0; i < eps.rows(); i++)
     {
         num = 0.0;
@@ -32,9 +32,11 @@ Eigen::VectorXd calculate_weights(double cur_e,
             num += eps(i,j) < cur_e;
             denom += eps(i,j) < prev_e;
         } 
-        out_wts = (num/denom*prev_wts(i));
+        out_wts(i) = (num/denom*prev_wts(i));
+        tot += out_wts(i);
     }
-    returN(out_wts);
+    out_wts.array() /= tot;
+    return(out_wts);
 }
 
 double ESS(Eigen::VectorXd wts)
@@ -61,23 +63,6 @@ double solve_for_epsilon(double LB,
                        Eigen::MatrixXd eps,
                        Eigen::VectorXd prev_wts)
 {
-
-    /*
-Iterative algorithm
-    Let [a, b] be interval of current bracket. 
-    f(a), f(b) would already have been computed earlier. 
-    phi =(1+{\sqrt {5}})/2}
-
-    Let c = b + (a - b)/φ , 
-        d = a + (b - a)/φ.  If f(c), f(d) not available, compute them.
-
-    If f(c) < f(d) (this is to find min, to find max, just reverse it) then move the data: (b, f(b)) ← (d, f(d)), 
-                                                                                           (d, f(d)) ← (c, f(c)) 
-                                                                                            and update c = b + (a - b)/φ and f(c);
-otherwise, move the data: (a, f(a)) ← (c, f(c)), (c, f(c)) ← (d, f(d)) and update d = a + (b - a)/φ and f(d).
-    At the end of the iteration, [a, c, d, b] bracket the minimum point.
-
-*/
 
     double phi = (1.0 + std::sqrt(5))/2.0; 
     double a,b,c,d,fa,fb,fc,fd;
@@ -144,12 +129,17 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
     int N = nSample;
 
     double current_eps = std::numeric_limits<double>::infinity();
+    double next_eps;
 
+    int i,j;
     int iteration;
+
+    auto U = std::uniform_real_distribution<double>(0,1);
+    double drw;
     
     if (!is_initialized)
     {
-        // Step 0a: sample parameters from their prior
+        // Sample parameters from their prior
         param_matrix = generateParamsPrior(N);
         run_simulations(param_matrix);
     }
@@ -160,9 +150,75 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
     }
     // Step 0b: set weights to 1/N
     Eigen::VectorXd weights = Eigen::VectorXd::Zero(N) + 1.0/((double) N);
+    Eigen::VectorXd next_weights = weights;
+    Eigen::VectorXd cum_weights = next_weights;
 
     for (iteration = 0; iteration < num_iterations; iteration++)
     {   
-        
+        next_eps = solve_for_epsilon(results_double.minCoeff() + 1.0,
+                                     results_double.maxCoeff(),
+                                     current_eps,
+                                     samplingControlInstance -> shrinkage,
+                                     results_double,
+                                     weights);
+        next_weights = calculate_weights(next_eps,
+                                         current_eps, 
+                                         results_double,
+                                         weights);
+        if (ESS(next_weights) < N)
+        {
+           // Resample N particles 
+
+           prev_results_double = results_double;
+           prev_param_matrix = param_matrix;
+
+           // Compute cumulative weights
+           cum_weights(0) = weights(0);
+           for (i = 1; i < weights.size(); i++)
+           {
+               cum_weights(i) = weights(i) + cum_weights(i-1);
+           }
+           // Fill in param_matrix with resamples
+           for (i = 0; i < N; i++)
+           {
+               drw = U(*generator);
+               for (j = 0; j < cum_weights.size(); j++)
+               {
+                    if (drw <= cum_weights(j))
+                    {
+                        param_matrix.row(i) = prev_param_matrix.row(j); 
+                        results_double.row(i) = prev_results_double.row(j);
+                    }
+               }
+           }
+           // Reset weights
+           for (i = 0; i < weights.size(); i++)
+           {
+               weights(i) = 1.0/((double) N);
+           } 
+        }
+        else
+        {
+           prev_results_double = results_double;
+           prev_param_matrix = param_matrix;
+        }
+
+        // Step 3: MCMC update
+        Eigen::MatrixXd proposed_params = param_matrix;
+        Eigen::VectorXd tau = ((param_matrix.rowwise() - 
+                                param_matrix.colwise().mean()
+                                ).colwise().norm()/std::sqrt((double) 
+                                    param_matrix.rows()-1.0));
+        // Propose new parameters
+        for (j = 0; j < proposed_params.size(); j++)
+        {
+            auto propDist = std::normal_distribution<double>(0.0, tau(j));
+            for (i = 0; i < N; i++)
+            {
+                proposed_params(i,j) += propDist(*generator);
+            }
+        }
+        run_simulations(proposed_params);
     }
+
 }
