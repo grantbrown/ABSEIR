@@ -31,9 +31,11 @@ samplingControl::samplingControl(SEXP integerParameters,
     shrinkage = inNumericParams(1);
     target_eps = inNumericParams(2);
 
-    if (algorithm != ALG_BasicABC && algorithm != ALG_ModifiedBeaumont2009)
+    if (algorithm != ALG_BasicABC && 
+        algorithm != ALG_ModifiedBeaumont2009 && 
+        algorithm != ALG_DelMoral2012)
     {
-        Rcpp::stop("Algorithm specification must be of length 1 and equal to 1 or 2.");
+        Rcpp::stop("Algorithm specification must be of length 1 and equal to 1 or 2 or 3.");
     }
     if (max_batches <= 0)
     {

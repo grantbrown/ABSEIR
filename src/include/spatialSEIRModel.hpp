@@ -14,7 +14,7 @@
 
 struct samplingResultSet
 {
-    Rcpp::NumericVector result;
+    Rcpp::NumericMatrix result;
     Rcpp::NumericMatrix params;
 };
 
@@ -37,7 +37,7 @@ struct simulationResultSet
     Eigen::MatrixXd p_ir;
     Eigen::MatrixXd rho;
     Eigen::MatrixXd beta;
-    Eigen::VectorXd result; 
+    Eigen::MatrixXd result; 
 };
 
 class dataModel;
@@ -66,129 +66,74 @@ class spatialSEIRModel
          * posterior, and optionally set verbose to a nonzero integer for additional
          * output.*/ 
         Rcpp::List sample(SEXP nSample, SEXP verbose);
-        /** Accept a matrix of parameters, simulate epidemics, and return the 
-         * euclidean distance from the outcome. */
-        Rcpp::List evaluate(SEXP inParams);
-        /** Simulate epdiemics based on the matrix of parameters inParams,
-         * return the simulated epidemic quantities.  
-         */
-        Rcpp::List simulate_given(SEXP inParams);
-        /** Continue sampling from the approximated posterior after an inital 
-         * call to sample. 
-         */
-        Rcpp::List update(SEXP nSample, SEXP inParams, SEXP inEps, 
-                SEXP inWeights, SEXP inCurEps, SEXP verbose);
-        double evalPrior(Rcpp::NumericVector param_values);
+        /** Evaluate the prior distribution of a particular set of parameters*/
+        double evalPrior(Eigen::VectorXd param_values);
+        /** Assign the parameter values manually */
+        bool setParameters(Eigen::MatrixXd param_values);
         /** Destructor */
         ~spatialSEIRModel();
 
     private:
-        /** Simulated epidemics are processed in batches for parallelizeability. 
-         * This applies both to the BasicABC and Beaumont2009 algorithms.*/
-        int batchNum;
-        /** An indicator as to whether or not reweighting is required 
-         * (Beaumont2009)*/
-        int reweight;
-        /** A counter of how many times this object has been asked to simulate
-         * data. This is not currently used much, as we destroy objects after
-         * use and recreate them as needed.*/
-        int ncalls;
-        /** A persistant reference to the number of requested samples*/
-        int numSamples;
-        /** The fraction of the current estimates which was replaced by new 
-         * draws in the latest batch (BasicABC)*/
-        double updateFraction;
-        /** The minimum distance estimate currently accepted*/
-        double minEps;
-        /** The maximum distance estimate currently accepted*/
-        double maxEps;
-        /** The currently enforced uppder bound on distance*/
-        double currentEps;
-        /** A vector of current parameter means*/
-        Eigen::RowVectorXd parameterMeans;
-        /** Centered values of current parameters */
-        Eigen::MatrixXd parameterCentered;
-        /** Current parameter covariance matrix*/
-        Eigen::MatrixXd parameterCov;
-        /** Current parameter inverse covariance matrix*/
-        Eigen::MatrixXd parameterICov; 
-        /** Current parameter inverse covariance matrix determinant*/
-        double parameterICovDet;
-        /** internal implementation of the main sampling function*/
-        Rcpp::List sample_internal(int nSample, bool verbose, bool init);
-        /** Generic function to propose new parameters. */
-        void updateParams();
-        /** Function to propose new parameters from the prior distribution*/
-        void updateParams_prior();
-        /** Function to propose new parameters accordin to the weights from
-         * Beaumont 2009*/
-        void updateParams_SMC();
-        /** Function to compute new weights from Beaumont 2009*/
-        void updateWeights();
-        /** Storage vector for accepted parameters during repeated sampling.*/
-        std::vector<Eigen::VectorXd> currentAccepted;
-        /** Storage vector for accepted parameter distances 
-         * during repeated sampling.*/
-        std::vector<double> currentAcceptedResult;
-        /** Matrix from which parameters are sent to the workers. */
+        /** Set parameters from prior distribution*/
+        Eigen::MatrixXd generateParamsPrior(int N);
+
+        /** Simulate epidemics based on parameters*/
+        void run_simulations(Eigen::MatrixXd params);
+
+        /** Run simulation using basic ABC algorithm */
+        Rcpp::List sample_basic(int nSample, bool verbose, bool init);
+
+        /** Run simulation using Beaumont 2009 algorithm */
+        Rcpp::List sample_Beaumont2009(int nSample, bool verbose, bool init);
+
+        /** Run simulation using Del Moral 2012 algorithm */
+        Rcpp::List sample_DelMoral2012(int nSample, bool verbose, bool init);
+
+        /** Flag for whether params have been initialized*/
+        bool is_initialized;
+
+        /** Matrix of parameters */
         Eigen::MatrixXd param_matrix;
-        /** Vector of Gaussian standard deviations used in forward SMC kernel*/
-        Eigen::VectorXd tau;
-        /** The current resampling weights (Beaumont 2009) */
-        Eigen::VectorXd weights;
-        /** A data structure containing current epoch parameter values and 
-         * distances.*/
-        samplingResultSet currentSamples;
-        /** A data structure containing previous epoch parameter values and 
-         * distances, used in weight computation.*/
-        samplingResultSet previousSamples;
-        /** General E to I transition Distribution*/
-        std::unique_ptr<transitionDistribution> EI_transition_dist;
-        /** General I to R transition Distribution*/
-        std::unique_ptr<transitionDistribution> IR_transition_dist;
 
-        /** Main simulation function. */
-        Rcpp::List simulate(Eigen::MatrixXd params, std::string sim_type);
+        /** Matrix of parameters */
+        Eigen::MatrixXd prev_param_matrix;  
 
-        /** General function to take new samples and use them to update the 
-         * currently accepted ones. */
-        samplingResultSet combineResults(Rcpp::NumericVector currentResults, 
-                                  Rcpp::NumericMatrix currentParams,
-                                  Rcpp::NumericVector newResults,
-                                  Eigen::MatrixXd newParams);
+        /** Result index vector */
+        std::vector<int> result_idx;
 
-        /** Parameter update function for BasicABC rejection algorithm */
-        samplingResultSet combineResults_basic(Rcpp::NumericVector currentResults, 
-                                  Rcpp::NumericMatrix currentParams,
-                                  Rcpp::NumericVector newResults,
-                                  Eigen::MatrixXd newParams);
-        /** Parameter update function for Beaumont2009 algorithm */
-        samplingResultSet combineResults_SMC(
-                                  Rcpp::NumericVector newResults,
-                                  Eigen::MatrixXd newParams);
+        /** Results vector*/
+        Eigen::MatrixXd results_double;
+
+        /** Results vector*/
+        Eigen::MatrixXd prev_results_double;
+
+        /** Complete results vector */
+        std::vector<simulationResultSet> results_complete;
 
         /** Pointer to a dataModel object*/
         dataModel* dataModelInstance;
+
         /** Pointer to an exposureModel object*/
         exposureModel* exposureModelInstance;
+
         /** Pointer to a reinfectionModel object*/
         reinfectionModel* reinfectionModelInstance;
+
         /** Pointer to a distanceModel object*/
         distanceModel* distanceModelInstance;
+
         /** Pointer to a transitionPriors object*/
         transitionPriors* transitionPriorsInstance;
+
         /** Pointer to initialValueContainer object*/
         initialValueContainer* initialValueContainerInstance;
+
         /** Pointer to a samplingControl object.*/
         samplingControl* samplingControlInstance;
-        /** Result index vector */
-        std::vector<int> result_idx;
-        /** Results vector*/
-        Eigen::MatrixXd results_double;
-        /** Complete results vector */
-        std::vector<simulationResultSet> results_complete;
+
         /** Thread pool */
         std::unique_ptr<NodePool> worker_pool; 
+
         /** A persistant pointer to a properly initialized random 
          * number generator.*/
         std::mt19937* generator;
