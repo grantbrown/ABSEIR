@@ -140,6 +140,20 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(new 
             weibullTransitionDistribution(DummyParams));
     }
+    // Set up param matrix
+    const bool hasReinfection = (reinfectionModelInstance -> 
+            betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+    std::string transitionMode = transitionPriorsInstance -> mode;
+
+    const int nBeta = (exposureModelInstance -> X).cols();
+    const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    const int nRho = ((distanceModelInstance -> dm_list).size() + 
+                      (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
+    const int nTrans = (transitionMode == "exponential" ? 2 :
+                       (transitionMode == "weibull" ? 4 : 0));
+
+    const int nParams = nBeta + nBetaRS + nRho + nTrans;
 
     // Set up random number provider 
     std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
@@ -155,6 +169,10 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     results_complete = std::vector<simulationResultSet>();
     results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                            samplingControlInstance -> m); 
+    Rcpp::Rcout << "Batch size is: " << samplingControlInstance -> batch_size << "\n";
+    param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+                                        nParams);
+    Rcpp::Rcout << "param_matrix created.\n";
 
     // Create the worker pool
     worker_pool = std::unique_ptr<NodePool>(
@@ -193,6 +211,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
 Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 {
+    Rcpp::Rcout << "Inside generateParamsPrior.\n";
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
@@ -210,7 +229,7 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 
     int i, j;
 
-    Eigen::MatrixXd outParams = Eigen::MatrixXd(N, nParams);
+    Eigen::MatrixXd outParams = Eigen::MatrixXd::Zero(N, nParams);
 
     // Set up random samplers 
     // beta, beta_RS
@@ -321,6 +340,7 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
             }
         }
     }
+    return(outParams);
 }
 
 Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose)

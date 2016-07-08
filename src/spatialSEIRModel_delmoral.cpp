@@ -144,7 +144,10 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose,
     if (!is_initialized)
     {
         // Sample parameters from their prior
+        Rcpp::Rcout << "N: " << N << "\n";
         param_matrix = generateParamsPrior(N);
+        Rcpp::Rcout << "\n\n Generated!!\n\n";
+        Rcpp::Rcout << "param_matrix: " << param_matrix.rows() << ", " << param_matrix.cols() << "\n";
         run_simulations(param_matrix, sim_atom, &results_double, &results_complete);
     }
     else
