@@ -188,6 +188,8 @@ class NodePool{
                  bool cumulative,
                  int m
               );
+        void setResultsDest(Eigen::MatrixXd* result_pointer,
+                            std::vector<simulationResultSet>* result_complete_pointer);
         void awaitFinished();
         void resolveMessages();
         void enqueue(std::string action_type, int param_idx, Eigen::VectorXd params);

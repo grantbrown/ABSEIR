@@ -14,10 +14,11 @@
 #include <util.hpp>
 #include <SEIRSimNodes.hpp>
 
-spatialSEIRModel::sample_Beaumont2009(int nSample, bool verbose, bool init)
+Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, bool verbose, 
+                                                 std::string sim_type_atom)
 {
     Rcpp::stop("Beaumont 2009 algorithm not supported.\n");
     // Return dummy value
-    Rcpp::List outList();
+    Rcpp::List outList;
     return(outList);
 }

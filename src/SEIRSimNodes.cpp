@@ -146,6 +146,13 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     }
 }
 
+void NodePool::setResultsDest(Eigen::MatrixXd* rslt_ptr,
+                              std::vector<simulationResultSet>* rslt_c_ptr)
+{
+    result_pointer = rslt_ptr;
+    result_complete_pointer = rslt_c_ptr;
+}
+
 
 void NodePool::awaitFinished()
 {

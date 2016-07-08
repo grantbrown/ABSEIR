@@ -28,6 +28,7 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
                          batch_size = 10000, max_itrs = 1000,
                          epsilon=NA, verbose=FALSE)
 {
+    stop("Model comparison has not been tested/updated")
     correctClasses = sapply(modelList, function(x){class(x)  == 
                             "SpatialSEIRModel"})
 

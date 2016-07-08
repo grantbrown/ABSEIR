@@ -70,7 +70,7 @@ double solve_for_epsilon(double LB,
     double rhs = ESS(calculate_weights(proposed_e,
                                          prev_e, 
                                          eps,
-                                         prev_wts)*alpha;
+                                         prev_wts))*alpha;
 
     a = LB;
     b = UB;
@@ -121,12 +121,16 @@ double solve_for_epsilon(double LB,
 
 }
 
-
-
-spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
+Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, 
+                                                 std::string sim_type_atom)
 {
     int num_iterations = samplingControlInstance -> epochs;
     int N = nSample;
+    const bool hasReinfection = (reinfectionModelInstance -> 
+            betaPriorPrecision)(0) > 0;
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
+
+    std::string transitionMode = transitionPriorsInstance -> mode;   
 
     double current_eps = std::numeric_limits<double>::infinity();
     double next_eps;
@@ -141,7 +145,7 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
     {
         // Sample parameters from their prior
         param_matrix = generateParamsPrior(N);
-        run_simulations(param_matrix);
+        run_simulations(param_matrix, sim_atom, &results_double, &results_complete);
     }
     else
     {
@@ -149,7 +153,7 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
         // To-do: finish this clause
     }
     // Step 0b: set weights to 1/N
-    Eigen::VectorXd weights = Eigen::VectorXd::Zero(N) + 1.0/((double) N);
+    Eigen::VectorXd weights = Eigen::VectorXd::Zero(N).array() + 1.0/((double) N);
     Eigen::VectorXd next_weights = weights;
     Eigen::VectorXd cum_weights = next_weights;
 
@@ -210,7 +214,7 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
                                 ).colwise().norm()/std::sqrt((double) 
                                     param_matrix.rows()-1.0));
         // Propose new parameters
-        for (j = 0; j < proposed_params.size(); j++)
+        for (j = 0; j < proposed_params.cols(); j++)
         {
             auto propDist = std::normal_distribution<double>(0.0, tau(j));
             for (i = 0; i < N; i++)
@@ -218,7 +222,88 @@ spatialSEIRModel::sample_DelMoral2012(int nSample, bool verbose, bool init)
                 proposed_params(i,j) += propDist(*generator);
             }
         }
-        run_simulations(proposed_params);
+        run_simulations(proposed_params, sim_atom, &results_double, &results_complete);
+
+        double acc_ratio, num, denom, pn, pd;
+        bool accept;
+        for (i = 0; i < N; i++)
+        {
+            pn = evalPrior(proposed_params.row(i));
+            pd = evalPrior(param_matrix.row(i));
+            num = 0.0;
+            denom = 0.0;
+            accept = false;
+            if (std::isfinite(num) && num > 0.0)
+            {
+                for (j = 0; j < results_double.cols(); j++)
+                {
+                    num += (results_double(i,j) < current_eps);
+                    denom += (prev_results_double(i,j) < current_eps);
+                }
+                num *= pn;
+                denom *= pd;
+                acc_ratio = num/denom;
+                drw = U(*generator);
+                if (!std::isfinite(acc_ratio))
+                {
+                    Rcpp::Rcout << "Potential problem: non-finite acceptance\n";
+                }
+                else if (drw < acc_ratio)
+                {
+                    param_matrix.row(i) = proposed_params.row(i);
+                }
+            }
+        } 
     }
 
+    // Todo: keep an eye on this object handling. It may have unreasonable
+    // overhead, and is kind of complex.  
+    Rcpp::List outList;
+    if (sim_type_atom == sim_result_atom)
+    {
+        // keep_samples indicates a debug mode, so don't worry if we can't make
+        // a regular data frame from the list.
+        for (i = 0; i < results_complete.size(); i++)
+        {
+            Rcpp::List subList;
+            subList["S"] = Rcpp::wrap(results_complete[i].S);
+            subList["E"] = Rcpp::wrap(results_complete[i].E);
+            subList["I"] = Rcpp::wrap(results_complete[i].I);
+            subList["R"] = Rcpp::wrap(results_complete[i].R);
+
+            subList["S_star"] = Rcpp::wrap(results_complete[i].S_star);
+            subList["E_star"] = Rcpp::wrap(results_complete[i].E_star);
+            subList["I_star"] = Rcpp::wrap(results_complete[i].I_star);
+            subList["R_star"] = Rcpp::wrap(results_complete[i].R_star);
+            subList["p_se"] = Rcpp::wrap(results_complete[i].p_se);
+            // We p_ei and p_ir not generally defined in non-exponential case.  
+            if (transitionMode == "exponential")
+            {
+                subList["p_ei"] = Rcpp::wrap(results_complete[i].p_ei);
+                subList["p_ir"] = Rcpp::wrap(results_complete[i].p_ir);
+            }
+            subList["R_EA"] = Rcpp::wrap(results_complete[i].rEA);
+            subList["R0t"] = Rcpp::wrap(results_complete[i].r0t);
+            subList["effR0t"] = Rcpp::wrap(results_complete[i].effR0);
+            if (hasSpatial)
+            {
+                subList["rho"] = Rcpp::wrap(results_complete[i].rho);
+            }
+            subList["beta"] = Rcpp::wrap(results_complete[i].beta);
+            subList["X"] = Rcpp::wrap(results_complete[i].X);
+            if (hasReinfection)
+            {
+                // TODO: output reinfection info
+            }
+            subList["result"] = Rcpp::wrap(results_complete[i].result);
+            outList[std::to_string(i)] = subList;
+        }
+    }
+    else if (sim_type_atom == sim_atom)
+    {
+        outList["result"] = Rcpp::wrap(results_double);
+    }
+    outList["params"] = Rcpp::wrap(param_matrix);
+    outList["currentEps"] = current_eps;
+    return(outList);
 }

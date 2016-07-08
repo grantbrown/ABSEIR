@@ -190,15 +190,16 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
 
         params = modelObject$param.samples
         params = params[rep(1:nrow(params), each = replicates),]
+        modelCache$SEIRModel$setParameters(params, modelObject$currentEps)
         if (returnCompartments)
         {
             modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$simulate(params)
+                modelCache$SEIRModel$sample(1, 1, verbose)
         } 
         else
         {
             modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$evaluate(params)
+                modelCache$SEIRModel$sample(1, 0, verbose)
         }
         },
         warning=function(w){

@@ -65,11 +65,11 @@ class spatialSEIRModel
         /** The main ABC function - draw nSample samples from the approximated
          * posterior, and optionally set verbose to a nonzero integer for additional
          * output.*/ 
-        Rcpp::List sample(SEXP nSample, SEXP verbose);
+        Rcpp::List sample(SEXP nSample, SEXP returnComps, SEXP verbose);
         /** Evaluate the prior distribution of a particular set of parameters*/
         double evalPrior(Eigen::VectorXd param_values);
         /** Assign the parameter values manually */
-        bool setParameters(Eigen::MatrixXd param_values);
+        bool setParameters(Eigen::MatrixXd param_values, double eps);
         /** Destructor */
         ~spatialSEIRModel();
 
@@ -78,19 +78,34 @@ class spatialSEIRModel
         Eigen::MatrixXd generateParamsPrior(int N);
 
         /** Simulate epidemics based on parameters*/
-        void run_simulations(Eigen::MatrixXd params);
+        void run_simulations(Eigen::MatrixXd params, 
+                             std::string sim_type_atom,
+                             Eigen::MatrixXd* result_recip,
+                             std::vector<simulationResultSet>* result_c_recip);
 
         /** Run simulation using basic ABC algorithm */
-        Rcpp::List sample_basic(int nSample, bool verbose, bool init);
+        Rcpp::List sample_basic(int nSample, bool verbose, 
+                                std::string sim_type_atom);
 
         /** Run simulation using Beaumont 2009 algorithm */
-        Rcpp::List sample_Beaumont2009(int nSample, bool verbose, bool init);
+        Rcpp::List sample_Beaumont2009(int nSample, bool verbose, 
+                                std::string sim_type_atom);
 
         /** Run simulation using Del Moral 2012 algorithm */
-        Rcpp::List sample_DelMoral2012(int nSample, bool verbose, bool init);
+        Rcpp::List sample_DelMoral2012(int nSample, bool verbose, 
+                                std::string sim_type_atom);
 
         /** Flag for whether params have been initialized*/
         bool is_initialized;
+
+        /** If simulation is re-started, need initial epsilon stored*/
+        double init_eps;
+
+        /** General E to I transition Distribution*/
+        std::unique_ptr<transitionDistribution> EI_transition_dist;
+
+        /** General I to R transition Distribution*/
+        std::unique_ptr<transitionDistribution> IR_transition_dist;
 
         /** Matrix of parameters */
         Eigen::MatrixXd param_matrix;

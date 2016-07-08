@@ -249,7 +249,7 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, verbose*1)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, verbose*1, 0)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result
@@ -340,6 +340,7 @@ SpatialSEIRModel = function(data_model,
 #' @export
 update.SpatialSEIRModel = function(object, ...)
 {
+    stop("Updating has not been tested/updated.")
     modelObject = object
     if (class(modelObject) != "SpatialSEIRModel")
     {

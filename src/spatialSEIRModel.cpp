@@ -162,7 +162,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      &results_complete,
                      &result_idx,
                      (unsigned int) samplingControlInstance -> CPU_cores,
-                     samplingControlInstance->random_seed + ncalls,
+                     samplingControlInstance->random_seed,
                      initialValueContainerInstance -> S0,
                      initialValueContainerInstance -> E0,
                      initialValueContainerInstance -> I0,
@@ -206,14 +206,15 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
                        (transitionMode == "weibull" ? 4 : 0));
 
     const int nParams = nBeta + nBetaRS + nRho + nTrans;
+    int N = nParticles;
 
     int i, j;
 
-    Eigen::MatrixXd outParams = Eigen::MatrixXd(N, nParams)
+    Eigen::MatrixXd outParams = Eigen::MatrixXd(N, nParams);
 
     // Set up random samplers 
     // beta, beta_RS
-    std::normal_distribution<> standardNormal(0,1); 
+    std::normal_distribution<double> standardNormal(0,1); 
     // rho  
     std::gamma_distribution<> rhoDist(
             (distanceModelInstance -> spatial_prior)(0),
@@ -322,8 +323,38 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     }
 }
 
-bool spatialSEIRModel::setParameters(Eigen::MatrixXd params)
+Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose)
 {
+    Rcpp::IntegerVector n(nSample);
+    Rcpp::IntegerVector r(returnComps);
+    Rcpp::IntegerVector v(verbose);
+
+    int N = n(0);
+    bool R = r(0) > 0;
+    bool V = v(0) > 0;
+
+    std::string sim_type_atom = (R ? sim_result_atom : sim_atom);
+    
+    if (samplingControlInstance -> algorithm == ALG_BasicABC)
+    {
+        return(sample_basic(N, V, sim_type_atom));
+    }
+    else if (samplingControlInstance -> algorithm == ALG_ModifiedBeaumont2009)
+    {
+        return(sample_Beaumont2009(N, V, sim_type_atom));
+    }
+    else if (samplingControlInstance -> algorithm == ALG_DelMoral2012)
+    {
+        return(sample_DelMoral2012(N, V, sim_type_atom));
+    }
+}
+
+bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
+{
+    const bool hasReinfection = (reinfectionModelInstance ->                    
+                        betaPriorPrecision)(0) > 0; 
+    const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;                
+    std::string transitionMode = transitionPriorsInstance -> mode;
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
@@ -337,6 +368,8 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params)
     {
         Rcpp::stop("Number of supplied parameters does not match model specification.\n");
     }
+
+    init_eps = eps;
 
     param_matrix = params; 
     is_initialized = true;
@@ -412,9 +445,19 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     return(outPrior);
 }
 
-void spatialSEIRModel::run_simulation(Eigen::MatrixXd params)
+void spatialSEIRModel::run_simulations(Eigen::MatrixXd params, 
+                                       std::string sim_type_atom,
+                                       Eigen::MatrixXd* results_dest,
+                                       std::vector<simulationResultSet>* results_c_dest)
 {
-    // To-do: run simulation logic here
+    int i;
+    worker_pool -> setResultsDest(results_dest, 
+                                  results_c_dest);
+    for (i = 0; i < params.rows(); i++)
+    {
+        worker_pool -> enqueue(sim_type_atom, i, param_matrix.row(i));
+    }
+    worker_pool -> awaitFinished();
 }
 
 spatialSEIRModel::~spatialSEIRModel()
@@ -434,6 +477,6 @@ RCPP_MODULE(mod_spatialSEIRModel)
                  initialValueContainer&,
                  samplingControl&>()
     .method("sample", &spatialSEIRModel::sample)
-    .method("setParameters", &spatialSEIRModel::setParameters)
+    .method("setParameters", &spatialSEIRModel::setParameters);
 }
 
