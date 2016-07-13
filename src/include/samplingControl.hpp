@@ -1,6 +1,8 @@
 #ifndef SPATIALSEIR_SAMPLING_CONTROL
 #define SPATIALSEIR_SAMPLING_CONTROL
 
+#define SPATIALSEIR_SINGLETHREAD
+
 #define ALG_BasicABC 1
 #define ALG_ModifiedBeaumont2009 2
 #define ALG_DelMoral2012 3

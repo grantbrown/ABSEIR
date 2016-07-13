@@ -49,6 +49,30 @@ NodeWorker::NodeWorker(NodePool* pl,
 void NodeWorker::operator()()
 {
     instruction task;
+#ifdef SPATIALSEIR_SINGLETHREAD
+    Rcpp::Rcout << "operator called\n";
+
+    while ((pool -> tasks).size() > 0)
+    {
+        task = (pool -> tasks).front();
+        (pool -> nBusy)++;
+        (pool -> tasks).pop_front();
+        if (task.action_type == sim_atom)
+        {
+            Eigen::VectorXd result = node -> simulate(task.params, false).result;
+            (*(pool -> result_pointer)).row(task.param_idx) = result; 
+
+        }
+        else if (task.action_type == sim_result_atom)
+        {
+            // Do these need to be re-sorted?
+            simulationResultSet result = node -> simulate(task.params, true);
+            pool -> result_complete_pointer -> push_back(result);
+            pool -> index_pointer -> push_back(task.param_idx);
+        }
+        (pool -> nBusy)--;
+    }
+#else
     while(true)
     {
         {
@@ -98,6 +122,7 @@ void NodeWorker::operator()()
             (pool -> finished).notify_one();
         }
     }
+#endif
 }
 
 NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
@@ -136,6 +161,14 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     index_pointer = idx_ptr;
     exit = false;
     nBusy = 0;
+#ifdef SPATIALSEIR_SINGLETHREAD
+    // Single threaded mode only needs single worker
+    nodes.push_back(NodeWorker(this,
+                                           sd + 1000*(1),s,e,i,
+                     r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
+                    ));
+#else
     for (int itr = 0; itr < threads; itr++)
     {
         nodes.push_back(std::thread(NodeWorker(this,
@@ -144,6 +177,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                         )));
     }
+#endif
 }
 
 void NodePool::setResultsDest(Eigen::MatrixXd* rslt_ptr,
@@ -156,11 +190,17 @@ void NodePool::setResultsDest(Eigen::MatrixXd* rslt_ptr,
 
 void NodePool::awaitFinished()
 {
+#ifdef SPATIALSEIR_SINGLETHREAD
+    Rcpp::Rcout << "awaiting finished.\n";
+    nodes[0]();
+    Rcpp::Rcout << "awaiting finished2.\n";
+#else
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
         finished.wait(lock, [this](){ resolveMessages();
                 return tasks.empty() && (nBusy == 0); });
     }
+#endif
 }
 
 void NodePool::resolveMessages()
@@ -195,7 +235,11 @@ NodePool::~NodePool()
     condition.notify_all();
     for (unsigned int i = 0; i < nodes.size(); i++)
     {
+#ifdef SPATIALSEIR_SINGLETHREAD
+        nodes.pop_back();
+#else
         nodes[i].join();
+#endif
     }
 }
 
@@ -319,6 +363,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
 
 simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCompartments)
 {
+    nodeMessage("Simulating\n");
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
     int time_idx, i, j, k;   
@@ -435,6 +480,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                                               (data_compartment == 2 ? 
                                                &previous_I : &previous_I_star)));
 
+    nodeMessage("Still Simulating\n");
+
     // Calculate probabilities
     // p_se calculation
     // Equivalent R expression: 
@@ -445,6 +492,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
 
+    Rcpp::Rcout << "p_se_components: (" << p_se_components.rows() << ", " 
+                << p_se_components.cols() << ")\n";
+
     time_idx = 0;
     for (i = 0; i < m; i++)
     {
@@ -452,6 +502,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         previous_E.col(i) = E0;
         previous_I.col(i) = I0;
         previous_R.col(i) = R0;
+        previous_S_star.col(i) = Eigen::VectorXi::Zero(m);
+        previous_E_star.col(i) = Eigen::VectorXi::Zero(m);
+        previous_I_star.col(i) = Eigen::VectorXi::Zero(m);
+        previous_R_star.col(i) = Eigen::VectorXi::Zero(m);
+
     }
     if (has_ts_spatial)
     {
@@ -471,7 +526,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
 
     p_se_cache = ((previous_I.cast<double>().array().colwise())
-        /N.cast<double>().array())*p_se_components.row(0).array();
+        /N.cast<double>().array()).array().colwise()*
+        p_se_components.row(0).transpose().array();
 
     Eigen::MatrixXd p_se = 1*p_se_cache; 
 
@@ -511,6 +567,19 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         p_rs = Eigen::VectorXd::Zero(Y.rows());
     }
+
+    // Debug code
+    double tmp = p_rs(0);
+    tmp = 0.0;
+    for (i = 0; i < p_se.rows(); i++)
+    {
+        for (j = 0; j < p_se.cols(); j++)
+        {
+            tmp += p_se(i,j);
+        }
+    }
+    Rcpp::Rcout << "Done testing\n";
+
 
     // Initialize debug info if applicable
     if (keepCompartments)
@@ -569,6 +638,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (i = 0; i < Y.cols(); i++)
         {
+            Rcpp::Rcout << "(w = " << w << ", i = " << i << ")\n"; 
             previous_S_star(i, w) = std::binomial_distribution<int>(
                     previous_R(i, w), p_rs(0))(*generator);
             previous_E_star(i, w) = std::binomial_distribution<int>(
@@ -738,6 +808,42 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
+            /*
+             
+    p_se_cache = ((previous_I.cast<double>().array().colwise())
+        /N.cast<double>().array()).array().colwise()*
+        p_se_components.row(0).transpose().array();
+
+    Eigen::MatrixXd p_se = 1*p_se_cache; 
+
+    if (has_spatial)
+    {
+        for (idx = 0; idx < DM_vec.size(); idx++)
+        {
+            p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
+        }
+    }
+    if (has_ts_spatial)
+    {
+        if (!TDM_empty[0])
+        {
+            p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
+        }
+    }
+
+    p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
+            return(1-std::exp(e));
+            }); 
+
+
+               */
+
+            /**
+            p_se_cache = ((previous_I.cast<double>().array().colwise())
+                /N.cast<double>().array()).array().colwise()*
+                p_se_components.row(0).transpose().array();
+
+                **/
             p_se_cache = (previous_I.cast<double>().array().col(w))
                 /N.cast<double>().array()*p_se_components.row(time_idx).array();
 

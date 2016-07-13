@@ -1,5 +1,6 @@
 #ifndef ACTOR_SEIRSIM_HEADER
 #define ACTOR_SEIRSIM_HEADER
+
 #include <map>
 #include <vector>
 #include <random>
@@ -7,6 +8,7 @@
 #include <iostream>
 #include <Eigen/Core>
 #include <ABSEIR_constants.hpp>
+#include <samplingControl.hpp>
 #include <dataModel.hpp>
 #include <thread>
 #include <mutex>
@@ -201,7 +203,13 @@ class NodePool{
 
     private:
         friend class NodeWorker;
+        
+
+#ifdef SPATIALSEIR_SINGLETHREAD
+        std::vector<NodeWorker> nodes;
+#else
         std::vector<std::thread> nodes;
+#endif
         std::deque<instruction>  tasks;
         std::atomic_int nBusy;
 

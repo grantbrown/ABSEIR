@@ -470,6 +470,7 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
                                        Eigen::MatrixXd* results_dest,
                                        std::vector<simulationResultSet>* results_c_dest)
 {
+    Rcpp::Rcout << "Running simulation\n";
     int i;
     worker_pool -> setResultsDest(results_dest, 
                                   results_c_dest);
@@ -477,7 +478,9 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
     {
         worker_pool -> enqueue(sim_type_atom, i, param_matrix.row(i));
     }
+    Rcpp::Rcout << "All parameters enqueued.\n";
     worker_pool -> awaitFinished();
+    Rcpp::Rcout << "Simulations finished.\n";
 }
 
 spatialSEIRModel::~spatialSEIRModel()

@@ -1,5 +1,6 @@
 #ifndef SPATIALSEIR_MODEL_INC
 #define SPATIALSEIR_MODEL_INC
+
 #include <Rcpp.h>
 #include <memory>
 #include "./dataModel.hpp"

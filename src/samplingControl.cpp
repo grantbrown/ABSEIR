@@ -25,6 +25,12 @@ samplingControl::samplingControl(SEXP integerParameters,
     max_batches = inIntegerParams(6);
     multivariatePerturbation = inIntegerParams(7) != 0;
     m = inIntegerParams(8);
+#ifdef SPATIALSEIR_SINGLETHREAD
+    if (CPU_cores > 1)
+    {
+        Rcpp::warning("Multiple cores requested for ABSEIR compiled in single thread mode");
+    }
+#endif
 
 
     accept_fraction = inNumericParams(0);
