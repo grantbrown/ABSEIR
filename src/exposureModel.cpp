@@ -58,6 +58,46 @@ int exposureModel::getModelComponentType()
     return(LSS_EXPOSURE_MODEL_TYPE);
 }
 
+void exposureModel::summary()
+{
+    Rcpp::Rcout << "Exposure Model Summary\n" << 
+                   "----------------------" << 
+                   "    dim(X): (" << X.rows() << ", " <<
+                   X.cols() << ")\n" << 
+                   "    beta prior means: (";
+    int sz = betaPriorMean.size();
+    int i;
+    for (i = 0; i < sz; i++)
+    {
+        if (i != 0) Rcpp::Rcout << "                       ";
+        Rcpp::Rcout << betaPriorMean(i);
+        if (i+1 < sz)
+        {
+            Rcpp::Rcout << ",\n";
+        }
+        else
+        {
+            Rcpp::Rcout << ")\n";
+        }
+    }
+    Rcpp::Rcout << "    beta prior precision: (";
+    for (i = 0; i < sz; i++)
+    {
+        if (i != 0) Rcpp::Rcout << "                           ";
+        Rcpp::Rcout << betaPriorPrecision(i);
+        if (i+1 < sz)
+        {
+            Rcpp::Rcout << ",\n";
+        }
+        else
+        {
+            Rcpp::Rcout << ")\n";
+        }
+    }
+    Rcpp::Rcout << "\n";
+
+                   
+}
 
 void exposureModel::setOffset(NumericVector offsets)
 {

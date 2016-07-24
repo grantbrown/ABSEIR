@@ -30,7 +30,13 @@
 #'        distribution, i.e. the number of particles to simulate. The number
 #'        of particles should be considerably smaller than the batch size
 #'        specified by the sampling_control argument. 
-#' @param verbose print diagnostic information on the progress of the fitting algorithm
+#' @param verbose print diagnostic information on the progress of the fitting algorithm.
+#'        Available output levels are 0, 1, 2, and 3, in ascending order
+#'        of detail. Level 0 output will
+#'        print almost no progress/diagnostic information to the log. Level 1 
+#'        Will provide iteration updates only. Leve 2 provides additional 
+#'        chain setup and diagnostic information. Level 3 prints calculation
+#'        diagnostic information. 
 #' @return an object of type \code{\link{SpatialSEIRModel}} 
 #' @details
 #' Use the supplied model components to build and fit a corresponding model.   
@@ -253,7 +259,7 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["samplingControl"]]
         )
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, verbose*1, 0)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, 0, verbose*1)
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result

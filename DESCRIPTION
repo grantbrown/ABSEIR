@@ -1,14 +1,25 @@
 Package: ABSEIR
 Type: Package
-Title: Posterior Approximation to Fully Bayesian Spatial SEIR Models Using the C++ Actor Framework
+Title: Posterior Approximation to Fully Bayesian Spatial SEIR Models Using the C
+    ++ Actor Framework
 Version: 1.1.2
 Date: 2016-01-27
 Author: Grant Brown
 Maintainer: Grant Brown <grant-brown@uiowa.edu>
-Description: Approximate Bayesian Computing is a natural mechanism to accelerate the fitting of compartmental epidemic models. ABSEIR implements several such algorithms to fit a broad class of spatial and non-spatial SEIR and SEIRS epidemic models. 
+Description: Approximate Bayesian Computing is a natural mechanism to accelerate
+    the fitting of compartmental epidemic models. ABSEIR implements several such
+    algorithms to fit a broad class of spatial and non-spatial SEIR and SEIRS
+    epidemic models.
 License: GPL (>= 3)
-Depends: R (>= 3.0), Rcpp (>= 0.11.5), methods
+Depends:
+    R (>= 3.0),
+    Rcpp (>= 0.11.5),
+    methods
 LinkingTo: Rcpp, RcppEigen
 LazyData: true
-Suggests: knitr, rmarkdown, testthat
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat
 VignetteBuilder: rmarkdown
+RoxygenNote: 5.0.1

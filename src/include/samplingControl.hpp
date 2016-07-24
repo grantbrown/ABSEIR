@@ -1,7 +1,7 @@
 #ifndef SPATIALSEIR_SAMPLING_CONTROL
 #define SPATIALSEIR_SAMPLING_CONTROL
 
-#define SPATIALSEIR_SINGLETHREAD
+//#define SPATIALSEIR_SINGLETHREAD
 
 #define ALG_BasicABC 1
 #define ALG_ModifiedBeaumont2009 2
@@ -20,6 +20,7 @@ class samplingControl : public modelComponent
         samplingControl(SEXP integerParameters,
                         SEXP numericParameters);
         ~samplingControl();
+    void summary();
     int getModelComponentType();
     int simulation_width;
     int random_seed;

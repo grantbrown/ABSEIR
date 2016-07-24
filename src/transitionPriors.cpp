@@ -129,6 +129,8 @@ void transitionPriors::setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir,
 
 void transitionPriors::summary()
 {
+    Rcpp::Rcout << "Transition Priors Summary\n";
+    Rcpp::Rcout << "-------------------------\n";
     if (E_to_I_params.size() == 2){
         Rcpp::Rcout << "gamma_ei parameters: " << E_to_I_params(0) << ", " << 1/E_to_I_params(1) << "\n";
         Rcpp::Rcout << "gamma_ir parameters: " << I_to_R_params(0) << ", " << 1/I_to_R_params(1) << "\n";

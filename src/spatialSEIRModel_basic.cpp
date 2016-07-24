@@ -14,7 +14,7 @@
 #include <util.hpp>
 #include <SEIRSimNodes.hpp>
 
-Rcpp::List spatialSEIRModel::sample_basic(int nSample, bool verbose, 
+Rcpp::List spatialSEIRModel::sample_basic(int nSample, int verbose, 
                                           std::string sim_type_atom)
 {
     Rcpp::stop("Basic rejection algorithm not currently supported.\n");

@@ -49,6 +49,36 @@ samplingControl::samplingControl(SEXP integerParameters,
     }
 }
 
+void samplingControl::summary()
+{
+    Rcpp::Rcout << "Sampling Control Summary\n";
+    Rcpp::Rcout << "------------------------\n";
+    Rcpp::Rcout << "    algorithm: " << algorithm << "\n";
+    Rcpp::Rcout << "    simulation_width: " << simulation_width << "\n";
+    Rcpp::Rcout << "    random_seed: " << random_seed << "\n";
+    Rcpp::Rcout << "    CPU_cores: " << CPU_cores << "\n";
+    Rcpp::Rcout << "    batch_size: " << batch_size << "\n";
+    Rcpp::Rcout << "    epochs: " << epochs << "\n";
+    Rcpp::Rcout << "    max_batches: " << max_batches << "\n";
+    Rcpp::Rcout << "    multivariatePerturbation: " << multivariatePerturbation << "\n";
+    Rcpp::Rcout << "    m: " << m << "\n";
+    Rcpp::Rcout << "    accept_fraction: " << accept_fraction << "\n";
+    Rcpp::Rcout << "    shrinkage: " << shrinkage << "\n";
+    Rcpp::Rcout << "    target_eps: " << target_eps << "\n";
+    Rcpp::Rcout << "    Note: not all parameters are used for all algorithms.\n\n";
+
+
+
+
+
+
+
+
+
+
+
+}
+
 samplingControl::~samplingControl()
 {
     if (prot !=0 ){

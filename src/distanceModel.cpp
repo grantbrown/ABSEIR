@@ -88,8 +88,25 @@ void distanceModel::addDistanceMatrix(NumericMatrix distMat)
 
 void distanceModel::summary()
 {
-    Rcpp::Rcout << "Number of locations: " << numLocations << "\n";
-    Rcpp::Rcout << "Number of distance structures: " << (dm_list.size()) << "\n";
+    Rcpp::Rcout << "Distance Model Summary\n" <<
+                   "----------------------\n";
+    if (numLocations > 1)
+    {
+        Rcpp::Rcout << "Number of locations: " << numLocations << "\n";
+        Rcpp::Rcout << "Number of distance structures: " << (dm_list.size()) << "\n";
+        Rcpp::Rcout << "Number of time varying distance structures: " 
+            << (tdm_list.size()) << "\n";
+        if (tdm_list.size() > 0)
+        {
+            Rcpp::Rcout << "Number of time varying distance lags: " 
+                << tdm_list[0].size();
+        }
+    }
+    else
+    {
+        Rcpp::Rcout << "    no distance structure.\n";
+    }
+    Rcpp::Rcout << "\n";
 }
 
 distanceModel::~distanceModel()

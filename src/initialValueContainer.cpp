@@ -14,6 +14,24 @@ int initialValueContainer::getModelComponentType()
     return(LSS_INIT_CONTAINER_TYPE);
 }
 
+void initialValueContainer::summary()
+{
+    Rcpp::Rcout << "Initial Compartment Values - Summary\n" << 
+                   "------------------------------------\n";
+    int i;
+    int sz = S0.size();
+    Rcpp::Rcout << "    S0, E0, I0, R0 \n";
+    for (i = 0; i < sz; i++)
+    {
+        Rcpp::Rcout << "    " <<
+                       S0(i) << ", " <<
+                       E0(i) << ", " <<
+                       I0(i) << ", " <<
+                       R0(i) << "\n";
+    }
+    Rcpp::Rcout << "\n";
+}
+
 void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP R0_)
 {
 

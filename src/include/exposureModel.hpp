@@ -14,6 +14,7 @@ class exposureModel : public modelComponent
         int getModelComponentType();
         virtual Rcpp::NumericVector getOffset();
         virtual void setOffset(Rcpp::NumericVector offs);
+        virtual void summary();
         int nTpt;
         int nLoc;
         Eigen::MatrixXd X;

@@ -22,6 +22,7 @@ class modelComponent
     public:
         virtual ~modelComponent(){};
         virtual int getModelComponentType() = 0;
+        virtual void summary() = 0;
         void protect(){prot=1;}
         void unprotect(){prot=0;}
         int prot=0;

@@ -12,6 +12,7 @@ class initialValueContainer : public modelComponent
     public:
         initialValueContainer();
         void setInitialValues(SEXP S0, SEXP E0, SEXP I0, SEXP R0);
+        virtual void summary();
         int getModelComponentType();
         Eigen::VectorXi S0;
         Eigen::VectorXi E0;

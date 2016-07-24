@@ -64,8 +64,8 @@ class spatialSEIRModel
                          initialValueContainer& initialValueContainer_,
                          samplingControl& samplingControl_);
         /** The main ABC function - draw nSample samples from the approximated
-         * posterior, and optionally set verbose to a nonzero integer for additional
-         * output.*/ 
+         * posterior, and optionally set verbose to 0, 1, or 2 for 
+         * different levels of output.*/ 
         Rcpp::List sample(SEXP nSample, SEXP returnComps, SEXP verbose);
         /** Evaluate the prior distribution of a particular set of parameters*/
         double evalPrior(Eigen::VectorXd param_values);
@@ -85,15 +85,15 @@ class spatialSEIRModel
                              std::vector<simulationResultSet>* result_c_recip);
 
         /** Run simulation using basic ABC algorithm */
-        Rcpp::List sample_basic(int nSample, bool verbose, 
+        Rcpp::List sample_basic(int nSample, int verbose, 
                                 std::string sim_type_atom);
 
         /** Run simulation using Beaumont 2009 algorithm */
-        Rcpp::List sample_Beaumont2009(int nSample, bool verbose, 
+        Rcpp::List sample_Beaumont2009(int nSample, int verbose, 
                                 std::string sim_type_atom);
 
         /** Run simulation using Del Moral 2012 algorithm */
-        Rcpp::List sample_DelMoral2012(int nSample, bool verbose, 
+        Rcpp::List sample_DelMoral2012(int nSample, int verbose, 
                                 std::string sim_type_atom);
 
         /** Flag for whether params have been initialized*/
@@ -109,6 +109,9 @@ class spatialSEIRModel
         std::unique_ptr<transitionDistribution> IR_transition_dist;
 
         /** Matrix of parameters */
+        Eigen::MatrixXd proposed_param_matrix;
+
+        /** Matrix of parameters */
         Eigen::MatrixXd param_matrix;
 
         /** Matrix of parameters */
@@ -122,6 +125,9 @@ class spatialSEIRModel
 
         /** Results vector*/
         Eigen::MatrixXd prev_results_double;
+
+        /** Results vector*/
+        Eigen::MatrixXd next_results_double;
 
         /** Complete results vector */
         std::vector<simulationResultSet> results_complete;

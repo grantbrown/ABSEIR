@@ -11,6 +11,96 @@
 #include <thread>
 using namespace std;
 
+void printDMatrix(Eigen::MatrixXd inMat, std::string name)
+{
+    Rcpp::Rcout << "Matrix (" << inMat.rows() << ", " << inMat.cols() << "): " << name << "\n";
+    Rcpp::Rcout << "[";
+    int i,j;
+    for (i = 0; i < inMat.rows(); i++)
+    {
+        Rcpp::Rcout << "[";
+        for (j = 0; j < inMat.cols(); j++)
+        {
+            Rcpp::Rcout << inMat(i,j);
+            if (j + 1 != inMat.cols())
+            {
+                Rcpp::Rcout << ", ";
+            }
+            else
+            {
+                Rcpp::Rcout << "]";
+            }
+        }
+        if (i + 1 != inMat.rows())
+        {
+            Rcpp::Rcout << "\n";
+        }
+        else Rcpp::Rcout << "]\n";
+    } 
+}
+
+void printDVector(Eigen::VectorXd inVec, std::string name)
+{
+    Rcpp::Rcout << "Vector (" << inVec.size() << "): " << name << "\n";
+    int i;
+    Rcpp::Rcout << "[";
+    for (i = 0; i < inVec.size(); i++)
+    {
+        Rcpp::Rcout << inVec(i);
+        if (i + 1 != inVec.size())
+        {
+            Rcpp::Rcout << ", ";
+        }
+        else Rcpp::Rcout << "]\n";
+    }
+
+}
+
+void printIMatrix(Eigen::MatrixXi inMat, std::string name)
+{
+    Rcpp::Rcout << "Matrix (" << inMat.rows() << ", " << inMat.cols() << "): " << name << "\n";
+    Rcpp::Rcout << "[";
+    int i,j;
+    for (i = 0; i < inMat.rows(); i++)
+    {
+        Rcpp::Rcout << "[";
+        for (j = 0; j < inMat.cols(); j++)
+        {
+            Rcpp::Rcout << inMat(i,j);
+            if (j + 1 != inMat.cols())
+            {
+                Rcpp::Rcout << ", ";
+            }
+            else
+            {
+                Rcpp::Rcout << "]";
+            }
+        }
+        if (i + 1 != inMat.rows())
+        {
+            Rcpp::Rcout << "\n";
+        }
+        else Rcpp::Rcout << "]\n";
+    } 
+}
+
+void printIVector(Eigen::VectorXi inVec, std::string name)
+{
+    Rcpp::Rcout << "Vector (" << inVec.size() << "): " << name << "\n";
+    int i;
+    Rcpp::Rcout << "[";
+    for (i = 0; i < inVec.size(); i++)
+    {
+        Rcpp::Rcout << inVec(i);
+        if (i + 1 != inVec.size())
+        {
+            Rcpp::Rcout << ", ";
+        }
+        else Rcpp::Rcout << "]\n";
+    }
+
+}
+
 
 NodeWorker::NodeWorker(NodePool* pl,
                        int sd,
@@ -50,8 +140,6 @@ void NodeWorker::operator()()
 {
     instruction task;
 #ifdef SPATIALSEIR_SINGLETHREAD
-    Rcpp::Rcout << "operator called\n";
-
     while ((pool -> tasks).size() > 0)
     {
         task = (pool -> tasks).front();
@@ -191,9 +279,7 @@ void NodePool::setResultsDest(Eigen::MatrixXd* rslt_ptr,
 void NodePool::awaitFinished()
 {
 #ifdef SPATIALSEIR_SINGLETHREAD
-    Rcpp::Rcout << "awaiting finished.\n";
     nodes[0]();
-    Rcpp::Rcout << "awaiting finished2.\n";
 #else
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
@@ -363,7 +449,6 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
 
 simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCompartments)
 {
-    nodeMessage("Simulating\n");
     // Params is a vector made of:
     // [Beta, Beta_RS, rho, gamma_ei, gamma_ir]    
     int time_idx, i, j, k;   
@@ -374,6 +459,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXd results = Eigen::VectorXd::Zero(m); 
     Eigen::VectorXd beta = params.segment(0, X.cols()); 
     Eigen::VectorXd beta_rs;
+
     if (has_reinfection) 
     {
         beta_rs = params.segment(X.cols(), X_rs.cols());
@@ -480,8 +566,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                                               (data_compartment == 2 ? 
                                                &previous_I : &previous_I_star)));
 
-    nodeMessage("Still Simulating\n");
-
     // Calculate probabilities
     // p_se calculation
     // Equivalent R expression: 
@@ -489,11 +573,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXd eta = (X*beta).unaryExpr([](double elem){return(
                 std::exp(elem));
             });
+
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
-
-    Rcpp::Rcout << "p_se_components: (" << p_se_components.rows() << ", " 
-                << p_se_components.cols() << ")\n";
 
     time_idx = 0;
     for (i = 0; i < m; i++)
@@ -568,19 +650,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         p_rs = Eigen::VectorXd::Zero(Y.rows());
     }
 
-    // Debug code
-    double tmp = p_rs(0);
-    tmp = 0.0;
-    for (i = 0; i < p_se.rows(); i++)
-    {
-        for (j = 0; j < p_se.cols(); j++)
-        {
-            tmp += p_se(i,j);
-        }
-    }
-    Rcpp::Rcout << "Done testing\n";
-
-
     // Initialize debug info if applicable
     if (keepCompartments)
     {
@@ -638,7 +707,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (i = 0; i < Y.cols(); i++)
         {
-            Rcpp::Rcout << "(w = " << w << ", i = " << i << ")\n"; 
             previous_S_star(i, w) = std::binomial_distribution<int>(
                     previous_R(i, w), p_rs(0))(*generator);
             previous_E_star(i, w) = std::binomial_distribution<int>(
@@ -855,6 +923,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                     p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
                 }
             }
+
+
+
 
             if (has_ts_spatial && !TDM_empty[time_idx])
             {

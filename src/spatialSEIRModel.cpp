@@ -165,13 +165,12 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     // Parameters are not initialized
     is_initialized = false;
 
-    // Set up places for worker nodes to put stuff
     results_complete = std::vector<simulationResultSet>();
     results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
-                                           samplingControlInstance -> m); 
+                                               samplingControlInstance -> m); 
     Rcpp::Rcout << "Batch size is: " << samplingControlInstance -> batch_size << "\n";
     param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
-                                        nParams);
+                                            nParams);
     Rcpp::Rcout << "param_matrix created.\n";
 
     // Create the worker pool
@@ -211,7 +210,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
 
 Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 {
-    Rcpp::Rcout << "Inside generateParamsPrior.\n";
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
@@ -351,7 +349,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
 
     int N = n(0);
     bool R = r(0) > 0;
-    bool V = v(0) > 0;
+    int V = v(0);
 
     std::string sim_type_atom = (R ? sim_result_atom : sim_atom);
     
@@ -470,7 +468,6 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
                                        Eigen::MatrixXd* results_dest,
                                        std::vector<simulationResultSet>* results_c_dest)
 {
-    Rcpp::Rcout << "Running simulation\n";
     int i;
     worker_pool -> setResultsDest(results_dest, 
                                   results_c_dest);
@@ -478,9 +475,7 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
     {
         worker_pool -> enqueue(sim_type_atom, i, param_matrix.row(i));
     }
-    Rcpp::Rcout << "All parameters enqueued.\n";
     worker_pool -> awaitFinished();
-    Rcpp::Rcout << "Simulations finished.\n";
 }
 
 spatialSEIRModel::~spatialSEIRModel()
