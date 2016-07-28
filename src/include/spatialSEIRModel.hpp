@@ -127,7 +127,12 @@ class spatialSEIRModel
         Eigen::MatrixXd prev_results_double;
 
         /** Results vector*/
-        Eigen::MatrixXd next_results_double;
+        Eigen::MatrixXd proposed_results_double;
+
+        Eigen::MatrixXd proposal_cache;
+        Eigen::MatrixXd preproposal_params;
+        Eigen::MatrixXd preproposal_results;
+
 
         /** Complete results vector */
         std::vector<simulationResultSet> results_complete;

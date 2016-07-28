@@ -196,10 +196,6 @@ SpatialSEIRModel = function(data_model,
         }
 
         if (verbose) cat("...Building sampling control model\n") 
-        if (sampling_control$algorithm == 3)
-        {
-            sampling_control$batch_size = samples 
-        }
         modelComponents[["samplingControl"]] = new (
             samplingControl, 
             c(sampling_control$sim_width, sampling_control$seed,

@@ -138,6 +138,7 @@ NodeWorker::NodeWorker(NodePool* pl,
 
 void NodeWorker::operator()()
 {
+    int taskNo = 0;
     instruction task;
 #ifdef SPATIALSEIR_SINGLETHREAD
     while ((pool -> tasks).size() > 0)
@@ -944,7 +945,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             for (i = 0; i < Y.cols(); i++)
             {
                 previous_S_star(i,w) = std::binomial_distribution<int>(previous_R(i,w), p_rs(time_idx))(*generator);
-                previous_E_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,w))(*generator);
+                previous_E_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,0))(*generator);
 
                 if (transitionMode == "exponential")
                 {

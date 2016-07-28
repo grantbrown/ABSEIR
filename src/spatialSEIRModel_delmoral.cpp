@@ -102,7 +102,12 @@ Eigen::VectorXd calculate_weights(double cur_e,
 
 double ESS(Eigen::VectorXd wts)
 {
-    return(1.0/wts.squaredNorm()); 
+    double out = 0.0;
+    for (int i = 0; i < wts.size(); i++)
+    {
+        out += std::pow(wts(i), 2.0);
+    }
+    return(1.0/out); 
 }
 
 double eps_f(double rhs,
@@ -188,19 +193,16 @@ double solve_for_epsilon(double LB,
 }
 
 void proposeParams(Eigen::MatrixXd* params,
+                   Eigen::VectorXd* tau,
                    std::mt19937* generator)
 {
-    Eigen::VectorXd tau = ((params -> rowwise()) - 
-                           (params -> colwise()).mean()
-                            ).colwise().norm()/std::sqrt((double) 
-                                (params -> rows())-1.0);
     int i,j;
     // Propose new parameters
     int p = params -> cols();
     int N = params -> rows();
     for (j = 0; j < p; j++)
     {
-        auto propDist = std::normal_distribution<double>(0.0, tau(j));
+        auto propDist = std::normal_distribution<double>(0.0, (*tau)(j));
         for (i = 0; i < N; i++)
         {
             (*params)(i,j) += propDist(*generator);
@@ -211,6 +213,8 @@ void proposeParams(Eigen::MatrixXd* params,
 Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb, 
                                                  std::string sim_type_atom)
 {
+    // This is set by constructor
+    const int nParams = param_matrix.cols();
 
     // Accepted params/results are nSample size
     results_complete = std::vector<simulationResultSet>();
@@ -219,14 +223,19 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
     param_matrix = Eigen::MatrixXd::Zero(nSample, 
                                             nParams);
     prev_param_matrix = param_matrix;
-    prev_results_double = results_double;
     // Proposals matrices are batch size
     proposed_results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                                samplingControlInstance -> m); 
     proposed_param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                             nParams);
-
-
+    proposal_cache = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+                                            nParams);
+    preproposal_params = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+                                            nParams);
+    preproposal_results = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+                                               samplingControlInstance -> m); 
+ 
+    const int verbose = vb;
     if (verbose > 1)
     {
         Rcpp::Rcout << "Starting sampler\n";
@@ -234,11 +243,14 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
     const int num_iterations = samplingControlInstance -> epochs;
     const int Nsim = samplingControlInstance -> batch_size;
     const int Npart = nSample;
+    if (Npart != Nsim)
+    {
+        Rcpp::stop("Disparate simulation and particle size temporarily disabled\n");
+    }
     const int maxBatches= samplingControlInstance -> max_batches;
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
-    const int verbose = vb;
 
     std::string transitionMode = transitionPriorsInstance -> mode;   
 
@@ -280,6 +292,14 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         // The data in "param_matrix" is already accepted
         // To-do: finish this clause
     }
+    // Calculate current parameter SD's
+    Eigen::VectorXd tau = (param_matrix.rowwise() - 
+                      (param_matrix.colwise()).mean()
+                      ).colwise().norm()/std::sqrt((double) 
+                        (param_matrix.rows())-1.0);
+
+
+
     // Step 0b: set weights to 1/N
     Eigen::VectorXd w0 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
     Eigen::VectorXd w1 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
@@ -289,7 +309,14 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
     {   
         Rcpp::checkUserInterrupt();       
         if (verbose > 0){Rcpp::Rcout << "Iteration " << iteration << ". e0: " << e0 << "\n";}
-        printMaxMin(results_double);
+
+        // Calculating tau
+
+        tau = (param_matrix.rowwise() - 
+              (param_matrix.colwise()).mean()
+                ).colwise().norm()/std::sqrt((double) 
+                        (param_matrix.rows())-1.0);
+
         e1 = solve_for_epsilon(results_double.minCoeff() + 1.0,
                                      results_double.maxCoeff(),
                                      //(results_double.rowwise().minCoeff()).maxCoeff(), // Add 1?
@@ -304,24 +331,21 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         if (verbose > 2)
         {
             Rcpp::Rcout << "   e1 = " << e1 << "\n";
-            Rcpp::Rcout << "w0, 1-10: ";
+            Rcpp::Rcout << "   w0, 1-10: ";
             for (i = 0; i < std::min(10, (int) w1.size()); i++)
             {
                 Rcpp::Rcout << w0(i) << ", ";
             }
             Rcpp::Rcout << "\n";
 
-            Rcpp::Rcout << "w1 1-10:";
+            Rcpp::Rcout << "   w1 1-10:";
             for (i = 0; i < std::min(10, (int) w1.size()); i++)
             {
                 Rcpp::Rcout << w1(i) << ", ";
             }
             Rcpp::Rcout << "\n";
         }
-
-        prev_results_double = results_double;
-        prev_param_matrix = param_matrix;
-
+        
         if (ESS(w1) < Npart)
         {
            // Resample Npart particles 
@@ -339,8 +363,8 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
                {
                     if (drw <= cum_weights(j))
                     {
-                        proposed_param_matrix.row(i) = prev_param_matrix.row(j); 
-                        proposed_results_double.row(i) = prev_results_double.row(j);
+                        proposed_param_matrix.row(i) = param_matrix.row(j); 
+                        proposed_results_double.row(i) = results_double.row(j);
                         break;
                     }
                }
@@ -348,29 +372,41 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
            // Reset weights
            for (i = 0; i < Npart; i++)
            {
-               w1(i) = 1.0/((double) N);
+               w1(i) = 1.0/((double) Npart);
            } 
         }
         else
         {
+            Rcpp::Rcout << "Not Resampling, ESS sufficient.\n";
             // Do nothing
         }
-        //zzz
-       
-        prev_results_double = results_double;
-        prev_param_matrix = param_matrix;
 
-        Eigen::VectorXd tau = (param_matrix.rowwise() - 
-                              (param_matrix.colwise()).mean()
-                              ).colwise().norm()/std::sqrt((double) 
-                                (params.rows())-1.0);
+        for (i = 0; i < proposed_results_double.rows(); i++)
+        {
+            if (proposed_results_double.row(i).minCoeff() > e1)
+            {
+                Rcpp::Rcout << "Problem: " << i << " e1=" << e1 << ", eps=" <<
+                    proposed_results_double.row(i).minCoeff() << "\n";
 
+            }
+        }
+        // zzz this step won't work if batch_sizes different
+        param_matrix = proposed_param_matrix;
+        results_double = proposed_results_double;
 
-        // To-do: proposeParams should use SD from previous particles.
-        // zzz
         // Step 3: MCMC update
-        proposeParams(&proposed_param_matrix, 
-                      generator);     
+        proposal_cache = proposed_param_matrix;
+        preproposal_params = proposed_param_matrix;
+        preproposal_results = proposed_results_double;
+
+        /*
+        run_simulations(proposed_param_matrix, 
+                        sim_atom, 
+                        &proposed_results_double, 
+                        &results_complete);
+        */
+
+
 
         // Until all < eps
         int currentIdx = 0;
@@ -378,42 +414,62 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         while (currentIdx < Npart && 
                nBatches < maxBatches)
         {
-             
-           run_simulations(proposed_param_matrix, sim_atom, &proposed_results_double, &results_complete);
-           auto mins = proposed_results_double.rowwise().minCoeff();
-           for (i = 0; i < Nsim; i++)
+           preproposal_params = proposal_cache;
+           proposeParams(&preproposal_params, 
+                         &tau,
+                         generator);     
+
+           run_simulations(preproposal_params, sim_atom, &preproposal_results, 
+                   &results_complete);
+           auto mins = preproposal_results.rowwise().minCoeff();
+
+           for (i = 0; i < Nsim && currentIdx < Npart; i++)
            {
                if (mins(i) < e1)
                {
-                   param_matrix.row(currentIdx) = proposed_param_matrix.row(i);
-                   results_double.row(currentIdx) = proposed_results_double.row(i);
+                   proposed_param_matrix.row(currentIdx) = 
+                       preproposal_params.row(i);
+                   proposed_results_double.row(currentIdx) = 
+                       preproposal_results.row(i);
                    currentIdx++;
                }
            }
+           if (currentIdx + 1 < Npart && verbose > 1)
+           {
+                Rcpp::Rcout << "  batch " << nBatches << ", " << currentIdx << 
+                    "/" << Npart << " accepted\n";
+           }
            nBatches ++;
         }
-        if (currentIdx >= results_double.rows())
+        if (currentIdx < results_double.rows())
         {
-            Rcpp::Rcout << "NOT ENOUGH ACCEPTANCES!\n";
+            Rcpp::Rcout << "  " << currentIdx + 1 << "/" 
+                << Npart << " acceptances in " << nBatches << " batches\n";
+            // Fill in rest of matrix
+            for (i = currentIdx; i < Npart; i++)
+            {
+                proposed_results_double.row(i) = preproposal_results.row(i);
+                proposed_param_matrix.row(i) = preproposal_params.row(i);
+            }
         }
 
-        //zzz
-
         int numAccept = 0;
+        int numNan = 0;
         double acc_ratio, num, denom, pn, pd;
         bool accept;
-        for (i = 0; i < N; i++)
+        // zzz: Nsim == Npart for following code
+        for (i = 0; i < Nsim; i++)
         {
             pn = evalPrior(proposed_param_matrix.row(i));
-            pd = evalPrior(prev_param_matrix.row(i));
+            pd = evalPrior(param_matrix.row(i));
             num = 0.0;
             denom = 0.0;
             accept = false;
 
             for (j = 0; j < results_double.cols(); j++)
             {
-                num += (results_double(i,j) < e1);
-                denom += (prev_results_double(i,j) < e1);
+                num += (proposed_results_double(i,j) < e1);
+                denom += (results_double(i,j) < e1);
             }
             num = num;
             denom = denom;
@@ -423,82 +479,26 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
 
             acc_ratio = num/denom;
             drw = U(*generator);
+            if (std::isnan(acc_ratio))
+            {
+                numNan ++;
+            }
 
             if (!std::isnan(acc_ratio) && drw <= acc_ratio)
             {
                 numAccept++;
                 param_matrix.row(i) = proposed_param_matrix.row(i);
+                results_double.row(i) = proposed_results_double.row(i);
             }
             else
             {
-                param_matrix.row(i) = prev_param_matrix.row(i);
-                results_double.row(i) = prev_results_double.row(i);
+                //param_matrix.row(i) = prev_param_matrix.row(i);
             }
         } 
 
-        Rcpp::Rcout << "Max Min after MCMC:\n";
-        printMaxMin(results_double);
-
         if (numAccept == 0)
         {
-            Rcpp::Rcout << "WELL, THE SAMPLER COLLAPSED FOR SOME REASON. LET'S INSPECT IT A BIT CLOSER\n"; 
-            for (i = 0; i < N; i++)
-            {
-
-                pn = evalPrior(proposed_param_matrix.row(i));
-                pd = evalPrior(prev_param_matrix.row(i));
-                num = 0.0;
-                denom = 0.0;
-                accept = false;
-
-                for (j = 0; j < results_double.cols(); j++)
-                {
-                    num += (results_double(i,j) < e1);
-                    denom += (prev_results_double(i,j) < e1);
-                }
-                num = num;
-                denom = denom;
-                Rcpp::Rcout << "  proposed: (";
-                for (j = 0; j < proposed_param_matrix.cols(); j++)
-                {
-                    Rcpp::Rcout << proposed_param_matrix(i,j) << ", ";
-                }
-                Rcpp::Rcout << ")\n";
-                Rcpp::Rcout << "  prev: (";
-                for (j = 0; j < prev_param_matrix.cols(); j++)
-                {  
-                    Rcpp::Rcout << prev_param_matrix(i,j) << ", ";
-                }
-                Rcpp::Rcout << ")\n";
-
-                Rcpp::Rcout << "  num=" << num << "  denom=" <<denom << "\n";
-                Rcpp::Rcout << "  pn=" << pn << "  pd=" << pd << "\n";
-                
-                num *= pn;
-                denom *= pd;
-
-                acc_ratio = num/denom;
-                drw = U(*generator);
-
-                Rcpp::Rcout << "  acc_ratio=" << acc_ratio << "\n";
-                Rcpp::Rcout << "  drw=" << drw << "\n";
-                for (j = 0; j < results_double.cols(); j++)
-                {
-                    Rcpp::Rcout << "  r1=" << results_double(i,j) << "\n";
-                    Rcpp::Rcout << "  r2=" << prev_results_double(i,j) << "\n";
-                }
-
-                if (!std::isnan(acc_ratio) && drw <= acc_ratio)
-                {
-                    numAccept++;
-                    param_matrix.row(i) = proposed_param_matrix.row(i);
-                }
-                else
-                {
-                    param_matrix.row(i) = prev_param_matrix.row(i);
-                    results_double.row(i) = prev_results_double.row(i);
-                }
-            }
+            Rcpp::Rcout << "WARNING: THE SAMPLER COLLAPSED.\n"; 
         }
         if (verbose > 2)
         {
