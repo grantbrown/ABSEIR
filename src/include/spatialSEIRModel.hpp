@@ -96,6 +96,9 @@ class spatialSEIRModel
         Rcpp::List sample_DelMoral2012(int nSample, int verbose, 
                                 std::string sim_type_atom);
 
+        /** Use current parameters to simulate epidemics*/
+        Rcpp::List sample_Simulate(int nSample, int verbose);
+
         /** Flag for whether params have been initialized*/
         bool is_initialized;
 
@@ -130,9 +133,10 @@ class spatialSEIRModel
         Eigen::MatrixXd proposed_results_double;
 
         Eigen::MatrixXd proposal_cache;
-        Eigen::MatrixXd preproposal_params;
-        Eigen::MatrixXd preproposal_results;
 
+        Eigen::MatrixXd preproposal_params;
+
+        Eigen::MatrixXd preproposal_results;
 
         /** Complete results vector */
         std::vector<simulationResultSet> results_complete;

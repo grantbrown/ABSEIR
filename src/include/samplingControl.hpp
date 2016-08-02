@@ -6,6 +6,7 @@
 #define ALG_BasicABC 1
 #define ALG_ModifiedBeaumont2009 2
 #define ALG_DelMoral2012 3
+#define ALG_Simulate 4
 
 #include <Rcpp.h>
 #include<modelComponent.hpp>

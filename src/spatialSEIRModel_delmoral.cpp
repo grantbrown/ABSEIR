@@ -47,7 +47,7 @@ void printMaxMin(Eigen::MatrixXd in)
 }
 
 // [[Rcpp::export]]
-Eigen::VectorXd calculate_weights(double cur_e,
+Eigen::VectorXd calculate_weights_DM(double cur_e,
                                   double prev_e, 
                                   Eigen::MatrixXd eps,
                                   Eigen::VectorXd prev_wts)
@@ -116,7 +116,7 @@ double eps_f(double rhs,
              Eigen::MatrixXd eps,
              Eigen::VectorXd prev_wts)
 {
-    return(std::pow(rhs - ESS(calculate_weights(cur_e, 
+    return(std::pow(rhs - ESS(calculate_weights_DM(cur_e, 
                                                 prev_e, 
                                                 eps, 
                                                 prev_wts)), 2.0));
@@ -133,7 +133,7 @@ double solve_for_epsilon(double LB,
     double phi = (1.0 + std::sqrt(5))/2.0; 
     double a,b,c,d,fa,fb,fc,fd;
     //double proposed_e = proposed_e; 
-    /*double rhs = ESS(calculate_weights(proposed_e,
+    /*double rhs = ESS(calculate_weights_DM(proposed_e,
                                          prev_e, 
                                          eps,
                                          prev_wts))*alpha;*/
@@ -202,7 +202,7 @@ void proposeParams(Eigen::MatrixXd* params,
     int N = params -> rows();
     for (j = 0; j < p; j++)
     {
-        auto propDist = std::normal_distribution<double>(0.0, (*tau)(j));
+        auto propDist = std::normal_distribution<double>(0.0, 2.0*(*tau)(j));
         for (i = 0; i < N; i++)
         {
             (*params)(i,j) += propDist(*generator);
@@ -324,7 +324,7 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
                                      samplingControlInstance -> shrinkage,
                                      results_double,
                                      w0);
-        w1 = calculate_weights(e1,
+        w1 = calculate_weights_DM(e1,
                                e0, 
                                results_double,
                                w0);
@@ -556,6 +556,6 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         outList["result"] = Rcpp::wrap(results_double);
     }
     outList["params"] = Rcpp::wrap(param_matrix);
-    outList["currentEps"] = 1;
+    outList["currentEps"] = e1;
     return(outList);
 }

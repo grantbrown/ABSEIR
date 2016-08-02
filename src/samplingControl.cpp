@@ -39,7 +39,8 @@ samplingControl::samplingControl(SEXP integerParameters,
 
     if (algorithm != ALG_BasicABC && 
         algorithm != ALG_ModifiedBeaumont2009 && 
-        algorithm != ALG_DelMoral2012)
+        algorithm != ALG_DelMoral2012 && 
+        algorithm != ALG_Simulate)
     {
         Rcpp::stop("Algorithm specification must be of length 1 and equal to 1 or 2 or 3.");
     }

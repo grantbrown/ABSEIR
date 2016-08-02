@@ -6,8 +6,6 @@
 #' contained in \code{modelObject}
 #' @param verbose a logical value, indicating whether verbose output should be 
 #' provided. 
-#' @param returnCompartments  a logical value, indicating whether simulated compartments
-#' should be returned along with epsilon values
 #' 
 #' @details 
 #'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
@@ -16,11 +14,10 @@
 #'    easily generated using this function. 
 #' 
 #' @examples \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
-#'                                                  returnCompartments = TRUE, 
 #'                                                  verbose = TRUE)} 
 #' 
 #' @export
-epidemic.simulations = function(modelObject, replicates=1, returnCompartments = TRUE,verbose = FALSE)
+epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
 {
     if (class(modelObject) != "SpatialSEIRModel")
     {
@@ -128,11 +125,12 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
         modelCache[["samplingControl"]] = new (
             samplingControl, 
             c(samplingControlInstance$sim_width, samplingControlInstance$seed,
-              samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
+              samplingControlInstance$n_cores,
+              4, # ALG_Simulate
               samplingControlInstance$batch_size,samplingControlInstance$epochs, 
               samplingControlInstance$max_batches, 
               samplingControlInstance$multivariate_perturbation,
-              samplingControlInstance$m
+              1
               ),
             c(samplingControlInstance$acceptance_fraction, 
               samplingControlInstance$shrinkage, 
@@ -187,20 +185,24 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             modelCache[["initialValueContainer"]],
             modelCache[["samplingControl"]]
         )
+        print("SEIR Model Created")
 
         params = modelObject$param.samples
+        print("Params grabbed")
+
         params = params[rep(1:nrow(params), each = replicates),]
-        modelCache$SEIRModel$setParameters(params, modelObject$currentEps)
-        if (returnCompartments)
-        {
-            modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$sample(1, 1, verbose)
-        } 
-        else
-        {
-            modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$sample(1, 0, verbose)
-        }
+        print("Params expanded")
+
+        print("dim(params)")
+        print(params)
+        print("eps:") 
+        print(modelObject$current_eps)
+        modelCache$SEIRModel$setParameters(params, modelObject$current_eps)
+
+        print("Simulating")
+        modelResult[["simulatedResults"]] = 
+            modelCache$SEIRModel$sample(1, 1, verbose)
+        print("Simulated")
         },
         warning=function(w){
             cat(paste("Warnings produced: ", w, sep = ""))
@@ -212,12 +214,11 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             rm(modelCache)
         }
     );    
-    if (returnCompartments)
-    {
-        names(modelResult$simulatedResults) = 
-              paste("Simulation_", 1:length(modelResult$simulatedResults), 
-                    sep = "")
-    }
+
+    names(modelResult$simulatedResults) = 
+          paste("Simulation_", 1:length(modelResult$simulatedResults), 
+                sep = "")
+
     return(structure(list(modelObject = modelObject, 
                           simulationResults=modelResult$simulatedResults),
                      class = "PosteriorSimulation"))

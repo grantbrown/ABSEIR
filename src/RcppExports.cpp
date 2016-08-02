@@ -6,9 +6,9 @@
 
 using namespace Rcpp;
 
-// calculate_weights
-Eigen::VectorXd calculate_weights(double cur_e, double prev_e, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
-RcppExport SEXP ABSEIR_calculate_weights(SEXP cur_eSEXP, SEXP prev_eSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
+// calculate_weights_DM
+Eigen::VectorXd calculate_weights_DM(double cur_e, double prev_e, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
+RcppExport SEXP ABSEIR_calculate_weights_DM(SEXP cur_eSEXP, SEXP prev_eSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
@@ -16,7 +16,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type prev_e(prev_eSEXP);
     Rcpp::traits::input_parameter< Eigen::MatrixXd >::type eps(epsSEXP);
     Rcpp::traits::input_parameter< Eigen::VectorXd >::type prev_wts(prev_wtsSEXP);
-    __result = Rcpp::wrap(calculate_weights(cur_e, prev_e, eps, prev_wts));
+    __result = Rcpp::wrap(calculate_weights_DM(cur_e, prev_e, eps, prev_wts));
     return __result;
 END_RCPP
 }

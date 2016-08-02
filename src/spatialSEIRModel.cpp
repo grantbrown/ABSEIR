@@ -365,6 +365,14 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     {
         return(sample_DelMoral2012(N, V, sim_type_atom));
     }
+    else if (samplingControlInstance -> algorithm == ALG_Simulate)
+    {
+        if (!is_initialized)
+        {
+            Rcpp::Rcout << "Model must be initialized before simulating.\n";
+        }
+        return(sample_Simulate(N, V));
+    }
 }
 
 bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
@@ -473,7 +481,7 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
                                   results_c_dest);
     for (i = 0; i < params.rows(); i++)
     {
-        worker_pool -> enqueue(sim_type_atom, i, param_matrix.row(i));
+        worker_pool -> enqueue(sim_type_atom, i, params.row(i));
     }
     worker_pool -> awaitFinished();
 }

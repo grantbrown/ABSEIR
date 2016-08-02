@@ -150,7 +150,6 @@ void NodeWorker::operator()()
         {
             Eigen::VectorXd result = node -> simulate(task.params, false).result;
             (*(pool -> result_pointer)).row(task.param_idx) = result; 
-
         }
         else if (task.action_type == sim_result_atom)
         {
@@ -1104,7 +1103,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         calculateReproductiveNumbers(&compartmentResults);
     }
-    compartmentResults.result = results; 
+    compartmentResults.result = results.unaryExpr([](double elem){
+            return(std::sqrt(elem));
+            }); 
     return(compartmentResults);
 }
 
