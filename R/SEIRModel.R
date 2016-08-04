@@ -632,6 +632,8 @@ update.SpatialSEIRModel = function(object, ...)
 #' @param \dots additional arguments to be passed to plotting functions. 
 #' @examples \dontrun{plot(modelObject)}
 #' @export
+#' @import stats
+#' @importFrom graphics, hist.
 plot.SpatialSEIRModel = function(x, ...)
 {
     for (i in 1:ncol(x$param.samples))
