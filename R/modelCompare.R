@@ -20,7 +20,6 @@
 #' approximate Bayes Factors of comparably converged models by assessing
 #' the parameter acceptance rate at a new iteration. 
 #' 
-#'
 #' @examples \dontrun{compareModels(list(model1, model2))}
 #'                                                
 #' @export 
