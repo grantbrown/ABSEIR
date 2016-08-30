@@ -168,10 +168,8 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     results_complete = std::vector<simulationResultSet>();
     results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                                samplingControlInstance -> m); 
-    Rcpp::Rcout << "Batch size is: " << samplingControlInstance -> batch_size << "\n";
     param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                             nParams);
-    Rcpp::Rcout << "param_matrix created.\n";
 
     // Create the worker pool
     worker_pool = std::unique_ptr<NodePool>(
@@ -212,11 +210,13 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 {
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
+    Rcpp::Rcout << "Has Reinfection: " << hasReinfection << "\n";
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
+    Rcpp::Rcout << "nBetaRS: " << nBetaRS << "\n";
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
     const int nTrans = (transitionMode == "exponential" ? 2 :
@@ -309,9 +309,9 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
             for (j = nBeta; j < nBeta + nBetaRS; j++)
             {
                 outParams(i, j) = 
-                    (reinfectionModelInstance -> betaPriorMean(j)) + 
+                    (reinfectionModelInstance -> betaPriorMean(j-nBeta)) + 
                      standardNormal(*generator) /
-                    (reinfectionModelInstance -> betaPriorPrecision(j));           
+                    (reinfectionModelInstance -> betaPriorPrecision(j-nBeta));           
             }
         }
     }

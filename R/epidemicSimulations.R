@@ -185,24 +185,13 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
             modelCache[["initialValueContainer"]],
             modelCache[["samplingControl"]]
         )
-        print("SEIR Model Created")
-
         params = modelObject$param.samples
-        print("Params grabbed")
-
         params = params[rep(1:nrow(params), each = replicates),]
-        print("Params expanded")
 
-        print("dim(params)")
-        print(params)
-        print("eps:") 
-        print(modelObject$current_eps)
         modelCache$SEIRModel$setParameters(params, modelObject$current_eps)
 
-        print("Simulating")
         modelResult[["simulatedResults"]] = 
             modelCache$SEIRModel$sample(1, 1, verbose)
-        print("Simulated")
         },
         warning=function(w){
             cat(paste("Warnings produced: ", w, sep = ""))
@@ -216,11 +205,14 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
     );    
 
     names(modelResult$simulatedResults) = 
-          paste("Simulation_", 1:length(modelResult$simulatedResults), 
-                sep = "")
+          c(paste("Simulation_", 1:(length(modelResult$simulatedResults) - 2), 
+                sep = ""), "params", "current_eps")
 
     return(structure(list(modelObject = modelObject, 
-                          simulationResults=modelResult$simulatedResults),
+                          simulationResults=modelResult$simulatedResults[
+                            1:(length(modelResult$simulatedResults) - 2)], 
+                          params = modelResult$simulatedResults$params,
+                          current_eps = modelResult$simulatedResults$current_eps),
                      class = "PosteriorSimulation"))
 }
 

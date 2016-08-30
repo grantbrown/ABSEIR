@@ -29,6 +29,61 @@ std::vector<size_t> sort_indexes_eigen(Eigen::MatrixXd inMat)
 }                                                                               
    
 
+void proposeParams_beaumont_multivariate(Eigen::MatrixXd* params,
+                                         Eigen::VectorXd* tau,
+                                         std::mt19937* generator,
+                                         spatialSEIRModel* model)
+{
+    // TODO: Integrate with/replace above
+    int i, j;
+    int N = params -> rows();
+    Eigen::MatrixXd curSamp = *params;
+    Eigen::RowVectorXd parameterMeans = curSamp.colwise().mean();
+    auto parameterCentered = (curSamp.rowwise() - parameterMeans);
+    Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
+            * (parameterCentered)/(curSamp.rows()-1);
+    Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
+    auto L = Eigen::MatrixXd(paramLLT.matrixL());
+    auto Z = Eigen::VectorXd(parameterCov.cols());
+    auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+    auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
+    Eigen::VectorXd proposal = (params -> row(0))*0.0; 
+
+    bool hasValid;
+    int itrs = 0;
+    Eigen::VectorXd param_cache = params -> row(0);
+    for (i = 0; i < N; i++)
+    {
+        itrs = 0;
+        hasValid = false;
+        param_cache = params -> row(i);
+
+        while (!hasValid && itrs < 1000)
+        {
+            params -> row(i) = param_cache;
+            // Fill up standard normal vector
+            for (j = 0; j < params -> cols(); j++)
+            {
+                Z(j) = std::normal_distribution<double>(0.0,1.0)(*generator);
+            }
+            // Generate multivariate normal
+            proposal = L * Z;
+            // Add back appropriate mean
+            params -> row(i) += proposal;
+            hasValid = (model -> evalPrior(params -> row(i)) > 0);  
+            itrs++;
+        }
+        if (!hasValid)
+        {
+            Rcpp::Rcout << "Unable to generate parameters with nonzero probability.\n";
+            Rcpp::Rcout << "  Param " << i << " of " << params -> rows() << "\n"; 
+            Rcpp::Rcout << "  Pror prob: " << (model -> evalPrior(params -> row(i)));
+            Rcpp::Rcout << "  Param: \n" << params -> row(i) << "\n";
+            Rcpp::stop("No parameters");
+        }
+    }
+}
+
 void proposeParams_beaumont(Eigen::MatrixXd* params,
                             Eigen::VectorXd* tau,
                             std::mt19937* generator,
@@ -239,10 +294,20 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             }
 
             // perturb parameters
-            proposeParams_beaumont(&preproposal_params, 
-                          &tau,
-                          generator,
-                          this);     
+            if (samplingControlInstance -> multivariatePerturbation)
+            {
+                proposeParams_beaumont_multivariate(&preproposal_params, 
+                              &tau,
+                              generator,
+                              this);
+            }
+            else
+            {
+                proposeParams_beaumont(&preproposal_params, 
+                              &tau,
+                              generator,
+                              this);     
+            }
 
             // run simulations
             run_simulations(preproposal_params,
