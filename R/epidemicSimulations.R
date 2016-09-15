@@ -4,6 +4,9 @@
 #' function. 
 #' @param replicates the number of replicate simulations to perform for each sample
 #' contained in \code{modelObject}
+#' @param returnCompartments  A logical value, indicating whether or not
+#' actual simulated compartment values should be returned. Omitting compartment
+#' values is faster, but of course conveys less information. 
 #' @param verbose a logical value, indicating whether verbose output should be 
 #' provided. 
 #' 
@@ -17,12 +20,19 @@
 #'                                                  verbose = TRUE)} 
 #' 
 #' @export
-epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
+epidemic.simulations = function(modelObject, 
+                                replicates=1, 
+                                returnCompartments = TRUE, 
+                                verbose = FALSE)
 {
-    if (class(modelObject) != "SpatialSEIRModel")
-    {
-        stop("modelObject must be of type SpatialSEIRModel")
-    }
+    checkArgument("modelObject", list(argClassValidator("SpatialSEIRModel")))
+    checkArgument("replicates", list(argClassValidator(c("numeric", "integer")),
+                                      argLengthValidator(1)))
+    checkArgument("returnCompartments", list(argClassValidator(c("logical")),
+                                      argLengthValidator(1)))
+    checkArgument("verbose", list(argClassValidator(c("logical", "integer", 
+                                                      "numeric")),
+                                      argLengthValidator(1)))
 
     modelCache = list()
     modelResult = list()
@@ -75,7 +85,6 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
                 }
             }
         }
-
 
         modelCache[["distanceModel"]]$setPriorParameters(
             distanceModelInstance$priorAlpha,
@@ -191,7 +200,7 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
         modelCache$SEIRModel$setParameters(params, modelObject$current_eps)
 
         modelResult[["simulatedResults"]] = 
-            modelCache$SEIRModel$sample(1, 1, verbose)
+            modelCache$SEIRModel$sample(1, returnCompartments, verbose)
         },
         warning=function(w){
             cat(paste("Warnings produced: ", w, sep = ""))
@@ -204,9 +213,12 @@ epidemic.simulations = function(modelObject, replicates=1, verbose = FALSE)
         }
     );    
 
-    names(modelResult$simulatedResults) = 
-          c(paste("Simulation_", 1:(length(modelResult$simulatedResults) - 2), 
-                sep = ""), "params", "current_eps")
+    if (returnCompartments)
+    {
+        names(modelResult$simulatedResults) = 
+              c(paste("Simulation_", 1:(length(modelResult$simulatedResults) - 2), 
+                    sep = ""), "params", "current_eps")
+    }
 
     return(structure(list(modelObject = modelObject, 
                           simulationResults=modelResult$simulatedResults[
