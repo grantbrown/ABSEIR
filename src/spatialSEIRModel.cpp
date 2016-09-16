@@ -150,6 +150,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
+    Rcpp::Rcout << "nrho: " << nRho << "\n";
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
 
@@ -219,6 +220,7 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     Rcpp::Rcout << "nBetaRS: " << nBetaRS << "\n";
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
+    Rcpp::Rcout << "nrho: " << nRho << "\n";
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
 

@@ -876,44 +876,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
-            /*
-             
-    p_se_cache = ((previous_I.cast<double>().array().colwise())
-        /N.cast<double>().array()).array().colwise()*
-        p_se_components.row(0).transpose().array();
-
-    Eigen::MatrixXd p_se = 1*p_se_cache; 
-
-    if (has_spatial)
-    {
-        for (idx = 0; idx < DM_vec.size(); idx++)
-        {
-            p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
-        }
-    }
-    if (has_ts_spatial)
-    {
-        if (!TDM_empty[0])
-        {
-            p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
-        }
-    }
-
-    p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
-            return(1-std::exp(e));
-            }); 
-
-
-               */
-
-            /**
-            p_se_cache = ((previous_I.cast<double>().array().colwise())
-                /N.cast<double>().array()).array().colwise()*
-                p_se_components.row(0).transpose().array();
-
-                **/
-            p_se_cache = (previous_I.cast<double>().array().col(w))
-                /N.cast<double>().array()*p_se_components.row(time_idx).array();
+            p_se_cache = (previous_I.cast<double>().array().col(w)).array()
+                /N.cast<double>().array()*p_se_components.row(time_idx).transpose().array();
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
@@ -924,15 +888,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 }
             }
 
-
-
-
             if (has_ts_spatial && !TDM_empty[time_idx])
             {
                 for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
                 {
                     p_se_cache = (I_lag[w].get(lag).cast<double>().array())
-                        /N.cast<double>().array()*p_se_components.row(time_idx - lag).array();
+                        /N.cast<double>().array()*p_se_components.row(time_idx - lag).transpose().array();
                     p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
                 }
             }
