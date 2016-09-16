@@ -65,7 +65,7 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
 
     // keep_samples indicates a debug mode, so don't worry if we can't make
     // a regular data frame from the list.
-    for (i = 0; i < results_complete.size(); i++)
+    for (i = 0; i < (int) results_complete.size(); i++)
     {
         Rcpp::List subList;
         subList["S"] = Rcpp::wrap(results_complete[i].S);

@@ -78,7 +78,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                     + std::to_string(distanceModelInstance -> numLocations) + ".\n").c_str()
                 );
     }
-    if ((distanceModelInstance -> tdm_list).size() != (dataModelInstance -> nTpt))
+    if ((int) (distanceModelInstance -> tdm_list).size() != (dataModelInstance -> nTpt))
     {
         Rcpp::stop("TDistance model and data model imply a different number of time points.\n");
     }

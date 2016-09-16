@@ -131,7 +131,9 @@ double solve_for_epsilon(double LB,
                        Eigen::VectorXd prev_wts)
 {
     double phi = (1.0 + std::sqrt(5))/2.0; 
-    double a,b,c,d,fa,fb,fc,fd;
+    double a,b,c,d,fc,fd;
+    //double a,b,c,d,fa,fb,fc,fd;
+
     //double proposed_e = proposed_e; 
     /*double rhs = ESS(calculate_weights_DM(proposed_e,
                                          prev_e, 
@@ -140,9 +142,11 @@ double solve_for_epsilon(double LB,
     double rhs = ESS(prev_wts)*alpha;
 
     a = LB;
+    c = LB;
     b = UB;
-    fa = eps_f(rhs, a, prev_e, eps, prev_wts);
-    fb = eps_f(rhs, b, prev_e, eps, prev_wts);
+    d = UB;
+    //fa = eps_f(rhs, a, prev_e, eps, prev_wts);
+    //fb = eps_f(rhs, b, prev_e, eps, prev_wts);
     bool mvLB = true;
     bool mvUB = true;
     int itrs = 0;
@@ -165,7 +169,7 @@ double solve_for_epsilon(double LB,
        if (fc < fd)
        {
          b = d;
-         fb = fd;
+         //fb = fd;
          d = c;
          fd = fc;
          mvLB = true;
@@ -173,7 +177,7 @@ double solve_for_epsilon(double LB,
        else
        {
          a = c;
-         fa = fc;
+         //fa = fc;
          c = d;
          fc = fd;
          mvUB = true;
@@ -282,7 +286,6 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         if (verbose > 1){Rcpp::Rcout << "Generating starting parameters from prior\n";}
         // Sample parameters from their prior
         param_matrix = generateParamsPrior(Npart);
-        int rw, col;
         run_simulations(param_matrix, sim_atom, &results_double, &results_complete);
     }
     else
@@ -456,15 +459,13 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         int numAccept = 0;
         int numNan = 0;
         double acc_ratio, num, denom, pn, pd;
-        bool accept;
-        // zzz: Nsim == Npart for following code
+        // Nsim == Npart for following code
         for (i = 0; i < Nsim; i++)
         {
             pn = evalPrior(proposed_param_matrix.row(i));
             pd = evalPrior(param_matrix.row(i));
             num = 0.0;
             denom = 0.0;
-            accept = false;
 
             for (j = 0; j < results_double.cols(); j++)
             {
@@ -515,7 +516,7 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
     {
         // keep_samples indicates a debug mode, so don't worry if we can't make
         // a regular data frame from the list.
-        for (i = 0; i < results_complete.size(); i++)
+        for (i = 0; i < (int) results_complete.size(); i++)
         {
             Rcpp::List subList;
             subList["S"] = Rcpp::wrap(results_complete[i].S);

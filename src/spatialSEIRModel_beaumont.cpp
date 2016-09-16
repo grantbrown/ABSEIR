@@ -45,8 +45,8 @@ void proposeParams_beaumont_multivariate(Eigen::MatrixXd* params,
     Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
     auto L = Eigen::MatrixXd(paramLLT.matrixL());
     auto Z = Eigen::VectorXd(parameterCov.cols());
-    auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
-    auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
+    //auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+    //auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
     Eigen::VectorXd proposal = (params -> row(0))*0.0; 
 
     bool hasValid;
@@ -193,7 +193,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         // Sample parameters from their prior
         preproposal_params = generateParamsPrior(Nsim);
         param_matrix = Eigen::MatrixXd::Zero(Npart, preproposal_params.cols());
-        int rw;
         run_simulations(preproposal_params, sim_atom, &preproposal_results, &results_complete);
 
         std::vector<size_t> currentIndex = sort_indexes_eigen(preproposal_results); 

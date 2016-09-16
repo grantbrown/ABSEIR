@@ -41,7 +41,6 @@ void compartment_tap::push(Eigen::VectorXi newComp)
 
 Eigen::VectorXi compartment_tap::get(int lag)
 {
-    int i, j;
     int proposed = idx - lag - 1; 
     int itr = 0;
     while (proposed < 0 && itr < 1e6){
