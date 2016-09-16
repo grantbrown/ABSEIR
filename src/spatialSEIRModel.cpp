@@ -83,9 +83,9 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
         Rcpp::stop("TDistance model and data model imply a different number of time points.\n");
     }
     int sz1 = (distanceModelInstance -> tdm_list)[0].size();
-    for (int i = 0; i < (distanceModelInstance -> tdm_list).size(); i++)
+    for (int i = 0; i < (int) (distanceModelInstance -> tdm_list).size(); i++)
     {
-        if (distanceModelInstance -> tdm_list[i].size() != sz1)
+        if ((int) distanceModelInstance -> tdm_list[i].size() != sz1)
         {
             Rcpp::stop("Differing number of lagged contact matrices across time points.\n");
         }
@@ -367,11 +367,15 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     {
         return(sample_DelMoral2012(N, V, sim_type_atom));
     }
-    else if (samplingControlInstance -> algorithm == ALG_Simulate)
+    else 
     {
+	if (samplingControlInstance -> algorithm != ALG_Simulate)
+	{
+            Rcpp::stop("Unknown algorithm.");
+	}
         if (!is_initialized)
         {
-            Rcpp::Rcout << "Model must be initialized before simulating.\n";
+            Rcpp::stop("Model must be initialized before simulating.");
         }
         return(sample_Simulate(N, V));
     }
@@ -401,6 +405,7 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
 
     param_matrix = params; 
     is_initialized = true;
+    return(true);
 }
 
 double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)

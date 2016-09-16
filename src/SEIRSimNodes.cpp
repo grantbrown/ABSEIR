@@ -138,7 +138,6 @@ NodeWorker::NodeWorker(NodePool* pl,
 
 void NodeWorker::operator()()
 {
-    int taskNo = 0;
     instruction task;
 #ifdef SPATIALSEIR_SINGLETHREAD
     while ((pool -> tasks).size() > 0)
@@ -890,7 +889,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
             if (has_ts_spatial && !TDM_empty[time_idx])
             {
-                for (lag = 0; time_idx - lag >= 0 && lag < TDM_vec[0].size(); lag++)
+                for (lag = 0; time_idx - lag >= 0 && lag < (int) TDM_vec[0].size(); lag++)
                 {
                     p_se_cache = (I_lag[w].get(lag).cast<double>().array())
                         /N.cast<double>().array()*p_se_components.row(time_idx - lag).transpose().array();

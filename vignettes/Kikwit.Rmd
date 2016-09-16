@@ -208,12 +208,12 @@ parameters:
 ```{r}
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 14,
+                                   n_cores = 8,
                                    algorithm="Beaumont2009",
-                                   list(batch_size = 2000,
+                                   list(batch_size = 1000,
                                            epochs = 1e6,
-                                           max_batches = 100,
-                                           shrinkage = 0.99,
+                                           max_batches = 50,
+                                           shrinkage = 0.9,
                                            multivariate_perturbation=TRUE
                                          )
                                    )
@@ -246,8 +246,8 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           transition_priors,
                           initial_value_container,
                           sampling_control,
-                          samples = 100,
-                          verbose = FALSE))
+                          samples = 1000,
+                          verbose = TRUE))
 ```
 
 

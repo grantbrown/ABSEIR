@@ -40,7 +40,7 @@ void distanceModel::addTDistanceMatrix(int tpt, NumericMatrix distMat)
     int i,j;
     tpt--;
     bool empty = true;
-    if (tpt < 0 || tpt >= tdm_list.size())
+    if (tpt < 0 || tpt >= (int) tdm_list.size())
     {
         Rcpp::stop("Invalid Time Index");
     }
