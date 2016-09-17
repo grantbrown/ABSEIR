@@ -49,6 +49,13 @@
 #' \item{m}{For the DelMoral2012 algorithm, an integer determining the number of 
 #' simulated epidemics to use for each set of basis parameters (parameterized
 #' as in the 2012 paper.)}}
+#' \item{particles}{For the 'simulate' algorithm, a raw matrix of parameter 
+#' values must be provided, following the format created by the other
+#' algorithms. This functonality is used primarily for debugging purposes; most
+#' users should perform such simulations using the 
+#' \item{replicates}{For the 'simulate' algorithm, a number of replicate
+#' simulations to be performed per particle.}
+#' \code{\link{epidemic.simulations}} function instead.}
 #' 
 #' @examples samplingControl <- SamplingControl(123123, 2)
 #' @export
@@ -58,7 +65,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
     alg = ifelse(algorithm == "BasicABC", 1,
           ifelse(algorithm == "Beaumont2009", 2, 
           ifelse(algorithm == "DelMoral2012", 3, 
-                 NA)))
+          ifelse(algorithm == "simulate", 4, 
+                 NA))))
     if (is.na(alg))
     {
         stop(paste("Algorithm", algorithm, "not supported. Choice must be one of:",
@@ -76,7 +84,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  shrinkage = 0.9,
                  max_batches = 20,
                  multivariate_perturbation = 0,
-                 m=1)
+                 m=1,
+                 particles=-1,
+                 replicates=-1)
         }
         else if (algorithm == "DelMoral2012")
         {
@@ -87,8 +97,13 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  shrinkage = 0.9,
                  max_batches = 20,
                  multivariate_perturbation = 0,
-                 m=5)
-           
+                 m=5,
+                 particles=-1,
+                 replicates=-1)           
+        }
+        else if (algorithm == "simulate")
+        {
+            stop("the 'simulate' algorithm requires pre-specified parameters.")
         }
         else
         {
@@ -99,7 +114,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  shrinkage = 1,
                  max_batches = 1,
                  multivariate_perturbation = 0,
-                 m=1)
+                 m=1,
+                 particles=-1,
+                 replicates=-1)
         }
     }
     else if (class(params) == "list")
@@ -131,6 +148,13 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("m" %in% names(params))){
                 params[["m"]] = 1
             }
+            if (!("particles" %in% names(params))){
+                params[["particles"]] = -1
+            }
+            if (!("replicates" %in% names(params))){
+                params[["replicates"]] = -1
+            }
+
         }
         else if (algorithm == "DelMoral2012")
         {
@@ -158,8 +182,23 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("m" %in% names(params))){
                 params[["m"]] = 5
             }
+            if (!("particles" %in% names(params))){
+                params[["particles"]] = -1
+            }
+            if (!("replicates" %in% names(params))){
+                params[["replicates"]] = -1
+            }
         }
+        else if (algorithm == "simulate")
+        {
+            if (!("particles" %in% names(params))){
+                stop("The 'particles' argument is required for the 'simulate' algorithm")
+            }
+            if (!("replicates" %in% names(params))){
+                params[["replicates"]] = 1
+            }
 
+        }
         else if (algorithm == "BasicABC")
         {
             if (!("target_eps" %in% names(params))){
@@ -186,6 +225,12 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("m" %in% names(params))){
                 params[["m"]] = 1
             }
+            if (!("particles" %in% names(params))){
+                params[["particles"]] = -1
+            }
+            if (!("replicates" %in% names(params))){
+                params[["replicates"]] = -1
+            }
         }
         else
         {
@@ -204,7 +249,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "shrinkage" = params$shrinkage,
                    "max_batches" = params$max_batches,
                    "multivariate_perturbation" = params$multivariate_perturbation,
-                   "m"=params$m
+                   "m"=params$m,
+                   "particles"=params$particles,
+                   "replicates"=params$replicates
                    ), class = "SamplingControl")
 }
 

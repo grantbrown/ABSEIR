@@ -29,7 +29,8 @@
 #' @param samples the number of samples to approximate from the posterior
 #'        distribution, i.e. the number of particles to simulate. The number
 #'        of particles should be considerably smaller than the batch size
-#'        specified by the sampling_control argument. 
+#'        specified by the sampling_control argument. Ignored for the 
+#'        debug-oriented 'simulate' algorithm.
 #' @param verbose print diagnostic information on the progress of the fitting algorithm.
 #'        Available output levels are 0, 1, 2, and 3, in ascending order
 #'        of detail. Level 0 output will
@@ -74,6 +75,12 @@ SpatialSEIRModel = function(data_model,
                           samples=100,
                           verbose=FALSE)
 {
+    checkArgument("samples", list(argClassValidator(c("integer",
+                                                      "numeric")),
+                                  argLengthValidator(1),
+                                  numericRangeValidator(lower = 1)
+                          )) 
+    # Todo: convert following checks to new infrastructure
 
     if (class(data_model) != "DataModel")
     {
@@ -104,6 +111,28 @@ SpatialSEIRModel = function(data_model,
     {
         stop(paste("Expected: SamplingControl Received: ", 
                    class(sampling_control)))
+    }
+
+    if (sampling_control$algorithm == 4)
+    {
+        sampling_control2 <- sampling_control
+        sampling_control2$algorithm <- 2
+        sampling_control2$epochs <- 0
+        dummy_model <- SpatialSEIRModel(data_model,
+                                        exposure_model,
+                                        reinfection_model,
+                                        distance_model,
+                                        transition_priors,
+                                        initial_value_container,
+                                        sampling_control2,
+                                        samples=1,
+                                        verbose=FALSE)
+        dummy_model$modelComponents$sampling_control <- sampling_control
+        dummy_model$param.samples <- sampling_control$particles
+        return(epidemic.simulations(dummy_model, 
+                                    sampling_control$replicates,
+                                    returnCompartments=TRUE,
+                                    verbose=verbose))
     }
 
     modelResults = list()
@@ -256,6 +285,7 @@ SpatialSEIRModel = function(data_model,
         )
         if (verbose) cat("Running main simulation\n")
         rslt = modelComponents[["SEIR_model"]]$sample(samples, 0, verbose*1)
+
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result
