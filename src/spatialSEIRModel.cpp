@@ -150,7 +150,6 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
-    Rcpp::Rcout << "nrho: " << nRho << "\n";
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
 
@@ -211,16 +210,13 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 {
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
-    Rcpp::Rcout << "Has Reinfection: " << hasReinfection << "\n";
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
-    Rcpp::Rcout << "nBetaRS: " << nBetaRS << "\n";
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
-    Rcpp::Rcout << "nrho: " << nRho << "\n";
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
 

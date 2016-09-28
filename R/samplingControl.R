@@ -7,7 +7,7 @@
 #' ABC rejection algorithm of Rubin (1980), "Beaumont2009" for the
 #' SMC approach of Beaumont et al. (2009), or "DelMoral2006"  for the adaptive
 #' SMC approach of Del Moral (2012). 
-#' @param params optional algorithm configuration parameters, see: detail.  
+#' @param  params optional algorithm configuration parameters, see: detail.  
 #' @return an object of type \code{\link{SamplingControl}}
 #' @details
 #'  The basic ABC algorithm is useful in cases where good prior information is
@@ -48,14 +48,15 @@
 #' mulivariate normal distribuion rather than independent normals.}
 #' \item{m}{For the DelMoral2012 algorithm, an integer determining the number of 
 #' simulated epidemics to use for each set of basis parameters (parameterized
-#' as in the 2012 paper.)}}
+#' as in the 2012 paper.)}
 #' \item{particles}{For the 'simulate' algorithm, a raw matrix of parameter 
 #' values must be provided, following the format created by the other
 #' algorithms. This functonality is used primarily for debugging purposes; most
 #' users should perform such simulations using the 
-#' \item{replicates}{For the 'simulate' algorithm, a number of replicate
-#' simulations to be performed per particle.}
 #' \code{\link{epidemic.simulations}} function instead.}
+#' \item{replicates}{For the 'simulate' algorithm, a number of replicate
+#' simulations to be performed per particle.}}
+#' 
 #' 
 #' @examples samplingControl <- SamplingControl(123123, 2)
 #' @export
@@ -191,13 +192,36 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
         }
         else if (algorithm == "simulate")
         {
+            if (!("target_eps" %in% names(params))){
+                params[["target_eps"]] = 0
+            }
+            if (!("batch_size" %in% names(params))) {
+                params[["batch_size"]] = 5000
+            }
+            if (!("epochs" %in% names(params))) {
+                params[["epochs"]] = 0
+            }
+            if (!("shrinkage" %in% names(params))) {
+                params[["shrinkage"]] = 0.9
+            }
+            if (!("acceptance_fraction" %in% names(params))) {
+                params[["acceptance_fraction"]] = 1
+            }
+            if (!("max_batches" %in% names(params))) {
+                params[["max_batches"]] = 20
+            }
+            if (!("multivariate_perturbation" %in% names(params))){
+                params[["multivariate_perturbation"]] = 0
+            }
+            if (!("m" %in% names(params))){
+                params[["m"]] = 1
+            }
             if (!("particles" %in% names(params))){
                 stop("The 'particles' argument is required for the 'simulate' algorithm")
             }
             if (!("replicates" %in% names(params))){
                 params[["replicates"]] = 1
             }
-
         }
         else if (algorithm == "BasicABC")
         {

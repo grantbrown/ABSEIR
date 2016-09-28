@@ -65,7 +65,14 @@ Beaumont2009 algorithm, parameter perturbations should be made from a
 mulivariate normal distribuion rather than independent normals.}
 \item{m}{For the DelMoral2012 algorithm, an integer determining the number of 
 simulated epidemics to use for each set of basis parameters (parameterized
-as in the 2012 paper.)}}
+as in the 2012 paper.)}
+\item{particles}{For the 'simulate' algorithm, a raw matrix of parameter 
+values must be provided, following the format created by the other
+algorithms. This functonality is used primarily for debugging purposes; most
+users should perform such simulations using the 
+\code{\link{epidemic.simulations}} function instead.}
+\item{replicates}{For the 'simulate' algorithm, a number of replicate
+simulations to be performed per particle.}}
 }
 \examples{
 samplingControl <- SamplingControl(123123, 2)

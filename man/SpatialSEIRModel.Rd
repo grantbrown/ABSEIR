@@ -45,7 +45,8 @@ Sampling control objects are created by the
 \item{samples}{the number of samples to approximate from the posterior
 distribution, i.e. the number of particles to simulate. The number
 of particles should be considerably smaller than the batch size
-specified by the sampling_control argument.}
+specified by the sampling_control argument. Ignored for the 
+debug-oriented 'simulate' algorithm.}
 
 \item{verbose}{print diagnostic information on the progress of the fitting algorithm.
 Available output levels are 0, 1, 2, and 3, in ascending order

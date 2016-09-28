@@ -115,8 +115,9 @@ SpatialSEIRModel = function(data_model,
 
     if (sampling_control$algorithm == 4)
     {
-        sampling_control2 <- sampling_control
-        sampling_control2$algorithm <- 2
+        # We don't actually want to fit a model
+        sampling_control2 <- SamplingControl(seed = sampling_control$seed, 
+                                             n_cores = sampling_control$n_cores) 
         sampling_control2$epochs <- 0
         dummy_model <- SpatialSEIRModel(data_model,
                                         exposure_model,
