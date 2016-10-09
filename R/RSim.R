@@ -76,8 +76,6 @@ Rsim <- function(seed,
   p_IR <- transition_priors$p_ir
   
   set.seed(seed)
-  p_EI = 1-exp(-gamma_EI)
-  p_IR = 1-exp(-gamma_IR)
 
   E0 = initial_value_container$E0 
   I0 = initial_value_container$I0 
@@ -100,7 +98,7 @@ Rsim <- function(seed,
   {
     intensity = (I[i,]/N * eta_SE[i,] +
                    apply(rho[1:length(DMlist)]*t(sapply(DMlist, function(x){
-                     x %*% I[i,]/N * eta_SE[i,]  
+                     x %*% (I[i,]/N * eta_SE[i,])  
                    })), 2, sum))
     
     if (hasTSSpatial && i != 1)
@@ -108,7 +106,7 @@ Rsim <- function(seed,
       lag.idx = 1
       for (j in (i-1):(max(i-length(lDMlist[[1]]), 1)))
       {
-        intensity = intensity + rho[lag.idx+length(DMlist)]*(t(I[j,]/N) %*% lDMlist[[j]][[lag.idx]])
+        intensity = intensity + rho[lag.idx+length(DMlist)]*(lDMlist[[j]][[lag.idx]] %*% (I[j,]/N))
         lag.idx = lag.idx + 1
       }
     }
