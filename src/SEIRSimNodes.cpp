@@ -11,6 +11,8 @@
 #include <thread>
 using namespace std;
 
+#ifdef SPATIALSEIR_SINGLETHREAD
+
 void printDMatrix(Eigen::MatrixXd inMat, std::string name)
 {
     Rcpp::Rcout << "Matrix (" << inMat.rows() << ", " << inMat.cols() << "): " << name << "\n";
@@ -100,6 +102,26 @@ void printIVector(Eigen::VectorXi inVec, std::string name)
     }
 
 }
+#endif
+#ifndef SPATIALSEIR_SINGLETHREAD
+// Dummy functions
+void printDMatrix(Eigen::MatrixXd inMat, std::string name)
+{
+}
+
+void printDVector(Eigen::VectorXd inVec, std::string name)
+{
+}
+
+void printIMatrix(Eigen::MatrixXi inMat, std::string name)
+{
+}
+
+void printIVector(Eigen::VectorXi inVec, std::string name)
+{
+}
+
+#endif
 
 
 NodeWorker::NodeWorker(NodePool* pl,
@@ -587,7 +609,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         previous_E_star.col(i) = Eigen::VectorXi::Zero(m);
         previous_I_star.col(i) = Eigen::VectorXi::Zero(m);
         previous_R_star.col(i) = Eigen::VectorXi::Zero(m);
-
     }
     if (has_ts_spatial)
     {
@@ -609,6 +630,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se_cache = ((previous_I.cast<double>().array().colwise())
         /N.cast<double>().array()).array().colwise()*
         p_se_components.row(0).transpose().array();
+    printDVector(p_se_components.row(0), "p_se_components.row(0)");
+    printDVector(p_se_cache, "p_se_cache");
 
     Eigen::MatrixXd p_se = 1*p_se_cache; 
 
@@ -616,9 +639,15 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (idx = 0; idx < DM_vec.size(); idx++)
         {
+        
+            printDMatrix(DM_vec[idx], "DM_vec[i]");
+            printDVector(DM_vec[idx]*(p_se_cache), "DM_vec[idx]*(p_se_cache)");
             p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
+            printDVector(p_se, "p_se");
+
         }
     }
+    /*
     if (has_ts_spatial)
     {
         if (!TDM_empty[0])
@@ -626,10 +655,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
         }
     }
+    */
 
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
+    printDVector(p_se, "p_se");
+
 
     // Not used if transitionMode != "exponential"
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -875,15 +907,34 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
+
+            /* 
+            p_se_cache = ((previous_I.cast<double>().array().colwise())
+                /N.cast<double>().array()).array().colwise()*
+                p_se_components.row(0).transpose().array();
+
+
+               */
+            printDVector(
+                (previous_I.cast<double>().array().col(w)).array(),
+                " previous_I.cast<double>().array().col(w)).array()");
+
+
             p_se_cache = (previous_I.cast<double>().array().col(w)).array()
                 /N.cast<double>().array()*p_se_components.row(time_idx).transpose().array();
+            printDVector(p_se_cache, "p_se_cache");
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
             {
                 for (idx = 0; idx < DM_vec.size(); idx++)
                 {
+                    printDMatrix(DM_vec[idx], "DM_vec[idx]");
+                    printDMatrix(rho[idx]*(DM_vec[idx] * p_se_cache),
+                            "rho[idx]*(DM_vec[idx] * p_se_cache)");
+
                     p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
+                    printDVector(p_se, "p_se");
                 }
             }
 
@@ -901,6 +952,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()
                     ).unaryExpr([](double e){return(1-std::exp(e));});
      
+            printDMatrix(p_se, "p_se");
             for (i = 0; i < Y.cols(); i++)
             {
                 previous_S_star(i,w) = std::binomial_distribution<int>(previous_R(i,w), p_rs(time_idx))(*generator);

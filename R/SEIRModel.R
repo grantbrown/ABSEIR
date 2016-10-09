@@ -117,8 +117,9 @@ SpatialSEIRModel = function(data_model,
     {
         # We don't actually want to fit a model
         sampling_control2 <- SamplingControl(seed = sampling_control$seed, 
-                                             n_cores = sampling_control$n_cores) 
+                                             n_cores = sampling_control$n_cores)
         sampling_control2$epochs <- 0
+        sampling_control2$batch_size <- 1
         dummy_model <- SpatialSEIRModel(data_model,
                                         exposure_model,
                                         reinfection_model,
