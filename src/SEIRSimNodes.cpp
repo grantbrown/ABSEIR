@@ -630,8 +630,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se_cache = ((previous_I.cast<double>().array().colwise())
         /N.cast<double>().array()).array().colwise()*
         p_se_components.row(0).transpose().array();
-    printDVector(p_se_components.row(0), "p_se_components.row(0)");
-    printDVector(p_se_cache, "p_se_cache");
 
     Eigen::MatrixXd p_se = 1*p_se_cache; 
 
@@ -639,12 +637,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (idx = 0; idx < DM_vec.size(); idx++)
         {
-        
-            printDMatrix(DM_vec[idx], "DM_vec[i]");
-            printDVector(DM_vec[idx]*(p_se_cache), "DM_vec[idx]*(p_se_cache)");
             p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
-            printDVector(p_se, "p_se");
-
         }
     }
     /*
@@ -660,7 +653,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
-    printDVector(p_se, "p_se");
 
 
     // Not used if transitionMode != "exponential"
@@ -888,11 +880,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
-    previous_S = current_S;
-    previous_E = current_E;
-    previous_I = current_I;
-    previous_R = current_R;
-
+    /*
     if (has_ts_spatial)
     {
         for (w = 0; w < m; w++)
@@ -900,6 +888,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             I_lag[w].push(previous_I.col(w));
         }
     }
+    */
+
+
+    previous_S = current_S;
+    previous_E = current_E;
+    previous_I = current_I;
+    previous_R = current_R;
 
     // Simulation: iterative case
     int lag;
@@ -907,44 +902,25 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
-
-            /* 
-            p_se_cache = ((previous_I.cast<double>().array().colwise())
-                /N.cast<double>().array()).array().colwise()*
-                p_se_components.row(0).transpose().array();
-
-
-               */
-            printDVector(
-                (previous_I.cast<double>().array().col(w)).array(),
-                " previous_I.cast<double>().array().col(w)).array()");
-
-
             p_se_cache = (previous_I.cast<double>().array().col(w)).array()
                 /N.cast<double>().array()*p_se_components.row(time_idx).transpose().array();
-            printDVector(p_se_cache, "p_se_cache");
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
             {
                 for (idx = 0; idx < DM_vec.size(); idx++)
                 {
-                    printDMatrix(DM_vec[idx], "DM_vec[idx]");
-                    printDMatrix(rho[idx]*(DM_vec[idx] * p_se_cache),
-                            "rho[idx]*(DM_vec[idx] * p_se_cache)");
-
                     p_se += rho[idx]*(DM_vec[idx] * p_se_cache);
-                    printDVector(p_se, "p_se");
                 }
             }
 
             if (has_ts_spatial && !TDM_empty[time_idx])
-            {
-                for (lag = 0; time_idx - lag >= 0 && lag < (int) TDM_vec[0].size(); lag++)
+            {   
+                for (lag = 0; time_idx - lag - 1 >= 0 && lag < (int) TDM_vec[0].size(); lag++)
                 {
-                    p_se_cache = (I_lag[w].get(lag).cast<double>().array())
-                        /N.cast<double>().array()*p_se_components.row(time_idx - lag).transpose().array();
-                    p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag][lag] * p_se_cache);
+                    p_se_cache = (I_lag[w].get(lag).cast<double>()).array()
+                        /N.cast<double>().array()*p_se_components.row(time_idx - lag - 1).transpose().array();
+                    p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag - 1][lag] * p_se_cache);
                 }
             }
 
@@ -952,7 +928,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()
                     ).unaryExpr([](double e){return(1-std::exp(e));});
      
-            printDMatrix(p_se, "p_se");
             for (i = 0; i < Y.cols(); i++)
             {
                 previous_S_star(i,w) = std::binomial_distribution<int>(previous_R(i,w), p_rs(time_idx))(*generator);
@@ -1104,10 +1079,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 I_paths[w].row(0) = previous_I_star.col(w);
             }
 
+            I_lag[w].push(previous_I.col(w));
             previous_S.col(w) = current_S.col(w);
             previous_E.col(w) = current_E.col(w);
             previous_I.col(w) = current_I.col(w);
             previous_R.col(w) = current_R.col(w);
+
         }
     }
 

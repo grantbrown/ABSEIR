@@ -57,7 +57,7 @@ void distanceModel::addTDistanceMatrix(int tpt, NumericMatrix distMat)
     tdm_list[tpt].push_back(new_mat);
     if (!empty)
     {
-        tdm_empty[tpt] = 0;
+        tdm_empty[tpt + tdm_list[tpt].size()] = 0;
     }
 }
 

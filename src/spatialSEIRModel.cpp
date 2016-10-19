@@ -400,13 +400,6 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
     init_eps = eps;
 
     param_matrix = params; 
-    Rcpp::Rcout << "param_matrix: \n";
-    for (int i = 0; i < param_matrix.rows(); i++){
-        for (int j = 0; j < param_matrix.cols(); j++){
-            Rcpp::Rcout << param_matrix(i,j) << ",";
-        }
-        Rcpp::Rcout << "\n";
-    }
     is_initialized = true;
     return(true);
 }

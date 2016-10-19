@@ -106,7 +106,7 @@ Rsim <- function(seed,
       lag.idx = 1
       for (j in (i-1):(max(i-length(lDMlist[[1]]), 1)))
       {
-        intensity = intensity + rho[lag.idx+length(DMlist)]*(lDMlist[[j]][[lag.idx]] %*% (I[j,]/N))
+        intensity = intensity + rho[lag.idx+length(DMlist)]*(lDMlist[[j]][[lag.idx]] %*% (I[j,]/N*eta_SE[j,]))
         lag.idx = lag.idx + 1
       }
     }

@@ -19,7 +19,7 @@ compartment_tap::compartment_tap(int nrow, int ncol)
     {
         for (j = 0; j < compartment.cols(); j++)
         {
-            compartment(i,j) = -1;
+            //compartment(i,j) = -1;
         }
     }
     idx = 0;
