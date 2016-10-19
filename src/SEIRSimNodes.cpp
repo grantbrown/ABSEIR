@@ -1079,7 +1079,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 I_paths[w].row(0) = previous_I_star.col(w);
             }
 
-            I_lag[w].push(previous_I.col(w));
+            if (has_ts_spatial)
+            {
+                I_lag[w].push(previous_I.col(w));
+            }
             previous_S.col(w) = current_S.col(w);
             previous_E.col(w) = current_E.col(w);
             previous_I.col(w) = current_I.col(w);
