@@ -64,9 +64,6 @@ Rsim <- function(seed,
   hasReinfection <- (reinfection_model$integerMode != 3)
   X_RS <- reinfection_model$X_prs
   
-  if (hasReinfection){
-    stop("Reinfection debug mode not currently implemented.")
-  }
   if (transition_priors$mode != "exponential"){
     stop("Debugging currently only available for exponential transition modes")
   }
@@ -91,7 +88,11 @@ Rsim <- function(seed,
   E[1,] = E0
   I[1,] = I0
   R[1,] = R0
-  
+  if (hasReinfection)
+  {
+    eta_RS <- exp(X_RS %*% beta_RS)
+    p_RS <- 1-exp(-eta_RS)
+  }
   eta_SE = matrix(exp(X_SE %*% beta_SE), nrow = nTpt, ncol = length(N))
   
   for (i in 1:nTpt)
@@ -111,8 +112,18 @@ Rsim <- function(seed,
       }
     }
     
-    p_SE = 1-exp(-intensity)
+    if (hasReinfection)
+    {
+      S_star[i,] = rbinom(n = rep(1, ncol(S_star)), 
+                              size = R[i,],
+                              prob = rep(p_RS[i], ncol(S_star)))
+    }
+    else
+    {
+      S_star[i,] = 0
+    }
     
+    p_SE = 1-exp(-intensity)
     E_star[i,] = rbinom(n = rep(1, ncol(E_star)), 
                         size = S[i,],
                         prob = p_SE)
@@ -125,10 +136,10 @@ Rsim <- function(seed,
     
     if (i != nTpt)
     {
-      S[i+1,] = S[i,] - E_star[i,]
+      S[i+1,] = S[i,] + S_star[i,] - E_star[i,]
       E[i+1,] = E[i,] + E_star[i,] - I_star[i,]
       I[i+1,] = I[i,] + I_star[i,] - R_star[i,]
-      R[i+1,] = R[i,] + R_star[i,]
+      R[i+1,] = R[i,] + R_star[i,] - S_star[i,]
     }
   }
   
@@ -140,6 +151,7 @@ Rsim <- function(seed,
        E0=E0,
        I0=I0,
        R0=R0,
+       S_star=S_star,
        E_star=E_star,
        I_star=I_star,
        R_star=R_star)
