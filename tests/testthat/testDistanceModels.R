@@ -138,9 +138,11 @@ test_that("Spatial models produce correct sims",{
 
     Rcomp <- lapply(1:1000, function(x){
       Rsim(seed=123115+x, 
-           beta_SE = trueBeta,
-           beta_RS = c(), 
-           rho = trueRho,
+           params = list(beta_SE = trueBeta,
+                         beta_RS = c(), 
+                         rho = trueRho,
+                         gamma_EI = gamma_EI,
+                         gamma_IR = gamma_IR),
            exposure_model=exposure_model,
            reinfection_model=reinfection_model,
            distance_model=distance_model,

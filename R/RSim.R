@@ -1,9 +1,8 @@
 #' Simulate from a SEIR/SEIRS process using R (debug feature)
 #' 
 #' @param seed  A random seed
-#' @param beta_SE  Chosen values of S to E transition coefficients
-#' @param beta_RS  Chosen values of R to S transition coefficients
-#' @param rho  Chosen values of distance parameters
+#' @param params  Parameters needed for the simulation, a list including beta_SE, 
+#' beta_RS, rho, gamma_EI, gamma_IR, and optionally path-specific parameters.
 #' @param exposure_model An exposure model object, which describes the
 #'  spatial and temporal variability of the exposure/infection process. Valid 
 #'  exposure models are created using the \code{\link{ExposureModel}} function. 
@@ -41,15 +40,17 @@
 #' @useDynLib ABSEIR
 #' @export
 Rsim <- function(seed, 
-                 beta_SE,
-                 beta_RS, 
-                 rho,
+                 params, 
                  exposure_model,
                  reinfection_model,
                  distance_model,
                  transition_priors,
                  initial_value_container)
 { 
+  beta_SE <- params$beta_SE
+  beta_RS <- params$beta_RS
+  rho <- params$rho
+  
   nLoc <- exposure_model$nLoc
   nTpt <- exposure_model$nTpt
   X_SE <- exposure_model$X
@@ -64,14 +65,65 @@ Rsim <- function(seed,
   hasReinfection <- (reinfection_model$integerMode != 3)
   X_RS <- reinfection_model$X_prs
   
-  if (transition_priors$mode != "exponential"){
-    stop("Debugging currently only available for exponential transition modes")
+  if (transition_priors$mode == "exponential"){
+      gamma_EI <- params$gamma_EI #-log(1-transition_priors$p_ei)
+      gamma_IR <- params$gamma_IR #-log(1-transition_priors$p_ir)
+      p_EI <- 1-exp(-gamma_EI)    #transition_priors$p_ei
+      p_IR <- 1-exp(-gamma_IR)    #transition_priors$p_ir
   }
-  gamma_EI <- -log(1-transition_priors$p_ei)
-  gamma_IR <- -log(1-transition_priors$p_ir)
-  p_EI <- transition_priors$p_ei
-  p_IR <- transition_priors$p_ir
-  
+  else if (transition_priors == "path_specific")
+  {
+      stop("General path specific models not yet implemented")
+  }
+  else if (transition_priors$mode == "weibull") {
+      EI_shape <- params$EI_shape
+      EI_scale <- params$EI_scale
+
+      IR_shape <- params$IR_shape
+      IR_scale <- params$IR_scale
+
+      EI_paths <- matrix(0, ncol=ceiling(
+                                 qweibull(
+                                          1-1e-4, 
+                                          shape = EI_shape, 
+                                          scale = EI_scale)
+                                 ),
+                         nrow = nLoc
+      )
+
+      IR_paths <- matrix(0,ncol= ceiling(
+                                 qweibull(
+                                          1-1e-4, 
+                                          shape = IR_shape, 
+                                          scale = IR_scale)
+                                 ),
+                         nrow = nLoc
+      )
+      EI_paths[,0] = initial_value_container$E0
+      IR_paths[,0] = initial_value_container$I0
+      
+
+      n <- ncol(EI_paths)
+      indices <- cbind(0:n, 1:n+1)
+      p_EI_path <- c(apply(indices, 1, function(x){
+            a <- pweibull(x[1], EI_shape, EI_scale) 
+            b <- pweibull(x[2], EI_shape, EI_scale)
+            (b-a)/a
+      }))
+
+      p_IR_path <- c(apply(indices, 1, function(x){
+            a <- pweibull(x[1], IR_shape, IR_scale) 
+            b <- pweibull(x[2], IR_shape, IR_scale)
+            (b-a)/a
+      }))
+
+      p_EI_pathmatrix <- matrix(p_EI_path, nrow = nLoc, ncol = n, byrow = TRUE)
+      p_IR_pathmatrix <- matrix(p_IR_path, nrow = nLoc, ncol = n, byrow = TRUE)
+
+      warning("Debugging currently only fully working for exponential transition modes")
+  }
+
+ 
   set.seed(seed)
 
   E0 = initial_value_container$E0 
@@ -124,12 +176,37 @@ Rsim <- function(seed,
     }
     
     p_SE = 1-exp(-intensity)
-    E_star[i,] = rbinom(n = rep(1, ncol(E_star)), 
-                        size = S[i,],
-                        prob = p_SE)
-    I_star[i,] = rbinom(n = rep(1, ncol(I_star)),
-                        size = E[i,],
-                        prob = p_EI)
+    if (transition_priors$mode == "exponential"){
+        E_star[i,] <- rbinom(n = rep(1, ncol(E_star)), 
+                            size = S[i,],
+                            prob = p_SE)
+        I_star[i,] <- rbinom(n = rep(1, ncol(I_star)),
+                            size = E[i,],
+                            prob = p_EI)
+    }
+    else if (transition_prior$mode == "weibull")
+    {
+        n <- ncol(EI_paths)
+        EI_transitioning <- matrix(rbinom(matrix(1, ncol=n, nrow = nLoc), 
+                                   EI_paths, 
+                                   p_EI_pathmatrix), nrow = nLoc)
+        EI_paths <- EI_paths - EI_transitioning
+        EI_out <- apply(EI_transitioning,1,sum) + EI_paths[,n]
+        EI_paths <- cbind(0, EI_paths[,1:(n-1)])
+
+        n <- ncol(IR_paths)
+        IR_transitioning <- matrix(rbinom(matrix(1, ncol=n, nrow = nLoc), 
+                                   IR_paths, 
+                                   p_IR_pathmatrix), nrow = nLoc)
+        IR_paths <- IR_paths - IR_transitioning
+        IR_out <- apply(IR_transitioning,1,sum) + IR_paths[,n]
+        IR_paths <- cbind(0, IR_paths[,1:(n-1)])
+
+        I_star[i,] <- c(EI_out)
+        R_star[i,] <- c(IR_out)
+        EI_paths[,0] <- E_star[i,]
+        IR_paths[,0] <- I_star[i,]
+    }
     R_star[i,] = rbinom(n = rep(1, ncol(R_star)),
                         size = I[i,],
                         prob = p_IR)

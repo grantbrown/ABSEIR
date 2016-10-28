@@ -4,17 +4,14 @@
 \alias{Rsim}
 \title{Simulate from a SEIR/SEIRS process using R (debug feature)}
 \usage{
-Rsim(seed, beta_SE, beta_RS, rho, exposure_model, reinfection_model,
-  distance_model, transition_priors, initial_value_container)
+Rsim(seed, params, exposure_model, reinfection_model, distance_model,
+  transition_priors, initial_value_container)
 }
 \arguments{
 \item{seed}{A random seed}
 
-\item{beta_SE}{Chosen values of S to E transition coefficients}
-
-\item{beta_RS}{Chosen values of R to S transition coefficients}
-
-\item{rho}{Chosen values of distance parameters}
+\item{params}{Parameters needed for the simulation, a list including beta_SE, 
+beta_RS, rho, gamma_EI, gamma_IR, and optionally path-specific parameters.}
 
 \item{exposure_model}{An exposure model object, which describes the
 spatial and temporal variability of the exposure/infection process. Valid 
