@@ -3,6 +3,10 @@ test_that("Spatial models with reinfection produce correct sims",{
   trueBeta = c(-0.5, -2)
   trueBeta_RS = c(-10, 8)
   trueRho = c(0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25)
+  latent_shape = 10
+  latent_scale = 10
+  infectious_shape = 10
+  infectious_scale = 10
   gamma_EI = 1/5
   gamma_IR = 1/7
   N = c(1000000, 1000000, 1000000, 1000000)
@@ -133,18 +137,12 @@ test_that("Spatial models with reinfection produce correct sims",{
   transition_priors = WeibullTransitionPriors(10,10,10,10,10,10,10,10)
       
   
-  partMat <- matrix(c(trueBeta, trueBeta_RS,trueRho, gamma_EI, gamma_IR), nrow = 1)
+  partMat <- matrix(c(trueBeta, trueBeta_RS,trueRho, latent_shape, latent_scale, infectious_shape, infectious_scale), nrow = 1)
   colnames(partMat) <- c(paste("Beta_SE_", 1:length(trueBeta), sep = ""), 
                          paste("Beta_RS_", 1:length(paste("Beta_SE_", 1:length(trueBeta), sep = "")), sep = ""), 
                          paste("rho_", 1:length(trueRho), sep = ""),
-                         "gamma_EI", "gamma_IR")
-  
-  sampling_control = SamplingControl(seed = 123123, 
-                                     n_cores = 1,
-                                     algorithm="simulate",
-                                     list(particles = partMat,
-                                          replicates = 1000, 
-                                          batch_size = 1000))
+                         "latent_shape", "latent_scale", 
+                         "infectious_shape", "infectious_scale")
   
   sampling_control = SamplingControl(seed = 123123, 
                                      n_cores = 1,
@@ -164,14 +162,15 @@ test_that("Spatial models with reinfection produce correct sims",{
                                                    samples = 10,
                                                    verbose = FALSE))
   
-  
   Rcomp <- lapply(1:1000, function(x){
     Rsim(seed=123115+x, 
          params = list(beta_SE = trueBeta,
                        beta_RS = trueBeta_RS, 
                        rho = trueRho,
-                       gamma_EI = gamma_EI,
-                       gamma_IR = gamma_IR),
+                       EI_shape = latent_shape, 
+                       EI_scale = latent_scale,
+                       IR_shape = infectious_shape,
+                       IR_scale = infectious_scale),
          exposure_model=exposure_model,
          reinfection_model=reinfection_model,
          distance_model=distance_model,
@@ -246,6 +245,12 @@ test_that("Spatial models with reinfection produce correct sims",{
   }  
   
   compareComp(cmpName = "S_star", Rcomp, CppSim)
+  compareComp(cmpName = "I_star", Rcomp, CppSim)
+  compareComp(cmpName = "R_star", Rcomp, CppSim)
+  compareComp(cmpName = "I", Rcomp, CppSim)
   compareComp(cmpName = "R", Rcomp, CppSim)
   
 })
+
+
+

@@ -71,7 +71,7 @@ Rsim <- function(seed,
       p_EI <- 1-exp(-gamma_EI)    #transition_priors$p_ei
       p_IR <- 1-exp(-gamma_IR)    #transition_priors$p_ir
   }
-  else if (transition_priors == "path_specific")
+  else if (transition_priors$mode == "path_specific")
   {
       stop("General path specific models not yet implemented")
   }
@@ -99,28 +99,28 @@ Rsim <- function(seed,
                                  ),
                          nrow = nLoc
       )
-      EI_paths[,0] = initial_value_container$E0
-      IR_paths[,0] = initial_value_container$I0
+      EI_paths[,1] = initial_value_container$E0
+      IR_paths[,1] = initial_value_container$I0
       
 
       n <- ncol(EI_paths)
-      indices <- cbind(0:n, 1:n+1)
+      indices <- cbind(0:n, 1:(n+1))
       p_EI_path <- c(apply(indices, 1, function(x){
             a <- pweibull(x[1], EI_shape, EI_scale) 
             b <- pweibull(x[2], EI_shape, EI_scale)
-            (b-a)/a
+            (b-a)/(1-a)
       }))
-
+      p_EI_path <- p_EI_path[1:n]
+      
       p_IR_path <- c(apply(indices, 1, function(x){
             a <- pweibull(x[1], IR_shape, IR_scale) 
             b <- pweibull(x[2], IR_shape, IR_scale)
-            (b-a)/a
+            (b-a)/(1-a)
       }))
+      p_IR_path <- p_IR_path[1:n]
 
       p_EI_pathmatrix <- matrix(p_EI_path, nrow = nLoc, ncol = n, byrow = TRUE)
       p_IR_pathmatrix <- matrix(p_IR_path, nrow = nLoc, ncol = n, byrow = TRUE)
-
-      warning("Debugging currently only fully working for exponential transition modes")
   }
 
  
@@ -176,15 +176,18 @@ Rsim <- function(seed,
     }
     
     p_SE = 1-exp(-intensity)
+    E_star[i,] <- rbinom(n = rep(1, ncol(E_star)), 
+                         size = S[i,],
+                         prob = p_SE)
     if (transition_priors$mode == "exponential"){
-        E_star[i,] <- rbinom(n = rep(1, ncol(E_star)), 
-                            size = S[i,],
-                            prob = p_SE)
         I_star[i,] <- rbinom(n = rep(1, ncol(I_star)),
                             size = E[i,],
                             prob = p_EI)
+        R_star[i,] = rbinom(n = rep(1, ncol(R_star)),
+                            size = I[i,],
+                            prob = p_IR)
     }
-    else if (transition_prior$mode == "weibull")
+    else if (transition_priors$mode == "weibull")
     {
         n <- ncol(EI_paths)
         EI_transitioning <- matrix(rbinom(matrix(1, ncol=n, nrow = nLoc), 
@@ -204,12 +207,9 @@ Rsim <- function(seed,
 
         I_star[i,] <- c(EI_out)
         R_star[i,] <- c(IR_out)
-        EI_paths[,0] <- E_star[i,]
-        IR_paths[,0] <- I_star[i,]
+        EI_paths[,1] <- E_star[i,]
+        IR_paths[,1] <- I_star[i,]
     }
-    R_star[i,] = rbinom(n = rep(1, ncol(R_star)),
-                        size = I[i,],
-                        prob = p_IR)
     
     if (i != nTpt)
     {
