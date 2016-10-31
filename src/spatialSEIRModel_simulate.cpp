@@ -84,9 +84,6 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
             subList["p_ei"] = Rcpp::wrap(results_complete[i].p_ei);
             subList["p_ir"] = Rcpp::wrap(results_complete[i].p_ir);
         }
-        subList["R_EA"] = Rcpp::wrap(results_complete[i].rEA);
-        subList["R0t"] = Rcpp::wrap(results_complete[i].r0t);
-        subList["effR0t"] = Rcpp::wrap(results_complete[i].effR0);
         if (hasSpatial)
         {
             subList["rho"] = Rcpp::wrap(results_complete[i].rho);

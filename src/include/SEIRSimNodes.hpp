@@ -72,7 +72,6 @@ class SEIR_sim_node {
 
     private: 
         NodeWorker* parent;
-        void calculateReproductiveNumbers(simulationResultSet* input);
         int sim_width;
         unsigned int random_seed;
         Eigen::VectorXi S0;

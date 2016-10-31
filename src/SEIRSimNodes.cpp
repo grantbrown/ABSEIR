@@ -605,10 +605,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         previous_E.col(i) = E0;
         previous_I.col(i) = I0;
         previous_R.col(i) = R0;
-        previous_S_star.col(i) = Eigen::VectorXi::Zero(m);
-        previous_E_star.col(i) = Eigen::VectorXi::Zero(m);
-        previous_I_star.col(i) = Eigen::VectorXi::Zero(m);
-        previous_R_star.col(i) = Eigen::VectorXi::Zero(m);
+        previous_S_star.col(i) = Eigen::VectorXi::Zero(S0.size());
+        previous_E_star.col(i) = Eigen::VectorXi::Zero(S0.size());
+        previous_I_star.col(i) = Eigen::VectorXi::Zero(S0.size());
+        previous_R_star.col(i) = Eigen::VectorXi::Zero(S0.size());
     }
     if (has_ts_spatial)
     {
@@ -695,10 +695,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.X = X; 
         compartmentResults.beta = Eigen::MatrixXd(1, beta.size());
         compartmentResults.beta = beta.transpose(); 
-        // Todo: add reinfection component
-        compartmentResults.rEA = Eigen::MatrixXd(Y.rows(), Y.cols());
-        compartmentResults.r0t = Eigen::MatrixXd(Y.rows(), Y.cols());
-        compartmentResults.effR0 = Eigen::MatrixXd(Y.rows(), Y.cols());
+
         compartmentResults.p_se = Eigen::MatrixXd(Y.rows(), Y.cols());
         compartmentResults.p_se.row(0) = p_se.col(0);
         if (transitionMode == "exponential")
@@ -1091,10 +1088,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
-    if (keepCompartments)
-    {
-        calculateReproductiveNumbers(&compartmentResults);
-    }
     compartmentResults.result = results.unaryExpr([](double elem){
             return(std::sqrt(elem));
             }); 
@@ -1104,182 +1097,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 void SEIR_sim_node::nodeMessage(std::string msg)
 {
     messages.push_back(msg);
-}
-
-void SEIR_sim_node::calculateReproductiveNumbers(simulationResultSet* results)
-{
-    int i, l, k;
-    Eigen::VectorXi N(S0.size());
-    N = S0 + E0 + I0 + R0;
-
-    int time_idx;
-    Eigen::VectorXd beta = (*results).beta; 
-
-    Eigen::MatrixXd eta = (((*results).X*beta).unaryExpr([](double elem){return(std::exp(elem));}));
-    Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
-                (*results).S.rows(), (*results).S.cols());
-    Eigen::MatrixXd p_se_cache(1, (*results).S.cols());
-
-    int nLoc = (*results).S.cols();
-    int nTpt = (*results).S.rows();
-    std::vector<Eigen::MatrixXd> GVector;
-    // Fill in R0(t) and eff R0(t)
-    // I_to_R_prior(k, 4)
-    if (transitionMode == "weibull")
-    {
-        IR_transition_dist -> setCurrentParams((*results).p_ir.col(0));
-    }
-    for (time_idx = 0; time_idx < nTpt; time_idx++)
-    {
-        (*results).r0t.row(time_idx) = p_se_components.row(time_idx);
-        for (l = 0; l < p_se_components.cols(); l++)
-        {
-            if (transitionMode == "exponential")
-            {
-                (*results).r0t(time_idx, l) /= (
-                        -std::log(1.0-(*results).p_ir(time_idx))/offset(time_idx));
-                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
-                                            *((*results).S(time_idx, l))/N(l);
-            }
-            else if (transitionMode == "path_specific")
-            {
-                (*results).r0t(time_idx, l) *= inf_mean;
-                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
-                                            *((*results).S(time_idx, l))/N(l);
-               
-            }
-            else // Weibull
-            {
-                (*results).r0t(time_idx, l) *= 
-                    IR_transition_dist -> getAvgMembership();
-                (*results).effR0(time_idx, l) = (*results).r0t(time_idx, l)
-                                            *((*results).S(time_idx, l))/N(l);
-            }
-        }
-    }
-
-    // Calculate next generation matrices 
-    unsigned int size_idx;
-    has_ts_spatial = (TDM_vec[0].size() > 0);
-    Eigen::MatrixXd CombinedDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
-    Eigen::MatrixXd tmpDM = Eigen::MatrixXd::Zero(nLoc, nLoc);
-    for (size_idx = 0; size_idx < DM_vec.size(); size_idx++) 
-    {
-        CombinedDM += (DM_vec[size_idx]*((*results).rho(size_idx)));
-    }
-    for (k = 0; k < nLoc; k++)
-    {
-        CombinedDM(k,k) = 1.0;
-    }
-    tmpDM = CombinedDM;
-
-    for (time_idx = 0; time_idx < nTpt; time_idx++)
-    {
-        Eigen::MatrixXd G(nLoc, nLoc); 
-        for (i = 0; i < nLoc; i++)
-        {
-            for (l = 0; l < nLoc; l++)
-            {
-                if (has_ts_spatial)
-                {
-                    tmpDM = CombinedDM;
-                    for (size_idx = 0; 
-                         size_idx < TDM_vec[time_idx].size(); size_idx++) 
-                    {
-                        tmpDM += (TDM_vec[time_idx][size_idx]*
-                                ((*results).rho(size_idx + DM_vec.size())));
-                    }
-                }
-                G(i,l) = ((*results).I(time_idx, l) == 0 ? 
-                            0.0 :
-                            (*results).S(time_idx, i)/
-                            (1.0*(*results).I(time_idx, l)) *
-                            (1.0 - std::exp(-offset(time_idx) * tmpDM(i,l)
-                                            * ((*results).I(time_idx, l) 
-                                            * (p_se_components(time_idx, l)
-                                            /  N(l)))
-                                            )));
-            }
-        }
-        Eigen::VectorXd colsums = G.colwise().sum();
-        (*results).rEA.row(time_idx) = colsums;
-    }
-          
-    double _1mpIR_cum = 1.0;
-    int infTime = 0;
-    Eigen::MatrixXd finalEARVal = (*results).rEA.row(nTpt - 1);
-    if (transitionMode == "exponential")
-    {
-        for (time_idx = 0; time_idx < nTpt; time_idx++)
-        {
-            _1mpIR_cum = (1-(*results).p_ir(time_idx, 0));
-            for (l = time_idx+1; l < nTpt; l++)
-            {
-                (*results).rEA.row(time_idx) += 
-                    _1mpIR_cum*(*results).rEA.row(l);
-                _1mpIR_cum *= (1 - (*results).p_ir(l, 0)); 
-            }
-            while (_1mpIR_cum > 1e-12)
-            {
-                (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
-                _1mpIR_cum*=(1-(*results).p_ir(nTpt - 1,0));
-            }
-        }
-    }
-    else
-    {
-        for (time_idx = 0; time_idx < nTpt; time_idx++)
-        {
-            _1mpIR_cum = 1.0;
-            infTime = 0;
-            for (i = 0; i < offset(time_idx); i++)
-            {
-                _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
-                infTime ++;
-            }
-            if (transitionMode == "path_specific")
-            {
-                for (l = time_idx+1; (l < nTpt && infTime < I_paths[0].rows()); l++)
-                {
-                    (*results).rEA.row(time_idx) += 
-                        _1mpIR_cum*(*results).rEA.row(l);
-                    for (i = 0; i < offset(time_idx); i++)
-                    {
-                        _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
-                        infTime ++;
-                    }
-                }
-                while (_1mpIR_cum > 1e-12 && infTime < I_paths[0].rows())
-                {
-                    (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
-                    _1mpIR_cum *= (1 - I_to_R_prior(infTime, 5)); 
-                    infTime ++;
-                }
-            }
-            else
-            {
-                for (l = time_idx+1; (l < nTpt && infTime < I_paths[0].rows()); l++)
-                {
-                    (*results).rEA.row(time_idx) += 
-                        _1mpIR_cum*(*results).rEA.row(l);
-                    for (i = 0; i < offset(time_idx); i++)
-                    {
-                        _1mpIR_cum *= (1 - 
-                            IR_transition_dist -> getTransitionProb(
-                                infTime, infTime+1)); 
-                        infTime ++;
-                    }
-                }
-                while (_1mpIR_cum > 1e-12 && infTime < I_paths[0].rows())
-                {
-                    (*results).rEA.row(time_idx) += _1mpIR_cum*finalEARVal; 
-                    _1mpIR_cum *= (1 - IR_transition_dist -> getTransitionProb(
-                                infTime, infTime+1));
-                    infTime ++;
-                }
-            }
-        }
-    }
 }
 
 SEIR_sim_node::~SEIR_sim_node()
