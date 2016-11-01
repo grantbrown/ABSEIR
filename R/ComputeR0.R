@@ -1,0 +1,183 @@
+#'  Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
+#' 
+#' @param SimObject a PosteriorSimulation object, as created by the \code{\link{epidemicSimulations}}
+#' function. 
+#' 
+#' @details 
+#'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
+#'    memory efficiency and runtime does not return the simulated compartment values
+#'    to the user. If simulated epidemics are desired, they may be quickly and
+#'    easily generated using the \code{\link{epidemicSimulations}} function. 
+#'    Reproductive number estimation is performed using this function, as the 
+#'    calculations are somewhat computationally intensive and may not be required by
+#'    all users. 
+#' 
+#' @examples \dontrun{r0 <- ComputeR0(epidemicSimulations(modelObject, replicates = 10, 
+#'                                                  verbose = TRUE))} 
+#' 
+#' @export
+ComputeR0 <- function(SimObject)
+{ 
+  checkCl
+  MO <- SimObject$modelObject$modelComponents
+  exposure_model <- MO$exposure_model
+  nTpt <- exposure_model$nTpt
+  nLoc <- exposure_model$nLoc
+  reinfection_model <- MO$reinfection_model
+  distance_model <- MO$distance_model
+  transition_priors <- MO$transition_priors
+  initial_value_container <- MO$initial_value_container
+  
+  hasSpatial <- ncol(distance_model$distanceList[[1]]) > 1
+  nLags <- length(distance_model$laggedDistanceList[[1]])
+  hasTSSpatial <- nLags > 0
+  hasReinfection <- (reinfection_model$integerMode != 3)
+  X_RS <- reinfection_model$X_prs
+  X_SE <- exposure_model$X
+  nBetaRS <- ifelse(hasReinfection, ncol(X_RS), 0)
+  nBetaSE <- ncol(X_SE)
+  nRho <- ifelse(hasSpatial, length(distance_model$distanceList), 0)
+  nLRho <- ifelse(hasTSSpatial, nLags, 0)
+  
+  DMlist = distance_model$distanceList
+  lDMlist = distance_model$laggedDistanceList
+  
+  for (sim in 1:length(SimObject$simulationResults))
+  {
+    paramvec <- SimObject$params[sim,]
+    beta_SE <- paramvec[1:nBetaSE]
+    if (hasReinfection){
+      beta_RS <- paramvec[(nBetaSE + 1):(nBetaSE + nBetaRS)]
+    }
+    else{
+      beta_RS <- c()
+    }
+    rho <- paramvec[(nBetaSE + nBetaRS + 1):(nBetaSE + nBetaRS + nRho + nLRho)]
+    
+    if (transition_priors$mode == "exponential"){
+        gamma_EI <- paramvec[length(paramvec) - 1]
+        gamma_IR <- paramvec[length(paramvec)]
+        
+        p_EI <- 1-exp(-gamma_EI) 
+        p_IR <- 1-exp(-gamma_IR) 
+    }
+    else if (transition_priors$mode == "weibull"){
+      gamma_EI <- NA
+      gamma_IR <- NA
+      
+      EI_shape <- paramvec[length(paramvec) - 3]
+      EI_scale <- paramvec[length(paramvec) - 2]
+      
+      IR_shape <- paramvec[length(paramvec) - 1]
+      IR_scale <- paramvec[length(paramvec)]
+      
+      n <- ceiling(qweibull(1-1e-4, shape = IR_shape, scale = IR_scale))
+      indices <- cbind(0:n, 1:(n+1))
+      p_IR_path <- c(apply(indices, 1, function(x){
+        a <- pweibull(x[1], IR_shape, IR_scale) 
+        b <- pweibull(x[2], IR_shape, IR_scale)
+        (b-a)/(1-a)
+      }))
+      p_IR_path <- p_IR_path[1:n]
+    }
+    else if (transition_priors$mode == "path-specific")
+    {
+      warning("Reproductive number estimation for general path-specific models unfinished")
+      return(SimObject)
+    }
+    # Begin Calculation   
+    
+    E0 = initial_value_container$E0 
+    I0 = initial_value_container$I0 
+    R0 = initial_value_container$R0
+    S0 = initial_value_container$S0
+    N = E0 + I0 + R0 + S0
+  
+    S <- SimObject$simulationResults[[sim]]$S
+    E <- SimObject$simulationResults[[sim]]$E
+    I <- SimObject$simulationResults[[sim]]$I
+    R <- SimObject$simulationResults[[sim]]$R
+    S_star <- SimObject$simulationResults[[sim]]$S_star
+    E_star <- SimObject$simulationResults[[sim]]$E_star
+    I_star <- SimObject$simulationResults[[sim]]$I_star
+    R_star <- SimObject$simulationResults[[sim]]$R_star
+    
+    if (hasReinfection)
+    {
+      eta_RS <- exp(X_RS %*% beta_RS)
+      p_RS <- 1-exp(-eta_RS)
+    }
+    eta_SE = matrix(exp(X_SE %*% beta_SE), nrow = nTpt, ncol = length(N))
+    instantaneousExpectation <- matrix(NA, nrow = nTpt, ncol = nLoc)
+    for (i in 1:nTpt)
+    {
+      # Non-spatial Component
+      nonSpatialExpectation <- ifelse(I[i,] == 0, 0, S[i,]*(1-exp(-I[i,]/N * eta_SE[i,]))/I[i,])
+      
+      # Spatial Component
+      k <- 1
+      if (hasSpatial){
+        spatialExpectation <- ifelse(I[i,] == 0, 0, 
+             apply(S[i,]*(1-exp(-t(rho[k]*(I[i,]/N * eta_SE[i,]) * t(DMlist[[k]])))),2,sum)/I[i,])
+      }
+      else{
+        spatialExpectation <- rep(0, length(nonSpatialExpectation))
+      }
+      
+      # Lagged component
+      if (hasTSSpatial){
+        laggedSpatialExpectation <- apply(sapply(1:length(lDMlist[[i]]), function(lag){
+          if (lag + i > nTpt){
+            return((ifelse(I[i,] == 0, 0,
+                    apply(S[nTpt,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) * 
+                                               t(lDMlist[[i]][[lag]])))),2,sum)/I[i,])))  
+          }
+          (ifelse(I[i,] == 0, 0,
+                  apply(S[i+lag,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) * 
+                                              t(lDMlist[[i]][[lag]])))),2,sum)/I[i,]))
+        }),1,sum)
+      }
+      else{
+        laggedSpatialExpectation <- rep(0, length(nonSpatialExpectation))
+      }
+        
+      instantaneousExpectation[i,] <- nonSpatialExpectation + spatialExpectation + laggedSpatialExpectation
+    }
+    r_EA <- instantaneousExpectation
+    if (transition_priors$mode == "exponential"){
+      p_IR <- 1-exp(-gamma_EI)
+      for (i in 1:nrow(r_EA))
+      {
+        pI <- 1
+        idx <- i
+        while (pI > 1e-8)
+        {
+          pI <- pI*(1-p_IR)
+          idx <- ifelse(idx == nrow(r_EA), idx, idx+1)
+          r_EA[i,] <- r_EA[i,] + instantaneousExpectation[idx,]*pI
+        }
+      }
+    }
+    else if (transition_priors$mode == "weibull"){
+      for (i in 1:nrow(r_EA))
+      {
+        pI <- 1
+        idx <- i
+        surv <- 1
+        while (pI > 1e-8 && surv <= length(p_IR_path))
+        {
+          pI <- pI*(1-p_IR_path[surv])
+          surv <- surv + 1
+          idx <- ifelse(idx == nrow(r_EA), idx, idx+1)
+          r_EA[i,] <- r_EA[i,] + instantaneousExpectation[idx,]*pI
+        }
+      }
+    }
+    else if (transition_priors$mode == "path_specific"){
+      # To-do
+    }
+    colnames(r_EA) <- paste("location_", 1:ncol(r_EA), sep = "")
+    SimObject$simulationResults[[sim]][["R_EA"]] <- r_EA
+  }
+  return(SimObject)
+} 

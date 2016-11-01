@@ -58,7 +58,7 @@ Rsim <- function(seed,
   if (!all(is.na(offs))){
     stop("Temporal offsets not currently implemented")
   }
-
+  
   hasSpatial <- ncol(distance_model$distanceList[[1]]) > 1
   nLags <- length(distance_model$laggedDistanceList[[1]])
   hasTSSpatial <- nLags > 0
@@ -149,11 +149,15 @@ Rsim <- function(seed,
   
   for (i in 1:nTpt)
   {
+    if (hasSpatial){
     intensity = (I[i,]/N * eta_SE[i,] +
                    apply(rho[1:length(DMlist)]*t(sapply(DMlist, function(x){
                      x %*% (I[i,]/N * eta_SE[i,])  
                    })), 2, sum))
-    
+    }
+    else{
+      intensity = I[i,]/N * eta_SE[i,]
+    }
     if (hasTSSpatial && i != 1)
     {
       lag.idx = 1
