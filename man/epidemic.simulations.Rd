@@ -31,7 +31,7 @@ The main SpatialSEIRModel functon performs many simulations, but for the sake of
    easily generated using this function.
 }
 \examples{
-\dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
+\dontrun{simulate_values <- epidemic.simulations(modelObject, replicates = 10, 
                                                  verbose = TRUE)} 
 
 }

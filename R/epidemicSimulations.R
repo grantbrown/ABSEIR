@@ -16,7 +16,7 @@
 #'    to the user. If simulated epidemics are desired, they may be quickly and
 #'    easily generated using this function. 
 #' 
-#' @examples \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
+#' @examples \dontrun{simulate_values <- epidemic.simulations(modelObject, replicates = 10, 
 #'                                                  verbose = TRUE)} 
 #' 
 #' @export

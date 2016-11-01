@@ -12,7 +12,7 @@
 #'    calculations are somewhat computationally intensive and may not be required by
 #'    all users. 
 #' 
-#' @examples \dontrun{r0 <- ComputeR0(epidemicSimulations(modelObject, replicates = 10, 
+#' @examples \dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10, 
 #'                                                  verbose = TRUE))} 
 #' 
 #' @export
