@@ -351,7 +351,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
 
     if (R && V)
     {
-        Rcpp::Rcout << "return compartments: true\m";
+        Rcpp::Rcout << "return compartments: true\n";
     }
 
     std::string sim_type_atom = (R ? sim_result_atom : sim_atom);
