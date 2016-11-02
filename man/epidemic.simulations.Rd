@@ -4,17 +4,14 @@
 \alias{epidemic.simulations}
 \title{perform and return epidemic simulations based on a fitted model object}
 \usage{
-epidemic.simulations(modelObject, replicates = 1, returnCompartments = TRUE,
-  verbose = FALSE)
+epidemic.simulations(modelObject, replicates = 1, verbose = FALSE)
 }
 \arguments{
 \item{modelObject}{a SpatialSEIRModel object, as created by the \code{\link{SpatialSEIRModel}}
 function.}
 
 \item{replicates}{the number of replicate simulations to perform for each sample
-contained in \code{modelObject}}
-
-\item{returnCompartments}{A logical value, indicating whether or not
+contained in \code{modelObject}
 actual simulated compartment values should be returned. Omitting compartment
 values is faster, but of course conveys less information.}
 

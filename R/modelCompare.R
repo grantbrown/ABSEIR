@@ -27,7 +27,12 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
                          batch_size = 10000, max_itrs = 1000,
                          epsilon=NA, verbose=FALSE)
 {
-    stop("Model comparison has not been tested/updated")
+    correctAlgorithm <- sapply(modelList, function(x){
+      x$modelComponents$sampling_control$algorithm == 2
+    })
+    if (!all(correctAlgorithm)){
+      stop("Model comparison only supported for Beaumont models at this time.")
+    }
     correctClasses = sapply(modelList, function(x){class(x)  == 
                             "SpatialSEIRModel"})
 
@@ -79,7 +84,7 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
         stop("If some prior probabilities are supplied, all must be supplied, and must sum to 1.")
     }
 
-    weightList = lapply(modelList, function(x){x$weights})
+    #weightList = lapply(modelList, function(x){x$weights})
     epsVec = sapply(modelList, function(x){x$current_eps})
 
     if (is.na(epsilon))
@@ -93,27 +98,31 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
     
     drawSamples = function()
     {
-        mr = modelList
-        s = lapply(modelList, function(x){
-                   x$param.samples[sample(1:nrow(x$param.samples),
-                                          prob = x$weights, replace = TRUE,
-                                          size = batch_size),]
-                                })
-        for (i in 1:length(s))
-        {
-            mr[[i]]$param.samples = s[[i]]
-            mr[[i]]$modelComponents$sampling_control$batch_size = batch_size
-        }
+        #mr = modelList
+        #s = lapply(modelList, function(x){
+        #           x$param.samples[sample(1:nrow(x$param.samples),
+        #                                  prob = x$weights, replace = TRUE,
+        #                                  size = batch_size),]
+        #                        })
+        #for (i in 1:length(s))
+        #{
+        #    mr[[i]]$param.samples = s[[i]]
+        #    mr[[i]]$modelComponents$sampling_control$batch_size = batch_size
+        #}
 
-        esim = lapply(1:length(mr), function(x){
+        esim = lapply(1:length(modelList), function(x){
                       if (verbose)
                       {
                           cat(paste("  Evaluating model ", x, "\n", sep = ""))
                       }
-                      epidemic.simulations(mr[[x]], 
-                        returnCompartments=FALSE)$simulationResults$result
+                      sims <- epidemic.simulations(modelList[[x]], 
+                                                   returnCompartments=FALSE, 
+                                                   replicates = ceiling(
+                                                     batch_size/nrow(modelList[[x]]$param.samples))
+                      )$simulationResults
+                      as.numeric(sapply(sims[1:(length(sims)-1)], function(r){r$result}))
                       
-                                })
+        })
         sapply(esim, function(x){
                sum(x < e.compare)})
     }

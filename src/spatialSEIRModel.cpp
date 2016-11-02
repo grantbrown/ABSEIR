@@ -349,6 +349,11 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     bool R = r(0) > 0;
     int V = v(0);
 
+    if (R && V)
+    {
+        Rcpp::Rcout << "return compartments: true\m";
+    }
+
     std::string sim_type_atom = (R ? sim_result_atom : sim_atom);
     
     if (samplingControlInstance -> algorithm == ALG_BasicABC)

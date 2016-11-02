@@ -555,6 +555,7 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
         outList["result"] = Rcpp::wrap(results_double);
     }
     outList["params"] = Rcpp::wrap(param_matrix);
+    outList["completedEpochs"] = iteration;
     outList["currentEps"] = e1;
     return(outList);
 }

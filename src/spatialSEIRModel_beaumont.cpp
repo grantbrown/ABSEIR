@@ -425,6 +425,8 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         outList["result"] = Rcpp::wrap(results_double);
     }
     outList["params"] = Rcpp::wrap(param_matrix);
+    outList["completedEpochs"] = iteration;
+    outList["weights"] = Rcpp::wrap(w1);
     outList["currentEps"] = e1;
     return(outList);
 }
