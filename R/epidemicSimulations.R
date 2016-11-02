@@ -4,7 +4,6 @@
 #' function. 
 #' @param replicates the number of replicate simulations to perform for each sample
 #' contained in \code{modelObject}
-#' @param returnCompartments  A logical value, indicating whether or not
 #' actual simulated compartment values should be returned. Omitting compartment
 #' values is faster, but of course conveys less information. 
 #' @param verbose a logical value, indicating whether verbose output should be 
@@ -22,9 +21,9 @@
 #' @export
 epidemic.simulations = function(modelObject, 
                                 replicates=1, 
-                                returnCompartments = TRUE, 
                                 verbose = FALSE)
 {
+    returnCompartments = TRUE
     checkArgument("modelObject", list(argClassValidator("SpatialSEIRModel")))
     checkArgument("replicates", list(argClassValidator(c("numeric", "integer")),
                                       argLengthValidator(1)))

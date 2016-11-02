@@ -100,5 +100,6 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
 
     outList["params"] = Rcpp::wrap(param_matrix);
     outList["currentEps"] = eps;
+    outList["completedEpochs"] = 0;
     return(outList);
 }
