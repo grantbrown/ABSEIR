@@ -97,9 +97,5 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
         subList["result"] = Rcpp::wrap(results_complete[i].result);
         outList[std::to_string(i)] = subList;
     }
-
-    outList["params"] = Rcpp::wrap(param_matrix);
-    outList["currentEps"] = eps;
-    outList["completedEpochs"] = 0;
     return(outList);
 }

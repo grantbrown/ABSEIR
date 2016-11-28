@@ -196,7 +196,10 @@ epidemic.simulations = function(modelObject,
         params = modelObject$param.samples
         params = params[rep(1:nrow(params), each = replicates),]
 
-        modelCache$SEIRModel$setParameters(params, modelObject$current_eps)
+        modelCache$SEIRModel$setParameters(params,
+                                           rep(1/nrow(params), nrow(params)),
+                                           matrix(1, nrow = nrow(params), ncol = 1),
+                                           modelObject$current_eps)
 
         modelResult[["simulatedResults"]] = 
             modelCache$SEIRModel$sample(1, returnCompartments, verbose)
@@ -215,14 +218,13 @@ epidemic.simulations = function(modelObject,
     if (returnCompartments)
     {
         names(modelResult$simulatedResults) = 
-              c(paste("Simulation_", 1:(length(modelResult$simulatedResults) - 2), 
-                    sep = ""), "params", "current_eps")
+              c(paste("Simulation_", 1:(length(modelResult$simulatedResults)), 
+                    sep = ""))
     }
 
     return(structure(list(modelObject = modelObject, 
-                          simulationResults=modelResult$simulatedResults[
-                            1:(length(modelResult$simulatedResults) - 2)], 
-                          params = modelResult$simulatedResults$params,
+                          simulationResults=modelResult$simulatedResults,
+                          params = params,
                           current_eps = modelResult$simulatedResults$current_eps),
                      class = "PosteriorSimulation"))
 }

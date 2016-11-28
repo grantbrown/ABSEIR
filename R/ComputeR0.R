@@ -1,24 +1,53 @@
 #'  Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
 #' 
-#' @param SimObject a PosteriorSimulation object, as created by the \code{\link{epidemicSimulations}}
-#' function. 
-#' 
-#' @details 
-#'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
+#' @param  SimObject a PosteriorSimulation object, as created by the \code{\link{epidemic.simulations}} function. 
+#'
+#' @details  The main SpatialSEIRModel functon performs many simulations, but for the sake of 
 #'    memory efficiency and runtime does not return the simulated compartment values
 #'    to the user. If simulated epidemics are desired, they may be quickly and
-#'    easily generated using the \code{\link{epidemicSimulations}} function. 
+#'    easily generated using the \code{\link{epidemic.simulations}} function. 
 #'    Reproductive number estimation is performed using this function, as the 
 #'    calculations are somewhat computationally intensive and may not be required by
 #'    all users. 
 #' 
-#' @examples \dontrun{r0 <- ComputeR0(epidemicSimulations(modelObject, replicates = 10, 
+#' @examples \dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10, 
 #'                                                  verbose = TRUE))} 
 #' 
+#' @import parallel
+#' @importFrom compiler cmpfun
 #' @export
 ComputeR0 <- function(SimObject)
 { 
-  checkCl
+  argClassValidator("SpatialSEIRModel")(SimObject)
+  cores <- simulations1$modelObject$modelComponents$sampling_control$n_cores
+  cl <- makeCluster(cores)
+  clusterExport(cl, "SimObject", envir = environment())
+  setupR0 <- function(x){
+      MO <<- SimObject$modelObject$modelComponents
+      exposure_model <<- MO$exposure_model
+      nTpt <<- exposure_model$nTpt
+      nLoc <<- exposure_model$nLoc
+      reinfection_model <<- MO$reinfection_model
+      distance_model <<- MO$distance_model
+      transition_priors <<- MO$transition_priors
+      initial_value_container <<- MO$initial_value_container
+      
+      hasSpatial <<- ncol(distance_model$distanceList[[1]]) > 1
+      nLags <<- length(distance_model$laggedDistanceList[[1]])
+      hasTSSpatial <<- nLags > 0
+      hasReinfection <<- (reinfection_model$integerMode != 3)
+      X_RS <<- reinfection_model$X_prs
+      X_SE <<- exposure_model$X
+      nBetaRS <<- ifelse(hasReinfection, ncol(X_RS), 0)
+      nBetaSE <<- ncol(X_SE)
+      nRho <<- ifelse(hasSpatial, length(distance_model$distanceList), 0)
+      nLRho <<- ifelse(hasTSSpatial, nLags, 0)
+      
+      DMlist <<- distance_model$distanceList
+      lDMlist <<- distance_model$laggedDistanceList
+  }
+  parLapply(cl, 1:cores, setupR0)
+  
   MO <- SimObject$modelObject$modelComponents
   exposure_model <- MO$exposure_model
   nTpt <- exposure_model$nTpt
@@ -39,11 +68,10 @@ ComputeR0 <- function(SimObject)
   nRho <- ifelse(hasSpatial, length(distance_model$distanceList), 0)
   nLRho <- ifelse(hasTSSpatial, nLags, 0)
   
-  DMlist = distance_model$distanceList
-  lDMlist = distance_model$laggedDistanceList
-  
-  for (sim in 1:length(SimObject$simulationResults))
-  {
+  DMlist <- distance_model$distanceList
+  lDMlist <- distance_model$laggedDistanceList
+
+  r0Func <- function(sim){
     paramvec <- SimObject$params[sim,]
     beta_SE <- paramvec[1:nBetaSE]
     if (hasReinfection){
@@ -177,7 +205,20 @@ ComputeR0 <- function(SimObject)
       # To-do
     }
     colnames(r_EA) <- paste("location_", 1:ncol(r_EA), sep = "")
-    SimObject$simulationResults[[sim]][["R_EA"]] <- r_EA
+    r_EA
+  }
+
+  r0FuncC <- cmpfun(r0Func)
+  repNums <- parLapply(cl, 
+            1:length(SimObject$simulationResults), 
+            r0FuncC)
+
+  stopCluster(cl)
+  print("Done with R0sim")
+  for (sim in 1:length(repNums)){
+    SimObject$simulationResults[[sim]][["R_EA"]] <- repNums[[sim]]
   }
   return(SimObject)
+
 } 
+

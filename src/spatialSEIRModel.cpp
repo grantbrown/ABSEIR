@@ -382,7 +382,8 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     }
 }
 
-bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
+bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, 
+        Eigen::VectorXd weights, Eigen::MatrixXd results, double eps)
 {
     const bool hasReinfection = (reinfectionModelInstance ->                    
                         betaPriorPrecision)(0) > 0; 
@@ -401,10 +402,20 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params, double eps)
     {
         Rcpp::stop("Number of supplied parameters does not match model specification.\n");
     }
+    if (params.rows() != weights.size())
+    {
+        Rcpp::stop("Number of weights not equal to number of particles.\n");
+    }
 
     init_eps = eps;
 
-    param_matrix = params; 
+    init_param_matrix = params; 
+    param_matrix = params;
+
+    init_results_double = results;
+    results_double = results;
+
+    init_weights = weights;
     is_initialized = true;
     return(true);
 }

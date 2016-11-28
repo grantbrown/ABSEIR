@@ -281,8 +281,12 @@ We can also consider model fit by looking at posterior predictive distribution o
 
 ```{r}
 # Simulate new epidemics based on the accepted parameters for model 1
-simulations1 = epidemic.simulations(result1, replicates = 50)
-simulations2 = epidemic.simulations(result2, replicates = 50)
+simulations1 <- epidemic.simulations(result1, replicates = 50)
+simulations2 <- epidemic.simulations(result2, replicates = 50)
+# Add reproductive number estimates to simulation results
+system.time(simulations1 <- ComputeR0(simulations1))
+system.time(simulations2 <- ComputeR0(simulations2))
+
 
 plotPosteriorPredictive = function(simulations, main)
 {
@@ -320,10 +324,10 @@ reproductive number. A more complete discussion of these quantities is available
 
 plotR0 = function(simulations, main)
 {
-  allSimulatedR0 = sapply(simulations$simulationResults, function(x){x$R0t})
+  #allSimulatedR0 = sapply(simulations$simulationResults, function(x){x$R0t})
   allSimulatedEA_R0 = sapply(simulations$simulationResults, function(x){x$R_EA})
 
-  plot(apply(allSimulatedR0, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
+  plot(apply(allSimulatedEA_R0, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
        ylab = "Reproductive Number", main = main)
   lines(apply(allSimulatedEA_R0, 1, mean), lwd = 2, lty = 2, col = "blue")
 }

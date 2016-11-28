@@ -116,7 +116,6 @@ compareModels = function(modelList, priors=NA, n_samples = 1000,
                           cat(paste("  Evaluating model ", x, "\n", sep = ""))
                       }
                       sims <- epidemic.simulations(modelList[[x]], 
-                                                   returnCompartments=FALSE, 
                                                    replicates = ceiling(
                                                      batch_size/nrow(modelList[[x]]$param.samples))
                       )$simulationResults

@@ -43,7 +43,6 @@ for (i in (nrow(I_star)-1):1)
   currentVals = ifelse(is.na(I_star[i,]), currentVals, I_star[i,])
 }
 
-
 data_model = DataModel(Y = I_star,
                        type = "identity",
                        compartment = "I_star",
@@ -51,11 +50,11 @@ data_model = DataModel(Y = I_star,
 
 intercepts = diag(3)[rep(1:ncol(I_star), each = nrow(I_star)),]
 #intercepts = 1
-timeBasis = poly(1:nrow(I_star), degree = 3)[rep(1:nrow(I_star), ncol(I_star)),]
+timeBasis = bs(1:nrow(I_star), degree = 3)[rep(1:nrow(I_star), ncol(I_star)),]
 X = cbind(intercepts, timeBasis)
 exposure_model = ExposureModel(X, nTpt = nrow(I_star),
                                nLoc = ncol(I_star),
-                               betaPriorPrecision = 1,
+                               betaPriorPrecision = 0.5,
                                betaPriorMean = c(rep(-1, ncol(intercepts)),
                                                  rep(0, ncol(timeBasis))))
 
@@ -82,24 +81,11 @@ transition_priors1 = ExponentialTransitionPriors(p_ei = 1-exp(-1/5),
                                      p_ei_ess = 100,
                                      p_ir_ess = 100)
 
-
-#hist(rweibull(1000, 2,10)))
-
-
-transition_priors2 = WeibullTransitionPriors(latent_shape_prior_alpha = 20,
-                                             latent_shape_prior_beta = 10,
-                                             latent_scale_prior_alpha = 60,
-                                             latent_scale_prior_beta = 6,
-                                             infectious_shape_prior_alpha = 40,
-                                             infectious_shape_prior_beta = 40,
-                                             infectious_scale_prior_alpha = 60,
-                                             infectious_scale_prior_beta = 6)
-
 sampling_control_init = SamplingControl(seed = 123123, 
-                                   n_cores = 16,
+                                   n_cores = 4,
                                    algorithm="Beaumont2009",
                                    #list(batch_size = 500000,
-                                   list(batch_size = 30000,
+                                   list(batch_size = 5000,
                                            epochs = 1,
                                            max_batches = 1,
                                            shrinkage = 0.99
@@ -107,50 +93,31 @@ sampling_control_init = SamplingControl(seed = 123123,
                                    )
 
 sampling_control = SamplingControl(seed = 123124, 
-                                   n_cores = 14,
+                                   n_cores = 4,
                                    algorithm="Beaumont2009",
                                    list(batch_size = 1000,
                                            epochs = 1e6,
                                            #max_batches = 2000,
-                                           max_batches = 500,
-                                           shrinkage = 0.99,
+                                           max_batches = 20,
+                                           shrinkage = 0.95,
                                            multivariate_perturbation=TRUE
                                          )
                                    )
 
 ## Exponential Results:
 
-model.start = SpatialSEIRModel(data_model,
+system.time(result0 <- SpatialSEIRModel(data_model,
                           exposure_model,
                           reinfection_model,
                           distance_model,
                           transition_priors1,
                           initial_value_container,
                           sampling_control_init,
-                          samples = 100,
-                          verbose = FALSE)
-result1 <- update(model.start, sampling_control = sampling_control, verbose=FALSE)
-save("result1", file = "./result1.rda")
+                          samples = 50,
+                          verbose = 2))
+result1 <- update(result1, sampling_control=sampling_control, verbose=2)
+summary(result1)
 
-## Weibull Results:
-
-model.start = SpatialSEIRModel(data_model,
-                          exposure_model,
-                          reinfection_model,
-                          distance_model,
-                          transition_priors2,
-                          initial_value_container,
-                          sampling_control_init,
-                          samples = 100,
-                          verbose = TRUE)
-result2 <- update(model.start, sampling_control = sampling_control, verbose=FALSE)
-save("result2", file = "./result2.rda")
-
-compareModels(result1, result2, n_samples = 1000, batch_size = 300)
-## Little evidence
-
-
-## Posterior Predictive stuff
 
 sims = epidemic.simulations(result1, replicates = 10)
 sim_I_star = lapply(sims$simulationResults, function(x){apply(x$I_star, 2, cumsum)})
@@ -160,7 +127,6 @@ ism = array(Reduce(c, sim_I_star), dim = c(nrow(sim_I_star[[1]]),
 ismLB = apply(ism,1:2,quantile,probs = c(0.05))
 ismUB = apply(ism,1:2,quantile,probs = c(0.95))
 ismMean = apply(ism,1:2,mean)
-par(mfrow = c(3,1))
 
 casePlot = function(idx, main){
   plot(I_star[,idx], ylim = c(0, max(ismUB)), 
@@ -174,8 +140,8 @@ casePlot = function(idx, main){
 casePlot(1, "Guinea - Exponential ")
 casePlot(2, "Liberia - Exponential ")
 casePlot(3, "Sierra Leone - Exponential ")
-legend(x = 25, y = 40000, lty = c(NA, 3,2,3), pch = c(1, NA,NA,NA), col = c("black", rep("blue", 3)), 
-       legend = c("Observed", "90% UB", "Mean", "90% LB"), lwd = c(NA, 1, 2, 1), cex = 0.8)
+#legend(x = 25, y = 40000, lty = c(NA, 3,2,3), pch = c(1, NA,NA,NA), col = c("black", rep("blue", 3)), 
+#       legend = c("Observed", "90% UB", "Mean", "90% LB"), lwd = c(NA, 1, 2, 1), cex = 0.8)
 
 sim_EAR0 = lapply(sims$simulationResults, function(x){x$R_EA})
 sim_R0t = lapply(sims$simulationResults, function(x){x$R0t})
@@ -189,50 +155,8 @@ R0tar = array(Reduce(c, sim_R0t), dim = c(nrow(sim_I_star[[1]]),
 
 
 eaRmean = apply(eaR0ar,1:2,mean)
+plot(eaRmean[,1])
 R0tmean = apply(R0tar,1:2,mean)
-
-## Weibull
-
-sims = epidemic.simulations(result2, replicates = 10)
-sim_I_star = lapply(sims$simulationResults, function(x){apply(x$I_star, 2, cumsum)})
-ism = array(Reduce(c, sim_I_star), dim = c(nrow(sim_I_star[[1]]),
-                                           ncol(sim_I_star[[2]]),
-                                           length(sim_I_star)))
-ismLB = apply(ism,1:2,quantile,probs = c(0.05))
-ismUB = apply(ism,1:2,quantile,probs = c(0.95))
-ismMean = apply(ism,1:2,mean)
-par(mfrow = c(3,1))
-
-casePlot = function(idx, main){
-  plot(I_star[,idx], ylim = c(0, max(ismUB)), 
-       ylab = "Total Cases", xlab = "Time",
-       main = main)
-  lines(ismMean[,idx], col = "blue", lty = 2, lwd = 2)
-  lines(ismLB[,idx], col = "blue", lty = 3, lwd = 1)
-  lines(ismUB[,idx], col = "blue", lty = 3, lwd = 1)
-}
-
-casePlot(1, "Guinea - Exponential ")
-casePlot(2, "Liberia - Exponential ")
-casePlot(3, "Sierra Leone - Exponential ")
-legend(x = 25, y = 40000, lty = c(NA, 3,2,3), pch = c(1, NA,NA,NA), col = c("black", rep("blue", 3)), 
-       legend = c("Observed", "90% UB", "Mean", "90% LB"), lwd = c(NA, 1, 2, 1), cex = 0.8)
-
-sim_EAR0 = lapply(sims$simulationResults, function(x){x$R_EA})
-sim_R0t = lapply(sims$simulationResults, function(x){x$R0t})
-
-eaR0ar = array(Reduce(c, sim_EAR0), dim = c(nrow(sim_I_star[[1]]),
-                                           ncol(sim_I_star[[2]]),
-                                           length(sim_I_star)))
-R0tar = array(Reduce(c, sim_R0t), dim = c(nrow(sim_I_star[[1]]),
-                                           ncol(sim_I_star[[2]]),
-                                           length(sim_I_star)))
-
-
-eaRmean = apply(eaR0ar,1:2,mean)
-R0tmean = apply(R0tar,1:2,mean)
-
-
-
+plot(R0tmean[,3])
 
 ```

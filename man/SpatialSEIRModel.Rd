@@ -6,7 +6,7 @@
 \usage{
 SpatialSEIRModel(data_model, exposure_model, reinfection_model, distance_model,
   transition_priors, initial_value_container, sampling_control, samples = 100,
-  verbose = FALSE)
+  verbose = FALSE, ...)
 }
 \arguments{
 \item{data_model}{A data model object, describing the link between
@@ -55,6 +55,8 @@ print almost no progress/diagnostic information to the log. Level 1
 Will provide iteration updates only. Leve 2 provides additional 
 chain setup and diagnostic information. Level 3 prints calculation
 diagnostic information.}
+
+\item{\dots}{Additional arguments, used internally.}
 }
 \value{
 an object of type \code{\link{SpatialSEIRModel}}
