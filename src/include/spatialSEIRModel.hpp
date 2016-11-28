@@ -67,7 +67,10 @@ class spatialSEIRModel
         /** Evaluate the prior distribution of a particular set of parameters*/
         double evalPrior(Eigen::VectorXd param_values);
         /** Assign the parameter values manually */
-        bool setParameters(Eigen::MatrixXd param_values, double eps);
+        bool setParameters(Eigen::MatrixXd param_values, 
+                           Eigen::VectorXd weights,
+                           Eigen::MatrixXd results,
+                           double eps);
         /** Destructor */
         ~spatialSEIRModel();
 
@@ -101,6 +104,15 @@ class spatialSEIRModel
 
         /** If simulation is re-started, need initial epsilon stored*/
         double init_eps;
+
+        /** If simulation is re-started, need initial weights stored*/
+        Eigen::VectorXd init_weights;
+
+        /** If simulation is re-started, need initial params stored */
+        Eigen::MatrixXd init_param_matrix;
+
+        /** If simulation is re-started, need initial results stored */
+        Eigen::MatrixXd init_results_double;
 
         /** General E to I transition Distribution*/
         std::unique_ptr<transitionDistribution> EI_transition_dist;

@@ -186,6 +186,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         samplingControlInstance -> summary();
 
     }
+    // Step 0b: set weights to 1/N
+    Eigen::VectorXd w0 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
+    Eigen::VectorXd w1 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
+    Eigen::VectorXd cum_weights = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
+
     
     if (!is_initialized)
     {
@@ -206,9 +211,10 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
     else
     {
         if (verbose > 1){Rcpp::Rcout << "Starting parameters provided\n";}
-
-        // The data in "param_matrix" is already accepted
-        // To-do: finish this clause
+        e0 = init_eps;
+        w0 = init_weights;
+        param_matrix = init_param_matrix;
+        results_double = init_results_double;
     }
     // Calculate current parameter SD's
     Eigen::VectorXd tau = (param_matrix.rowwise() - 
@@ -216,11 +222,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                       ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
 
-
-    // Step 0b: set weights to 1/N
-    Eigen::VectorXd w0 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
-    Eigen::VectorXd w1 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
-    Eigen::VectorXd cum_weights = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
 
     for (iteration = 0; iteration < num_iterations && !terminate; iteration++)
     {   
@@ -233,7 +234,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
 
         // Calculating tau
 
-        tau = (param_matrix.rowwise() - 
+        tau = 2.0*(param_matrix.rowwise() - 
               (param_matrix.colwise()).mean()
                 ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
@@ -347,33 +348,72 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             terminate = 1;
         }
         else
-        {
+       {
             wtTot = 0.0;
             double newWt, tmpWt;
-            for (i = 0; i < w1.size(); i++)
+            double tmpWeightComp;
+            double tmpWeight;
+            Eigen::VectorXd tmpParams;
+            if (samplingControlInstance -> multivariatePerturbation)
             {
-               newWt = 0.0; 
-               tmpWt = 0.0;
-               for (j = 0; j < param_matrix.rows(); j++)
-               {
-                   tmpWt = 0.0;
-                   for (k = 0; k < proposed_param_matrix.cols(); k++)
-                   {
-                      tmpWt += R::dnorm(proposed_param_matrix(i,k),
-                                        param_matrix(j,k),
-                                        tau(k), 1);
-                   }
-                   newWt += w0(j)*std::exp(tmpWt);
-               }
+                Eigen::RowVectorXd parameterMeans = param_matrix.colwise().mean();
+                auto parameterCentered = (param_matrix.rowwise() - parameterMeans);
+                auto proposedParameterCentered = (proposed_param_matrix.rowwise() - parameterMeans);
+                Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
+                        * (parameterCentered)/(param_matrix.rows()-1);
+                Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
+                auto L = Eigen::MatrixXd(paramLLT.matrixL());
+                auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+                auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
 
-               w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
-               if (std::isnan(w1(i)))
-               {
-                   Rcpp::stop("nan weights encountered.");
-               }
-               wtTot += w1(i);
+                tmpWeightComp = (-nParams/2.0)*std::log(2.0*3.14159) 
+                    - 0.5*std::log((parameterICovDet));
+                for (i = 0; i < w1.size(); i++)
+                {
+                    w1(i) = 0.0;
+                    for (j = 0; j < proposedParameterCentered.rows(); j++) 
+                    {
+                        tmpWeight = tmpWeightComp;
+                        tmpWeight -= (0.5*
+                                (proposedParameterCentered.row(j)
+                                *parameterICov*proposedParameterCentered.transpose()
+                                    .col(j))(0));
+                        w1(i) += w0(j)*std::exp(tmpWeight);
+                    }
+                    w1(i) = evalPrior(proposed_param_matrix.row(i))
+                        /w1(i);
+                    wtTot += w1(i);
+                }
+                w1.array() /= wtTot;
             }
-            w1.array() /= wtTot;
+            else
+            {
+                for (i = 0; i < w1.size(); i++)
+                {
+                   newWt = 0.0; 
+                   tmpWt = 0.0;
+                   for (j = 0; j < param_matrix.rows(); j++)
+                   {
+                       tmpWt = 0.0;
+                       for (k = 0; k < proposed_param_matrix.cols(); k++)
+                       {
+                          // TODO: need multivariate perturbation
+                          tmpWt += R::dnorm(proposed_param_matrix(i,k),
+                                            param_matrix(j,k),
+                                            tau(k), 1);
+                       }
+                       newWt += w0(j)*std::exp(tmpWt);
+                   }
+
+                   w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
+                   if (std::isnan(w1(i)))
+                   {
+                       Rcpp::stop("nan weights encountered.");
+                   }
+                   wtTot += w1(i);
+                }
+                w1.array() /= wtTot;
+            }
         }
 
         param_matrix = proposed_param_matrix;
