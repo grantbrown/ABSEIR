@@ -437,14 +437,14 @@ Rcpp::List spatialSEIRModel::sample_DelMoral2012(int nSample, int vb,
                    currentIdx++;
                }
            }
-           if (currentIdx + 1 < Npart && verbose > 1)
+           if (currentIdx < Npart && verbose > 1)
            {
                 Rcpp::Rcout << "  batch " << nBatches << ", " << currentIdx << 
                     "/" << Npart << " accepted\n";
            }
            nBatches ++;
         }
-        if (currentIdx < results_double.rows())
+        if (currentIdx + 1 < results_double.rows())
         {
             Rcpp::Rcout << "  " << currentIdx + 1 << "/" 
                 << Npart << " acceptances in " << nBatches << " batches\n";
