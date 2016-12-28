@@ -18,7 +18,6 @@ data(WestAfrica2015)
 WestAfrica2015 = WestAfrica2015[rev(1:nrow(WestAfrica2015)),]
 timeIdx = as.Date(WestAfrica2015$Date, format = "%m/%d/%Y")
 timeIdx = as.numeric(timeIdx - min(timeIdx)) + 1
-
 modelIdx = 1:length(timeIdx)
 
 
