@@ -338,7 +338,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                    currentIdx++;
                }
            }
-           if (currentIdx + 1 < Npart && verbose > 1)
+           if (currentIdx < Npart && verbose > 1)
            {
                 Rcpp::Rcout << "  batch " << nBatches << ", " << currentIdx << 
                     "/" << Npart << " accepted\n";
@@ -349,13 +349,14 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         w0 = w1;
         e0 = e1;
         double wtTot = 0.0;
-        if (currentIdx < results_double.rows())
+        if (currentIdx + 1 < Npart)
         {
             if (verbose > 1)
             {
                 Rcpp::Rcout << "\n";
                 Rcpp::Rcout << "Maximum batches exceeded: " << currentIdx + 1 << "/" 
-                    << Npart << " acceptances in " << nBatches << " batches\n";
+                    << Npart << " acceptances in " << nBatches << " batches of max " <<
+                    maxBatches << "\n";
                 Rcpp::Rcout << "Returning last params\n";
             }
             terminate = 1;
