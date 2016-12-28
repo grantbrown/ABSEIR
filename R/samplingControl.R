@@ -68,10 +68,10 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
           ifelse(algorithm == "DelMoral2012", 3, 
           ifelse(algorithm == "simulate", 4, 
                  NA))))
-    if (is.na(alg))
+    if (is.na(alg) || alg == "DelMoral2012" || alg == "BasicABC")
     {
         stop(paste("Algorithm", algorithm, "not supported. Choice must be one of:",
-                   "BasicABC,", "Beaumont2009", "DelMoral2012"))
+                   "Beaumont2009"))
     }
 
     # Set default parameters where needed
