@@ -177,8 +177,8 @@ size for each.
 ```{r}
 transition_priors = ExponentialTransitionPriors(p_ei = 1-exp(-1/5), 
                                      p_ir= 1-exp(-1/7),
-                                     p_ei_ess = 100,
-                                     p_ir_ess = 100)
+                                     p_ei_ess = 10,
+                                     p_ir_ess = 10)
 ```
 
 
@@ -208,12 +208,12 @@ parameters:
 ```{r}
 # Set algorithm configuration
 sampling_control = SamplingControl(seed = 123123, 
-                                   n_cores = 2,
+                                   n_cores = 8,
                                    algorithm="Beaumont2009",
-                                   list(batch_size = 500,
+                                   list(batch_size = 2000,
                                            epochs = 1e6,
-                                           max_batches = 50,
-                                           shrinkage = 0.9,
+                                           max_batches = 100,
+                                           shrinkage = 0.99,
                                            multivariate_perturbation=TRUE
                                          )
                                    )
@@ -237,7 +237,10 @@ runtime1 = system.time(result1 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE))
+                          verbose = 2))
+#     user   system  elapsed 
+# 2258.391   17.449  294.584
+
 # Reasonable intensity
 runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           exposure_model_2,
@@ -247,7 +250,7 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = FALSE))
+                          verbose = 2))
 ```
 
 
@@ -330,6 +333,8 @@ plotR0 = function(simulations, main)
   plot(apply(allSimulatedEA_R0, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
        ylab = "Reproductive Number", main = main)
   lines(apply(allSimulatedEA_R0, 1, mean), lwd = 2, lty = 2, col = "blue")
+  lines(apply(allSimulatedEA_R0, 1, quantile, probs = c(0.1)), lwd = 2, lty = 2, col = "blue")
+  lines(apply(allSimulatedEA_R0, 1,  quantile, probs = c(0.9)), lwd = 2, lty = 2, col = "blue")
 }
 plotR0(simulations1, "Model 1: R0(t) and EA-R(t)")
 plotR0(simulations2, "Model 2: R0(t) and EA-R(t)")
