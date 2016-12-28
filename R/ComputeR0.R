@@ -19,7 +19,7 @@
 ComputeR0 <- function(SimObject)
 { 
   argClassValidator("SpatialSEIRModel")(SimObject)
-  cores <- simulations1$modelObject$modelComponents$sampling_control$n_cores
+  cores <- SimObject$modelObject$modelComponents$sampling_control$n_cores
   cl <- makeCluster(cores)
   clusterExport(cl, "SimObject", envir = environment())
   setupR0 <- function(x){
