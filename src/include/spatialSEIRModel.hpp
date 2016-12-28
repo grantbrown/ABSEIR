@@ -71,6 +71,21 @@ class spatialSEIRModel
                            Eigen::VectorXd weights,
                            Eigen::MatrixXd results,
                            double eps);
+
+        /** Public for caching purposes. Consider factoring accessors back 
+         * into class methods*/
+        /* Parameter sample covariance matrix*/
+        Eigen::MatrixXd parameterCov;
+
+        /* Parameter inverse sample covariance matrix*/
+        Eigen::MatrixXd parameterICov;
+
+        /* Parameter sample covariance matrix*/
+        double parameterICovDet;
+
+        /* Parameter sample covariance matrix cholesky factor*/
+        Eigen::MatrixXd parameterL;
+
         /** Destructor */
         ~spatialSEIRModel();
 

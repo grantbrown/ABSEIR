@@ -34,16 +34,22 @@ void proposeParams_beaumont_multivariate(Eigen::MatrixXd* params,
                                          std::mt19937* generator,
                                          spatialSEIRModel* model)
 {
-    // TODO: Integrate with/replace above
     int i, j;
     int N = params -> rows();
     Eigen::MatrixXd curSamp = *params;
     Eigen::RowVectorXd parameterMeans = curSamp.colwise().mean();
     auto parameterCentered = (curSamp.rowwise() - parameterMeans);
     Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
-            * (parameterCentered)/(curSamp.rows()-1);
+            * (parameterCentered)/(N-1);
+    // Add a SD to overdisperse particles:
+    for (i = 0; i < parameterCov.cols(); i++) 
+    {
+        parameterCov(i,i) += 0.5*(*tau)(i);
+    }
     Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
     auto L = Eigen::MatrixXd(paramLLT.matrixL());
+    auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+    auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
     auto Z = Eigen::VectorXd(parameterCov.cols());
     //auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
     //auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
@@ -82,7 +88,13 @@ void proposeParams_beaumont_multivariate(Eigen::MatrixXd* params,
             Rcpp::stop("No parameters");
         }
     }
+    // Store important components for later reuse (optimization)
+    model -> parameterCov = parameterCov;
+    model -> parameterICov = parameterICov;
+    model -> parameterICovDet = parameterICovDet;
+    model -> parameterL = L;
 }
+
 
 void proposeParams_beaumont(Eigen::MatrixXd* params,
                             Eigen::VectorXd* tau,
@@ -341,6 +353,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         {
             if (verbose > 1)
             {
+                Rcpp::Rcout << "\n";
                 Rcpp::Rcout << "Maximum batches exceeded: " << currentIdx + 1 << "/" 
                     << Npart << " acceptances in " << nBatches << " batches\n";
                 Rcpp::Rcout << "Returning last params\n";
@@ -348,7 +361,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             terminate = 1;
         }
         else
-       {
+        {
             wtTot = 0.0;
             double newWt, tmpWt;
             double tmpWeightComp;
@@ -357,27 +370,32 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             if (samplingControlInstance -> multivariatePerturbation)
             {
                 Eigen::RowVectorXd parameterMeans = param_matrix.colwise().mean();
-                auto parameterCentered = (param_matrix.rowwise() - parameterMeans);
+                //auto parameterCentered = (param_matrix.rowwise() - parameterMeans);
                 auto proposedParameterCentered = (proposed_param_matrix.rowwise() - parameterMeans);
-                Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
-                        * (parameterCentered)/(param_matrix.rows()-1);
-                Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
-                auto L = Eigen::MatrixXd(paramLLT.matrixL());
-                auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
-                auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
+                //Eigen::MatrixXd parameterCov = (parameterCentered).transpose() 
+                //        * (parameterCentered)/(param_matrix.rows()-1);
+                // Add a SD to overdisperse particles:
+                //for (i = 0; i < parameterCov.cols(); i++) 
+                //{
+                //    parameterCov(i,i) += 0.5*tau(i);
+                //}
+                //Eigen::LLT<Eigen::MatrixXd> paramLLT = parameterCov.llt();
+                //auto L = Eigen::MatrixXd(paramLLT.matrixL());
+                //auto parameterICov = paramLLT.solve(Eigen::MatrixXd::Identity(L.rows(), L.cols()));
+                //auto parameterICovDet = 1.0/std::pow(L.diagonal().prod(), 2.0); 
 
                 tmpWeightComp = (-nParams/2.0)*std::log(2.0*3.14159) 
                     - 0.5*std::log((parameterICovDet));
                 for (i = 0; i < w1.size(); i++)
                 {
                     w1(i) = 0.0;
+                    tmpWeight = tmpWeightComp;
+                    tmpWeight -= (0.5*
+                            (proposedParameterCentered.row(i)
+                            *parameterICov*proposedParameterCentered.transpose()
+                                .col(i))(0));
                     for (j = 0; j < proposedParameterCentered.rows(); j++) 
                     {
-                        tmpWeight = tmpWeightComp;
-                        tmpWeight -= (0.5*
-                                (proposedParameterCentered.row(j)
-                                *parameterICov*proposedParameterCentered.transpose()
-                                    .col(j))(0));
                         w1(i) += w0(j)*std::exp(tmpWeight);
                     }
                     w1(i) = evalPrior(proposed_param_matrix.row(i))

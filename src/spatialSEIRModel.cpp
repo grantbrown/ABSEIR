@@ -171,6 +171,15 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                             nParams);
 
+    // Parameter covariance matrix and related items are not initialized
+
+    parameterCov = Eigen::MatrixXd::Zero(nParams, nParams);
+    parameterICov = Eigen::MatrixXd::Zero(nParams, nParams);
+    parameterL = Eigen::MatrixXd::Zero(nParams, nParams);
+    parameterICovDet = 0.0;
+
+
+
     // Create the worker pool
     worker_pool = std::unique_ptr<NodePool>(
                 new NodePool(&results_double,
