@@ -76,9 +76,11 @@ int dataModel::getModelComponentType()
 
 void dataModel::summary()
 {
-    Rcpp::Rcout << "Number of locations: " << nLoc << "\n";
-    Rcpp::Rcout << "Number of time points: " << nTpt << "\n";
-    Rcpp::Rcout << "Data Model Compartment: ";
+    Rcpp::Rcout << "Data Model Summary\n" << 
+                   "------------------\n";
+    Rcpp::Rcout << "    Number of locations: " << nLoc << "\n";
+    Rcpp::Rcout << "    Number of time points: " << nTpt << "\n";
+    Rcpp::Rcout << "    Data Model Compartment: ";
     if (dataModelCompartment == 0)
     {
         Rcpp::Rcout << "I_star\n";
@@ -91,7 +93,7 @@ void dataModel::summary()
     {
         Rcpp::Rcout << "Unknown\n";
     }
-    Rcpp::Rcout << "Data Model Type: ";
+    Rcpp::Rcout << "    Data Model Type: ";
     if (dataModelType == 0)
     {
         Rcpp::Rcout << "identity\n";
@@ -104,7 +106,7 @@ void dataModel::summary()
     {
         Rcpp::Rcout << "Unknown\n";
     }
-
+    Rcpp::Rcout << "\n";
 }
 dataModel::~dataModel()
 {

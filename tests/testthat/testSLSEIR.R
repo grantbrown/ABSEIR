@@ -48,12 +48,14 @@ test_that("Single location SEIR models can be constructed", {
                                                   p_ir_ess = 100)
   transition_priors_2 = PathSpecificTransitionPriors(Z1 = function(x){dunif(x,3,7)},
                                                      Z2 = function(x){dunif(x, 7, 28)})
-  transitionPriorsList = list(transition_priors_1, transition_priors_2)
+  transition_priors_3 = WeibullTransitionPriors(10,10,10,10,10,10,10,10)
+  
+  transitionPriorsList = list(transition_priors_1, transition_priors_2, transition_priors_3)
   # Set algorithm configuration
   sampling_control = SamplingControl(seed = 123123, 
                                      n_cores = 2,
                                      algorithm="Beaumont2009",
-                                     list(batch_size = 1000,
+                                     list(batch_size = 100,
                                           epochs = 5,
                                           max_batches = 2,
                                           shrinkage = 0.99,
@@ -61,6 +63,8 @@ test_that("Single location SEIR models can be constructed", {
                                      )
   )
   
+  results <- as.list(1:(length(dataModelList)*length(transitionPriorsList)))
+  i <- 1
   for (dm in 1:length(dataModelList)){
     for (tp in 1:length(transitionPriorsList))
     {
@@ -76,6 +80,8 @@ test_that("Single location SEIR models can be constructed", {
                                    verbose = FALSE)
       
         simulated = epidemic.simulations(result, replicates = 25)
+        i <- i + 1
+        results[[i]] = list(results=result, simulationss <- simulated)
       }, warning = function(w){
         print(w)
         expect_equal(paste(

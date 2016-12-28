@@ -29,8 +29,16 @@
 #' @param samples the number of samples to approximate from the posterior
 #'        distribution, i.e. the number of particles to simulate. The number
 #'        of particles should be considerably smaller than the batch size
-#'        specified by the sampling_control argument. 
-#' @param verbose print diagnostic information on the progress of the fitting algorithm
+#'        specified by the sampling_control argument. Ignored for the 
+#'        debug-oriented 'simulate' algorithm.
+#' @param verbose print diagnostic information on the progress of the fitting algorithm.
+#'        Available output levels are 0, 1, 2, and 3, in ascending order
+#'        of detail. Level 0 output will
+#'        print almost no progress/diagnostic information to the log. Level 1 
+#'        Will provide iteration updates only. Leve 2 provides additional 
+#'        chain setup and diagnostic information. Level 3 prints calculation
+#'        diagnostic information. 
+#' @param \dots Additional arguments, used internally. 
 #' @return an object of type \code{\link{SpatialSEIRModel}} 
 #' @details
 #' Use the supplied model components to build and fit a corresponding model.   
@@ -66,8 +74,15 @@ SpatialSEIRModel = function(data_model,
                           initial_value_container,
                           sampling_control,
                           samples=100,
-                          verbose=FALSE)
+                          verbose=FALSE,
+                          ...)
 {
+    checkArgument("samples", list(argClassValidator(c("integer",
+                                                      "numeric")),
+                                  argLengthValidator(1),
+                                  numericRangeValidator(lower = 1)
+                          )) 
+    # Todo: convert following checks to new infrastructure
 
     if (class(data_model) != "DataModel")
     {
@@ -100,6 +115,52 @@ SpatialSEIRModel = function(data_model,
                    class(sampling_control)))
     }
 
+    if (sampling_control$algorithm == 4)
+    {
+        # We don't actually want to fit a model
+        sampling_control2 <- SamplingControl(seed = sampling_control$seed, 
+                                             n_cores = sampling_control$n_cores)
+        sampling_control2$epochs <- 0
+        sampling_control2$batch_size <- 1
+        dummy_model <- SpatialSEIRModel(data_model,
+                                        exposure_model,
+                                        reinfection_model,
+                                        distance_model,
+                                        transition_priors,
+                                        initial_value_container,
+                                        sampling_control2,
+                                        samples=1,
+                                        verbose=FALSE)
+        dummy_model$modelComponents$sampling_control <- sampling_control
+        dummy_model$param.samples <- sampling_control$particles
+        return(epidemic.simulations(dummy_model, 
+                                    sampling_control$replicates,
+                                    verbose=verbose))
+    }
+    # Check if we're in update mode
+    optionalParamNames <- c("particles", "is.updating", "previous_eps",
+                            "previous_epochs", "weights", "particle_eps")
+    optparams <- list(...)
+    is.updating <- Ifelse("is.updating" %in% names(optparams), 
+                         optparams$is.updating,  
+                         FALSE)
+    particles <- Ifelse("particles" %in% names(optparams),
+                              optparams$particles, NA)
+    previous_eps <- Ifelse("previous_eps" %in% names(optparams), 
+                     optparams$previous_eps, NA)
+    previous_epochs <- Ifelse("previous_epochs" %in% names(optparams),
+                              optparams$previous_epochs, NA)
+    previous_weights <- Ifelse("weights" %in% names(optparams), 
+                               optparams$weights, NA)
+    start_result <- Ifelse("particle_eps" %in% names(optparams), 
+                           optparams$particle_eps, NA)
+    if (is.updating && (any(is.na(previous_eps)) || any(is.na(particles)) 
+                        || any(is.na(previous_epochs)) ||
+                        any(is.na(previous_weights)) || 
+                        any(is.na(start_result))))
+    {
+        stop("In update mode, particles, weights, epochs, eps vector, and previous epsilon required")
+    }
     modelResults = list()
     modelComponents = list()
     if (verbose){cat("Initializing Model Components\n")}
@@ -123,6 +184,28 @@ SpatialSEIRModel = function(data_model,
                 distance_model$distanceList[[i]]
             )
         }
+        nLags <- length(distance_model$laggedDistanceList[[1]]) 
+        modelComponents[["distanceModel"]]$setupTemporalDistanceMatrices(
+                                    exposure_model$nTpt
+                                )
+        if (nLags > 0)
+        {
+            if (exposure_model$nTpt != length(distance_model$laggedDistanceList))
+            {
+                stop("Lagged distance model and exposure model imply different number of time points.")
+            }
+
+            for (i in 1:length(distance_model$laggedDistanceList)) 
+            {
+                for (j in 1:nLags)
+                { 
+                    modelComponents[["distanceModel"]]$addTDistanceMatrix(i,
+                                distance_model$laggedDistanceList[[i]][[j]]
+                    ) 
+                }
+            }
+        }
+
         modelComponents[["distanceModel"]]$setPriorParameters(
             distance_model$priorAlpha,
             distance_model$priorBeta
@@ -174,7 +257,8 @@ SpatialSEIRModel = function(data_model,
               sampling_control$n_cores,sampling_control$algorithm, 
               sampling_control$batch_size,sampling_control$epochs, 
               sampling_control$max_batches, 
-              sampling_control$multivariate_perturbation),
+              sampling_control$multivariate_perturbation, 
+              sampling_control$m),
             c(sampling_control$acceptance_fraction, sampling_control$shrinkage,
               sampling_control$target_eps
               )
@@ -225,15 +309,28 @@ SpatialSEIRModel = function(data_model,
             modelComponents[["initialValueContainer"]],
             modelComponents[["samplingControl"]]
         )
+        if (verbose && is.updating) cat("Initializing existing parameters.\n")
+        if (is.updating)
+        {
+            modelComponents[["SEIR_model"]]$setParameters(particles, 
+                                                          previous_weights, 
+                                                          start_result,
+                                                          previous_eps)
+        }
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, verbose*1)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, 0, verbose*1)
+
         if (verbose) cat("Simulation complete\n")
 
         epsilon = rslt$result
         params = rslt$params
         weights = rslt$weights
         current_eps = rslt$currentEps
-        completed_epochs = rslt$completedEpochs
+        completed_epochs = Ifelse(is.updating, 
+                                  rslt$completedEpochs + previous_epochs, 
+                                  rslt$completedEpochs)
+                                  
+        
 
         cnames = paste("Beta_SE_", 
                        1:ncol(exposure_model$X), sep = "")
@@ -248,7 +345,7 @@ SpatialSEIRModel = function(data_model,
         {
             cnames = c(cnames, 
                        paste("rho_", 
-                            1:length(distance_model$distanceList), 
+                            1:distance_model$len, 
                              sep = "")
             )
         }
@@ -304,359 +401,3 @@ SpatialSEIRModel = function(data_model,
 }
 
 
-#' Update a \code{\link{SpatialSEIRModel}} object by drawing additional samples.
-#' @param object a \code{\link{SpatialSEIRModel}} object
-#' @param \dots Additional arguments include:
-#' \itemize{
-#'  \item{\code{sampling_control}: }{a \code{\link{SamplingControl}} object}
-#'  \item{\code{samples}: }{indicates the number of parameter values to sample 
-#' from the posterior}
-#'  \item{\code{verbose}: }{indicates whether verbose output should be 
-#' provided.}
-#' }
-#' @export
-update.SpatialSEIRModel = function(object, ...)
-{
-    modelObject = object
-    if (class(modelObject) != "SpatialSEIRModel")
-    {
-        stop("object must be of type SpatialSEIRModel")
-    }
-
-    optionalParamNames <- c("samples", "sampling_control", "verbose")
-    optparams <- list(...)
-    samples = Ifelse("samples" %in% names(optparams), optparams$samples,  
-                     nrow(modelObject$param.samples))
-    sampling_control = Ifelse("sampling_control" %in% names(optparams),
-                              optparams$sampling_control, NA)
-    verbose = Ifelse("verbose" %in% names(optparams), 
-                     optparams$verbose, FALSE)
-
-    if (!(all(is.na(sampling_control))) && class(sampling_control) 
-        != "SamplingControl")
-    {
-        stop("The sampling_control argument must be of type SamplingControl.")
-    }
-    else if ((class(sampling_control) == "SamplingControl") && 
-             (sampling_control$algorithm != 
-             modelObject$modelComponents$sampling_control$algorithm))
-    {
-        stop(paste("The algorithm specified by sampling_control must match ", 
-             "the algorithm used in the original model.\n", sep = "")) 
-    } 
-
-    modelCache = list()
-    modelResults = list()
-    tryCatch({
-        dataModelInstance = modelObject$modelComponents$data_model;
-        exposureModelInstance = modelObject$modelComponents$exposure_model;
-        reinfectionModelInstance = 
-            modelObject$modelComponents$reinfection_model;
-        distanceModelInstance = modelObject$modelComponents$distance_model;
-        transitionPriorsInstance = 
-            modelObject$modelComponents$transition_priors;
-        initialValueContainerInstance = 
-            modelObject$modelComponents$initial_value_container; 
-        if (all(is.na(sampling_control))){
-            samplingControlInstance = modelObject$modelComponents$sampling_control
-        }
-        else
-        {
-            samplingControlInstance = sampling_control 
-        } 
-
-        if (verbose) cat("...Building data model\n")
-        modelCache[["dataModel"]] = new(dataModel, dataModelInstance$Y,
-                                            dataModelInstance$type,
-                                            dataModelInstance$compartment,
-                                            dataModelInstance$cumulative,
-                                            dataModelInstance$phi,
-                                            dataModelInstance$na_mask)
-
-        if (verbose) cat("...Building distance model\n")
-        modelCache[["distanceModel"]] = new(distanceModel)
-        for (i in 1:length(distanceModelInstance$distanceList))
-        {
-            modelCache[["distanceModel"]]$addDistanceMatrix(
-                distanceModelInstance$distanceList[[i]]
-            )
-        }
-        modelCache[["distanceModel"]]$setPriorParameters(
-            distanceModelInstance$priorAlpha,
-            distanceModelInstance$priorBeta
-        )
-
-        if (verbose) cat("...Building exposure model\n")
-        modelCache[["exposureModel"]] = new(
-            exposureModel, 
-            exposureModelInstance$X,
-            exposureModelInstance$nTpt,
-            exposureModelInstance$nLoc,
-            exposureModelInstance$betaPriorMean,
-            exposureModelInstance$betaPriorPrecision
-        )
-        if (!all(is.na(exposureModelInstance$offset)))
-        {
-            modelCache[["exposureModel"]]$offsets = (
-                exposureModelInstance$offset
-            )
-        }
-
-        if (verbose) cat("...Building initial value container\n")
-        modelCache[["initialValueContainer"]] = new(initialValueContainer)
-        modelCache[["initialValueContainer"]]$setInitialValues(
-            initialValueContainerInstance$S0,
-            initialValueContainerInstance$E0,
-            initialValueContainerInstance$I0,
-            initialValueContainerInstance$R0
-        )
-
-        if (verbose) cat("...Building reinfection model\n") 
-        modelCache[["reinfectionModel"]] = new(
-            reinfectionModel, 
-            reinfectionModelInstance$integerMode
-        )
-        if (reinfectionModelInstance$integerMode != 3)
-        {
-            modelCache[["reinfectionModel"]]$buildReinfectionModel(
-                reinfectionModelInstance$X_prs, 
-                reinfectionModelInstance$priorMean, 
-                reinfectionModelInstance$priorPrecision
-        );
-        }
-
-        if (verbose) cat("...Building sampling control model\n") 
-        modelCache[["samplingControl"]] = new (
-            samplingControl, 
-            c(samplingControlInstance$sim_width, samplingControlInstance$seed,
-              samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
-              samplingControlInstance$batch_size,samplingControlInstance$epochs, 
-              samplingControlInstance$max_batches,
-              samplingControlInstance$multivariate_perturbation),
-            c(samplingControlInstance$acceptance_fraction, 
-              samplingControlInstance$shrinkage, 
-              samplingControlInstance$target_eps)
-        )
-
-        if (verbose) cat("...building transition priors\n") 
-        modelCache[["transitionPriors"]] = new(transitionPriors, 
-                                               transitionPriorsInstance$mode)
-        transitionMode = transitionPriorsInstance$mode 
-        if (transitionMode == "exponential")
-        {
-            modelCache[["transitionPriors"]]$setPriorsFromProbabilities(
-                transitionPriorsInstance$p_ei,
-                transitionPriorsInstance$p_ir,
-                transitionPriorsInstance$p_ei_ess,
-                transitionPriorsInstance$p_ir_ess)
-        }
-        else if (transitionMode == "weibull")
-        {
-            modelCache[["transitionPriors"]]$setPriorsForWeibull(
-                              c(transitionPriorsInstance$latent_shape_prior_alpha,
-                                transitionPriorsInstance$latent_shape_prior_beta,
-                                transitionPriorsInstance$latent_scale_prior_alpha,
-                                transitionPriorsInstance$latent_scale_prior_beta),
-                              c(transitionPriorsInstance$infectious_shape_prior_alpha,
-                                transitionPriorsInstance$infectious_shape_prior_beta,
-                                transitionPriorsInstance$infectious_scale_prior_alpha,
-                                transitionPriorsInstance$infectious_scale_prior_beta),
-                                transitionPriorsInstance$max_EI_idx,
-                                transitionPriorsInstance$max_IR_idx)
-        }
-        else
-        {
-            modelCache[["transitionPriors"]]$setPathSpecificPriors(
-                                            transitionPriorsInstance$ei_pdist,
-                                            transitionPriorsInstance$ir_pdist,
-                                            transitionPriorsInstance$inf_mean)
-            
-        }
-
-
-        if (verbose) cat("Running additional epidemic simulations\n") 
-       
-        modelCache[["SEIRModel"]] = new( 
-                    spatialSEIRModel, 
-            modelCache[["dataModel"]],
-            modelCache[["exposureModel"]],
-            modelCache[["reinfectionModel"]],
-            modelCache[["distanceModel"]],
-            modelCache[["transitionPriors"]],
-            modelCache[["initialValueContainer"]],
-            modelCache[["samplingControl"]]
-        )
-
-        rslt = modelCache[["SEIRModel"]]$update(samples, 
-                                                modelObject$param.samples,
-                                                modelObject$epsilon, 
-                                                modelObject$weights,
-                                                modelObject$current_eps,
-                                                verbose*1)
-        if (verbose) cat("Simulation complete\n")
-
-        epsilon = rslt$result
-        params = rslt$params
-        weights = rslt$weights
-        current_eps = rslt$currentEps
-        completed_epochs = rslt$completedEpochs
-
-        cnames = paste("Beta_SE_", 
-                       1:ncol(exposureModelInstance$X), sep = "")
-        hasSpatial = (ncol(dataModelInstance$Y) > 1) 
-        hasReinfection = (reinfectionModelInstance$integerMode != 3) 
-
-        if (hasReinfection)
-        {
-            cnames = c(cnames, paste("Beta_RS_", 
-                                     1:ncol(reinfectionModelInstance$X_prs), 
-                                     sep = "")
-            )
-        }
-        if (hasSpatial)
-        {
-            cnames = c(cnames, 
-                       paste("rho_", 
-                            1:length(distanceModelInstance$distanceList), 
-                             sep = "")
-            )
-        }
-
-        if (transitionMode == "exponential")
-        {
-            cnames = c(cnames, "gamma_EI", "gamma_IR")
-        }
-        else if (transitionMode == "weibull")
-        {
-            cnames = c(cnames, 
-                       "latent_shape", 
-                       "latent_scale",
-                       "infectious_shape",
-                       "infectious_scale"
-                       )
-
-        }
-
-        colnames(params) = cnames 
-        
-        modelResults[["param.samples"]] = params
-        modelResults[["epsilon"]] = epsilon
-        modelResults[["weights"]] = weights
-        modelResults[["current_eps"]] = current_eps
-        modelResults[["modelComponents"]] = list(
-                     data_model = dataModelInstance,
-                     exposure_model = exposureModelInstance,
-                     reinfection_model = reinfectionModelInstance,
-                     distance_model = distanceModelInstance,
-                     transition_priors = transitionPriorsInstance,
-                     initial_value_container = initialValueContainerInstance,
-                     sampling_control = samplingControlInstance)
-        modelResults[["completedEpochs"]] = completed_epochs
-        },
-        warning=function(w)
-        {
-            cat("Warnings generated:\n")
-            print(w)
-        },
-        error=function(e)
-        {
-            cat("Errors generated:\n")
-            print(e)
-            stop("Aborting")
-        },
-        finally = { 
-            if (exists("modelComponents"))
-            {
-                rm(modelCache)
-            }
-        })
-        return(structure(modelResults, class = "SpatialSEIRModel"))   
-}
-
-#' Plot a graphical summary of the marginal posterior distribution of SEIR model parameters
-#' @param x a \code{\link{SpatialSEIRModel}} object
-#' @param \dots additional arguments to be passed to plotting functions. 
-#' @examples \dontrun{plot(modelObject)}
-#' @export
-plot.SpatialSEIRModel = function(x, ...)
-{
-    for (i in 1:ncol(x$param.samples))
-    {
-        cat ("Press return to see next plot:")
-        hist(x$param.samples[,i], 
-             main = colnames(x$param.samples)[i],
-             xlab = "Parameter Value",
-             ylab = "MPD",
-             freq=FALSE,
-             ...
-             )
-        if (i != ncol(x$param.samples)) line <- readline()
-    }
-
-
-}
-
-#' Produce a summary of the results of fitting a SEIR model
-#' @param object a \code{\link{SpatialSEIRModel}} object
-#' @param \dots not used 
-#' @return a summary.SpatialSEIRModel object
-#' @export
-summary.SpatialSEIRModel = function(object, ...)
-{
-    nLoc = ncol(object$modelComponents$data_model$Y)
-    nTpt = nrow(object$modelComponents$data_model$Y)
-
-    transitionMode = object$modelComponents$transition_priors$mode
-    hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
-    hasReinfection = 
-        (object$modelComponents$reinfection_model$integerMode != 3) 
-
-    qtiles = t(apply(object$param.samples, 2, quantile, 
-                   probs = c(0.025, 0.975)))
-
-    means = apply(object$param.samples, 2, mean)
-    sds = apply(object$param.samples, 2, sd)
-
-    outMatrix = cbind(means, sds, qtiles)
-    rownames(outMatrix) = colnames(object$param.samples)
-    colnames(outMatrix) = c("Mean", "SD", "95% LB", "95% UB")
-    structure(list(modelComponents=object$modelComponents,
-       parameterEstimates=outMatrix,
-       nLoc = nLoc,
-       nTpt = nTpt,
-       exposureParams = ncol(object$modelComponents$exposure_model$X),
-       reinfectionParams = Ifelse(hasReinfection, 
-            ncol(object$modelComponents$reinfection_model$X_prs), 
-            0),
-       spatialParams = Ifelse(hasSpatial, 
-            length(object$modelComponents$distance_model$distanceList),
-            0),
-       transitionParams = Ifelse(transitionMode == "exponential", 2,
-                          Ifelse(transitionMode == "weibull", 4, 0))
-       ), class = "summary.SpatialSEIRModel")
-}
-
-#' Print a \code{summary.SpatialSEIRModel} object
-#' @param x a \code{summary.SpatialSEIRModel} object
-#' @param \dots not used
-#' @export
-print.summary.SpatialSEIRModel = function(x, ...)
-{
-    nl = "\n\n"
-    cat(paste("Summary: SEIR Model", nl)) 
-    cat(paste("Locations: ", x$nLoc, "\n",
-              "Time Points: ", x$nTpt,"\n", sep = ""))
-    cat(paste("Exposure Process Parameters: ", 
-              x$exposureParams, "\n", sep = ""))
-    cat(paste("Reinfection Model Parameters: ", 
-             (x$reinfectionParams), "\n", sep = ""))
-    cat(paste("Spatial Parameters: ", 
-              (x$spatialParams), "\n", sep = ""))
-    cat(paste("Transition Parameters: ", 
-              (x$transitionParams), "\n", sep = ""))
-
-    cat(nl)
-    cat("Parameter Estimates:\n")
-    print(round(x$parameterEstimates, 3))
-    cat("\n") 
-}

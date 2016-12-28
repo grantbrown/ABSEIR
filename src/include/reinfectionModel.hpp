@@ -12,6 +12,7 @@ class reinfectionModel : public modelComponent
     public:
         reinfectionModel(SEXP reinfectionMode);
         int getModelComponentType();
+        virtual void summary();
         virtual void buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _prec);
         int reinfectionMode;
         Eigen::MatrixXd X_rs;

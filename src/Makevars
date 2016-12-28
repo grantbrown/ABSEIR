@@ -1,8 +1,8 @@
 CXX_STD=CXX11
-PKG_CPPFLAGS= -pthread -g -I./include
+PKG_CPPFLAGS= -pthread -I./include
 PKG_LIBS=  -lm 
 
-SOURCES = dataModel.cpp distanceModel.cpp exposureModel.cpp initialValueContainer.cpp RcppExports.cpp reinfectionModel.cpp samplingControl.cpp SEIRSimNodes.cpp spatialSEIRModel.cpp transitionPriors.cpp weibullTransitionDistribution.cpp
+SOURCES = util.cpp dataModel.cpp distanceModel.cpp exposureModel.cpp initialValueContainer.cpp RcppExports.cpp reinfectionModel.cpp samplingControl.cpp SEIRSimNodes.cpp spatialSEIRModel.cpp spatialSEIRModel_beaumont.cpp spatialSEIRModel_delmoral.cpp spatialSEIRModel_basic.cpp transitionPriors.cpp weibullTransitionDistribution.cpp spatialSEIRModel_simulate.cpp
 
 OBJECTS = $(SOURCES:.cpp=.o)
 

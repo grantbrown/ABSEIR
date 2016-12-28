@@ -82,9 +82,12 @@ DistanceModel = function(distanceList,
         }
     } 
 
+
     structure(list("distanceList" = distanceList,
-         "priorAlpha" = priorAlpha,
-         "priorBeta" = priorBeta), class = "DistanceModel")
+                   "laggedDistanceList" = list(list()),
+                   "len" = length(distanceList),
+                   "priorAlpha" = priorAlpha,
+                   "priorBeta" = priorBeta), class = "DistanceModel")
 }
 
 

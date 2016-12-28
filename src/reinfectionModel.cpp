@@ -23,6 +23,53 @@ int reinfectionModel::getModelComponentType()
     return(LSS_REINFECTION_MODEL_TYPE);
 }
 
+void reinfectionModel::summary()
+{
+    Rcpp::Rcout << "Reinfection Model Summary\n" << 
+                   "-------------------------\n";
+    Rcpp::Rcout << "    reinfection mode: ";
+    if (reinfectionMode == 1) Rcpp::Rcout << "SEIRS" << "\n";
+    if (reinfectionMode == 2) Rcpp::Rcout << "SEIRS (fixed)" << "\n";
+    if (reinfectionMode == 3) Rcpp::Rcout << "SEIR" << "\n";
+
+    if (reinfectionMode != 3)
+    {
+        Rcpp::Rcout << "    dim(X_rs): (" << X_rs.rows() << ", " << X_rs.cols() << ")\n"; 
+
+        Rcpp::Rcout << "    beta prior means: (";
+        int sz = betaPriorMean.size();
+        int i;
+        for (i = 0; i < sz; i++)
+        {
+            if (i != 0) Rcpp::Rcout << "                       ";
+            Rcpp::Rcout << betaPriorMean(i);
+            if (i+1 < sz)
+            {
+                Rcpp::Rcout << ",\n";
+            }
+            else
+            {
+                Rcpp::Rcout << ")\n";
+            }
+        }
+        Rcpp::Rcout << "    beta prior precision: (";
+        for (i = 0; i < sz; i++)
+        {
+            if (i != 0) Rcpp::Rcout << "                           ";
+            Rcpp::Rcout << betaPriorPrecision(i);
+            if (i+1 < sz)
+            {
+                Rcpp::Rcout << ",\n";
+            }
+            else
+            {
+                Rcpp::Rcout << ")\n";
+            }
+        }
+    }
+    Rcpp::Rcout << "\n";
+}
+
 void reinfectionModel::buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _prec)
 {
     Rcpp::NumericMatrix inX(_X);

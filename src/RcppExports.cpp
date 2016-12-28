@@ -6,3 +6,33 @@
 
 using namespace Rcpp;
 
+// calculate_weights_DM
+Eigen::VectorXd calculate_weights_DM(double cur_e, double prev_e, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
+RcppExport SEXP ABSEIR_calculate_weights_DM(SEXP cur_eSEXP, SEXP prev_eSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< double >::type cur_e(cur_eSEXP);
+    Rcpp::traits::input_parameter< double >::type prev_e(prev_eSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type prev_wts(prev_wtsSEXP);
+    __result = Rcpp::wrap(calculate_weights_DM(cur_e, prev_e, eps, prev_wts));
+    return __result;
+END_RCPP
+}
+// solve_for_epsilon
+double solve_for_epsilon(double LB, double UB, double prev_e, double alpha, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
+RcppExport SEXP ABSEIR_solve_for_epsilon(SEXP LBSEXP, SEXP UBSEXP, SEXP prev_eSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< double >::type LB(LBSEXP);
+    Rcpp::traits::input_parameter< double >::type UB(UBSEXP);
+    Rcpp::traits::input_parameter< double >::type prev_e(prev_eSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type prev_wts(prev_wtsSEXP);
+    __result = Rcpp::wrap(solve_for_epsilon(LB, UB, prev_e, alpha, eps, prev_wts));
+    return __result;
+END_RCPP
+}

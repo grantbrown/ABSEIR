@@ -4,10 +4,10 @@
 #' function. 
 #' @param replicates the number of replicate simulations to perform for each sample
 #' contained in \code{modelObject}
+#' actual simulated compartment values should be returned. Omitting compartment
+#' values is faster, but of course conveys less information. 
 #' @param verbose a logical value, indicating whether verbose output should be 
 #' provided. 
-#' @param returnCompartments  a logical value, indicating whether simulated compartments
-#' should be returned along with epsilon values
 #' 
 #' @details 
 #'    The main SpatialSEIRModel functon performs many simulations, but for the sake of 
@@ -15,17 +15,23 @@
 #'    to the user. If simulated epidemics are desired, they may be quickly and
 #'    easily generated using this function. 
 #' 
-#' @examples \dontrun{simulate_values <- epidemicSimulations(modelObject, replicates = 10, 
-#'                                                  returnCompartments = TRUE, 
+#' @examples \dontrun{simulate_values <- epidemic.simulations(modelObject, replicates = 10, 
 #'                                                  verbose = TRUE)} 
 #' 
 #' @export
-epidemic.simulations = function(modelObject, replicates=1, returnCompartments = TRUE,verbose = FALSE)
+epidemic.simulations = function(modelObject, 
+                                replicates=1, 
+                                verbose = FALSE)
 {
-    if (class(modelObject) != "SpatialSEIRModel")
-    {
-        stop("modelObject must be of type SpatialSEIRModel")
-    }
+    returnCompartments = TRUE
+    checkArgument("modelObject", list(argClassValidator("SpatialSEIRModel")))
+    checkArgument("replicates", list(argClassValidator(c("numeric", "integer")),
+                                      argLengthValidator(1)))
+    checkArgument("returnCompartments", list(argClassValidator(c("logical")),
+                                      argLengthValidator(1)))
+    checkArgument("verbose", list(argClassValidator(c("logical", "integer", 
+                                                      "numeric")),
+                                      argLengthValidator(1)))
 
     modelCache = list()
     modelResult = list()
@@ -49,7 +55,6 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                                             dataModelInstance$phi,
                                             dataModelInstance$na_mask)
 
-
         if (verbose) cat("...Building distance model\n")
         modelCache[["distanceModel"]] = new(distanceModel)
         for (i in 1:length(distanceModelInstance$distanceList))
@@ -58,6 +63,28 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
                 distanceModelInstance$distanceList[[i]]
             )
         }
+        nLags <- length(distanceModelInstance$laggedDistanceList[[1]]) 
+        modelCache[["distanceModel"]]$setupTemporalDistanceMatrices(
+                    exposureModelInstance$nTpt
+                ) 
+        if (nLags > 0)
+        {
+            if (exposureModelInstance$nTpt != length(distanceModelInstance$laggedDistanceList))
+            {
+                stop("Lagged distance model and exposure model imply different number of time points.")
+            }
+
+            for (i in 1:length(distanceModelInstance$laggedDistanceList)) 
+            {
+                for (j in 1:nLags)
+                {
+                    modelCache[["distanceModel"]]$addTDistanceMatrix(i,
+                                distanceModelInstance$laggedDistanceList[[i]][[j]]
+                    ) 
+                }
+            }
+        }
+
         modelCache[["distanceModel"]]$setPriorParameters(
             distanceModelInstance$priorAlpha,
             distanceModelInstance$priorBeta
@@ -106,10 +133,12 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
         modelCache[["samplingControl"]] = new (
             samplingControl, 
             c(samplingControlInstance$sim_width, samplingControlInstance$seed,
-              samplingControlInstance$n_cores,samplingControlInstance$algorithm, 
+              samplingControlInstance$n_cores,
+              4, # ALG_Simulate
               samplingControlInstance$batch_size,samplingControlInstance$epochs, 
               samplingControlInstance$max_batches, 
-              samplingControlInstance$multivariate_perturbation
+              samplingControlInstance$multivariate_perturbation,
+              1
               ),
             c(samplingControlInstance$acceptance_fraction, 
               samplingControlInstance$shrinkage, 
@@ -164,19 +193,16 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             modelCache[["initialValueContainer"]],
             modelCache[["samplingControl"]]
         )
-
         params = modelObject$param.samples
         params = params[rep(1:nrow(params), each = replicates),]
-        if (returnCompartments)
-        {
-            modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$simulate(params)
-        } 
-        else
-        {
-            modelResult[["simulatedResults"]] = 
-                modelCache$SEIRModel$evaluate(params)
-        }
+
+        modelCache$SEIRModel$setParameters(params,
+                                           rep(1/nrow(params), nrow(params)),
+                                           matrix(1, nrow = nrow(params), ncol = 1),
+                                           modelObject$current_eps)
+
+        modelResult[["simulatedResults"]] = 
+            modelCache$SEIRModel$sample(1, returnCompartments, verbose)
         },
         warning=function(w){
             cat(paste("Warnings produced: ", w, sep = ""))
@@ -188,14 +214,18 @@ epidemic.simulations = function(modelObject, replicates=1, returnCompartments = 
             rm(modelCache)
         }
     );    
+
     if (returnCompartments)
     {
         names(modelResult$simulatedResults) = 
-              paste("Simulation_", 1:length(modelResult$simulatedResults), 
-                    sep = "")
+              c(paste("Simulation_", 1:(length(modelResult$simulatedResults)), 
+                    sep = ""))
     }
+
     return(structure(list(modelObject = modelObject, 
-                          simulationResults=modelResult$simulatedResults),
+                          simulationResults=modelResult$simulatedResults,
+                          params = params,
+                          current_eps = modelResult$simulatedResults$current_eps),
                      class = "PosteriorSimulation"))
 }
 
