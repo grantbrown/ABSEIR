@@ -332,7 +332,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
            for (i = 0; i < Nsim && currentIdx < Npart; i++)
            {
                orderIdx = preproposal_order[i];
-               if (preproposal_results(orderIdx,0) < e1)
+               if (preproposal_results(orderIdx,0) > e1)
+               {
+                   break;
+               }
+               else
                {
                    proposed_param_matrix.row(currentIdx) = 
                        preproposal_params.row(orderIdx);
