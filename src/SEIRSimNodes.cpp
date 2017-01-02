@@ -1088,9 +1088,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
+    /*
     compartmentResults.result = results.unaryExpr([](double elem){
             return(std::sqrt(elem));
             }); 
+    */
+    compartmentResults.result = results;
     return(compartmentResults);
 }
 
