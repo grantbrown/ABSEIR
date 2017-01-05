@@ -135,7 +135,9 @@ epidemic.simulations = function(modelObject,
             c(samplingControlInstance$sim_width, samplingControlInstance$seed,
               samplingControlInstance$n_cores,
               4, # ALG_Simulate
-              samplingControlInstance$batch_size,samplingControlInstance$epochs, 
+              samplingControlInstance$batch_size,
+              samplingControlInstance$init_batch_size,
+              samplingControlInstance$epochs, 
               samplingControlInstance$max_batches, 
               samplingControlInstance$multivariate_perturbation,
               1

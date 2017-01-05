@@ -10,10 +10,10 @@ samplingControl::samplingControl(SEXP integerParameters,
     Rcpp::IntegerVector inIntegerParams(integerParameters);
     Rcpp::NumericVector inNumericParams(numericParameters);
 
-    if (inIntegerParams.size() != 9 ||
+    if (inIntegerParams.size() != 10 ||
         inNumericParams.size() != 3)
     {
-        Rcpp::stop("Exactly 12 samplingControl parameters are required.");
+        Rcpp::stop("Exactly 13 samplingControl parameters are required.");
     }
 
     simulation_width = inIntegerParams(0);
@@ -21,10 +21,11 @@ samplingControl::samplingControl(SEXP integerParameters,
     CPU_cores = inIntegerParams(2); 
     algorithm = inIntegerParams(3);
     batch_size = inIntegerParams(4);
-    epochs = inIntegerParams(5);
-    max_batches = inIntegerParams(6);
-    multivariatePerturbation = inIntegerParams(7) != 0;
-    m = inIntegerParams(8);
+    init_batch_size = inIntegerParams(5);
+    epochs = inIntegerParams(6);
+    max_batches = inIntegerParams(7);
+    multivariatePerturbation = inIntegerParams(8) != 0;
+    m = inIntegerParams(9);
 #ifdef SPATIALSEIR_SINGLETHREAD
     if (CPU_cores > 1)
     {
@@ -58,6 +59,7 @@ void samplingControl::summary()
     Rcpp::Rcout << "    simulation_width: " << simulation_width << "\n";
     Rcpp::Rcout << "    random_seed: " << random_seed << "\n";
     Rcpp::Rcout << "    CPU_cores: " << CPU_cores << "\n";
+    Rcpp::Rcout << "    init_batch_size: " << init_batch_size << "\n";
     Rcpp::Rcout << "    batch_size: " << batch_size << "\n";
     Rcpp::Rcout << "    epochs: " << epochs << "\n";
     Rcpp::Rcout << "    max_batches: " << max_batches << "\n";

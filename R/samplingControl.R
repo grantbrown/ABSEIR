@@ -31,6 +31,8 @@
 #' epidemics to simulate in parallel, before returning to the main process to evaluate
 #' them. \code{batch_size} must be greater than the number of samples requested 
 #' in the \code{\link{SpatialSEIRModel}} function.}
+#' \item{init_batch_size: }{For all algorithms, this optionally determines
+#' a distinct batch size for the first iteration.}
 #' \item{epochs: }{For the Beaumont2009 and DelMoral2012 algorithms, 
 #' \code{epochs} determines the maximum
 #' number of iterations.}
@@ -81,6 +83,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             params = list(acceptance_fraction = -1,
                  target_eps = 0,
                  batch_size = 5000,
+                 init_batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
                  max_batches = 20,
@@ -94,6 +97,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
              params = list(acceptance_fraction = -1,
                  target_eps = 0,
                  batch_size = 5000,
+                 init_batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
                  max_batches = 20,
@@ -111,6 +115,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             params = list(acceptance_fraction = 0.01,
                  target_eps = 0,
                  batch_size = 10000,
+                 init_batch_size = 10000,
                  epochs = 1,
                  shrinkage = 1,
                  max_batches = 1,
@@ -130,6 +135,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 5000
+            }
+            if (!("init_batch_size" %in% names(params))) {
+                params[["init_batch_size"]] = params[["batch_size"]]
             }
             if (!("epochs" %in% names(params))) {
                 params[["epochs"]] = 100
@@ -165,6 +173,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 5000
             }
+            if (!("init_batch_size" %in% names(params))) {
+                params[["init_batch_size"]] = params[["batch_size"]]
+            }
             if (!("epochs" %in% names(params))) {
                 params[["epochs"]] = 100
             }
@@ -198,6 +209,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 5000
             }
+            if (!("init_batch_size" %in% names(params))) {
+                params[["init_batch_size"]] = params[["batch_size"]]
+            }
             if (!("epochs" %in% names(params))) {
                 params[["epochs"]] = 0
             }
@@ -230,6 +244,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("batch_size" %in% names(params))) {
                 params[["batch_size"]] = 10000
+            }
+            if (!("init_batch_size" %in% names(params))) {
+                params[["init_batch_size"]] = params[["batch_size"]]
             }
             if (!("epochs" %in% names(params))) {
                 params[["epochs"]] = 1
@@ -268,6 +285,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "acceptance_fraction" = params$acceptance_fraction,
                    "target_eps" = params$target_eps,
                    "batch_size" = params$batch_size,
+                   "init_batch_size" = params$init_batch_size,
                    "algorithm" = alg,
                    "epochs" = params$epochs,
                    "shrinkage" = params$shrinkage,

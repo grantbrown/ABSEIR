@@ -193,9 +193,9 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                                                   nParams);
     proposal_cache = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
                                            nParams);
-    preproposal_params = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+    preproposal_params = Eigen::MatrixXd::Zero(samplingControlInstance -> init_batch_size, 
                                                nParams);
-    preproposal_results = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+    preproposal_results = Eigen::MatrixXd::Zero(samplingControlInstance -> init_batch_size, 
                                                 samplingControlInstance -> m); 
  
     bool terminate = false;
@@ -239,14 +239,18 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
     Eigen::VectorXd w0 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
     Eigen::VectorXd w1 = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
     Eigen::VectorXd cum_weights = Eigen::VectorXd::Zero(Npart).array() + 1.0/((double) Npart);
-
-    
+ 
     if (!is_initialized)
     {
         if (verbose > 1){Rcpp::Rcout << "Generating starting parameters from prior\n";}
         // Sample parameters from their prior
+        /*
         preproposal_params = generateParamsPrior(Nsim);
         param_matrix = Eigen::MatrixXd::Zero(Npart, preproposal_params.cols());
+        */
+        preproposal_params = generateParamsPrior(samplingControlInstance -> init_batch_size);
+        param_matrix = Eigen::MatrixXd::Zero(Npart, preproposal_params.cols());
+
         run_simulations(preproposal_params, sim_atom, &preproposal_results, &results_complete);
 
         std::vector<size_t> currentIndex = sort_indexes_eigen(preproposal_results); 
@@ -255,6 +259,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             param_matrix.row(i) = preproposal_params.row(currentIndex[i]);
             results_double.row(i) = preproposal_results.row(currentIndex[i]); 
         }
+        preproposal_params = Eigen::MatrixXd::Zero(Nsim, preproposal_params.cols());
+        preproposal_results = Eigen::MatrixXd::Zero(Nsim, 
+                                                samplingControlInstance -> m); 
+ 
+
         e0 = results_double.maxCoeff() + 1.0;
     }
     else

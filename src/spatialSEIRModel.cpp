@@ -166,9 +166,9 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     is_initialized = false;
 
     results_complete = std::vector<simulationResultSet>();
-    results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+    results_double = Eigen::MatrixXd::Zero(samplingControlInstance -> init_batch_size, 
                                                samplingControlInstance -> m); 
-    param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> batch_size, 
+    param_matrix = Eigen::MatrixXd::Zero(samplingControlInstance -> init_batch_size, 
                                             nParams);
 
     // Parameter covariance matrix and related items are not initialized

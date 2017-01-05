@@ -30,6 +30,7 @@ class samplingControl : public modelComponent
     double accept_fraction;
     double shrinkage;
     int batch_size;
+    int init_batch_size;
     int max_batches;
     int CPU_cores;
     int epochs;

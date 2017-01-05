@@ -48,6 +48,8 @@ the program will terminate, declaring convergence.}
 epidemics to simulate in parallel, before returning to the main process to evaluate
 them. \code{batch_size} must be greater than the number of samples requested 
 in the \code{\link{SpatialSEIRModel}} function.}
+\item{init_batch_size: }{For all algorithms, this optionally determines
+a distinct batch size for the first iteration.}
 \item{epochs: }{For the Beaumont2009 and DelMoral2012 algorithms, 
 \code{epochs} determines the maximum
 number of iterations.}
