@@ -431,7 +431,7 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
 
 double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
 {
-    double outPrior = 1.0;
+    double outPrior = 0.0;
     double constr = 0.0;
     const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
@@ -442,13 +442,12 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
 
     int i;
-
     int paramIdx = 0;
     for (i = 0; i < nBeta; i++)
     {
-        outPrior *= R::dnorm(param_vector(paramIdx), 
+        outPrior += R::dnorm(param_vector(paramIdx), 
                 (exposureModelInstance -> betaPriorMean)(i), 
-                1.0/((exposureModelInstance -> betaPriorPrecision)(i)), 0);
+                1.0/((exposureModelInstance -> betaPriorPrecision)(i)), 1);
         paramIdx++;
     }
 
@@ -456,9 +455,9 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     {
         for (i = 0; i < nBetaRS; i++)
         {
-            outPrior *= R::dnorm(param_vector(paramIdx), 
+            outPrior += R::dnorm(param_vector(paramIdx), 
                     (reinfectionModelInstance -> betaPriorMean)(i), 
-                    1.0/((reinfectionModelInstance -> betaPriorPrecision)(i)), 0);
+                    1.0/((reinfectionModelInstance -> betaPriorPrecision)(i)), 1);
             paramIdx++;
         }
     }
@@ -468,35 +467,37 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
         for (i = 0; i < nRho; i++)
         {
              constr += param_vector(paramIdx);
-             outPrior *= R::dbeta(param_vector(paramIdx), 
+             outPrior += R::dbeta(param_vector(paramIdx), 
                          (distanceModelInstance -> spatial_prior)(0),
-                         (distanceModelInstance -> spatial_prior)(1), 0);
+                         (distanceModelInstance -> spatial_prior)(1), 1);
              paramIdx++;
         }
-        outPrior *= (constr <= 1);
+        if (constr > 1){
+            outPrior = -std::numeric_limits<double>::infinity();
+        }
     }
 
     if (transitionMode == "exponential")
     {
-        outPrior *= R::dgamma(param_vector(paramIdx), 
+        outPrior += R::dgamma(param_vector(paramIdx), 
                 (transitionPriorsInstance -> E_to_I_params)(0,0),
-                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0), 0);
+                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0), 1);
         paramIdx++;
 
-        outPrior *= R::dgamma(param_vector(paramIdx), 
+        outPrior += R::dgamma(param_vector(paramIdx), 
                 (transitionPriorsInstance -> I_to_R_params)(0,0),
-                1.0/(transitionPriorsInstance -> I_to_R_params)(1,0), 0);
+                1.0/(transitionPriorsInstance -> I_to_R_params)(1,0), 1);
     }
     else if (transitionMode == "weibull")
     {
-        outPrior *= EI_transition_dist -> evalParamPrior(
+        outPrior += EI_transition_dist -> evalParamPrior(
                 param_vector.segment(paramIdx, 2)); 
         paramIdx += 2;
-        outPrior *= IR_transition_dist -> evalParamPrior(
+        outPrior += IR_transition_dist -> evalParamPrior(
                 param_vector.segment(paramIdx, 2)); 
         paramIdx += 2;
     }
-    return(outPrior);
+    return(std::exp(outPrior));
 }
 
 void spatialSEIRModel::run_simulations(Eigen::MatrixXd params, 

@@ -131,10 +131,20 @@ void transitionPriors::summary()
 {
     Rcpp::Rcout << "Transition Priors Summary\n";
     Rcpp::Rcout << "-------------------------\n";
-    if (E_to_I_params.size() == 2){
-        Rcpp::Rcout << "gamma_ei parameters: " << E_to_I_params(0) << ", " << 1/E_to_I_params(1) << "\n";
-        Rcpp::Rcout << "gamma_ir parameters: " << I_to_R_params(0) << ", " << 1/I_to_R_params(1) << "\n";
+    Rcpp::Rcout << "    transition mode: " << mode << "\n";
+    Rcpp::Rcout << "    E to I transition prior params: (";
+    for (int i = 0; i < E_to_I_params.rows() - 1; i++)
+    {
+        Rcpp::Rcout << E_to_I_params(i,0) << ", ";
     }
+    Rcpp::Rcout << E_to_I_params(E_to_I_params.rows() - 1,0) << ")\n ";
+
+    Rcpp::Rcout << "    I to R transition prior params: (";
+    for (int i = 0; i < I_to_R_params.rows() - 1; i++)
+    {
+        Rcpp::Rcout << I_to_R_params(i,0) << ", ";
+    }
+    Rcpp::Rcout << I_to_R_params(I_to_R_params.rows() - 1,0) << ")\n ";
 }
 
 transitionPriors::~transitionPriors()
