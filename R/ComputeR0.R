@@ -1,6 +1,7 @@
 #'  Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
 #' 
 #' @param  SimObject a PosteriorSimulation object, as created by the \code{\link{epidemic.simulations}} function. 
+#' @param cores  Optional argument - use multiple cores?
 #'
 #' @details  The main SpatialSEIRModel functon performs many simulations, but for the sake of 
 #'    memory efficiency and runtime does not return the simulated compartment values
@@ -16,10 +17,10 @@
 #' @import parallel
 #' @importFrom compiler cmpfun
 #' @export
-ComputeR0 <- function(SimObject)
+ComputeR0 <- function(SimObject, cores = 1)
 { 
   argClassValidator("SpatialSEIRModel")(SimObject)
-  cores <- SimObject$modelObject$modelComponents$sampling_control$n_cores
+  #cores <- SimObject$modelObject$modelComponents$sampling_control$n_cores
   cl <- makeCluster(cores)
   clusterExport(cl, "SimObject", envir = environment())
   setupR0 <- function(x){

@@ -4,10 +4,12 @@
 \alias{ComputeR0}
 \title{Compute empirically adjusted reproductive number curves for a PosteriorSimulation object}
 \usage{
-ComputeR0(SimObject)
+ComputeR0(SimObject, cores = 1)
 }
 \arguments{
 \item{SimObject}{a PosteriorSimulation object, as created by the \code{\link{epidemic.simulations}} function.}
+
+\item{cores}{Optional argument - use multiple cores?}
 }
 \description{
 Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
