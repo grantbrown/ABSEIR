@@ -1,0 +1,314 @@
+---
+title: "Kikwit Ebola Analysis"
+output: html_document
+---
+
+**Note:** This tutorial assumes that you have successfully installed ABSEIR, and are 
+at least passingly familiar with compartmental models. Some introductory information is available
+in [this vignette](./Kikwit.html).
+
+
+
+Step 0: Setup
+------------------------------------------------
+Data for this example were obtained from the measlesWeserEms data set from the surveillance package. 
+
+```{r}
+# load the ABSEIR library
+library(ABSEIR)
+library(surveillance)
+
+# Read in data
+data(measlesWeserEms)
+# Identify cases
+cases<-measlesWeserEms@observed
+epidemic.start = min(which(apply(cases, 1, max) > 0))
+cases = cases[(epidemic.start-1):nrow(cases),]
+
+# Obtain distance matrix
+neighbourhood<-measlesWeserEms@neighbourhood
+# Week
+week <- measlesWeserEms@epoch[(epidemic.start-1):length(measlesWeserEms@epoch)]
+# Vaccination and population data set
+vaccine.data <- measlesWeserEms@map@data
+vaccine.data$adminID <- rownames(vaccine.data)
+# Population size
+N <- vaccine.data$POPULATION
+
+
+
+# Check that spatial unit ordering makes sense
+if (!all(vaccine.data$adminID == colnames(neighbourhood))){
+  stop("Error, make sure spatial unit ordering is consistent.")
+}
+```
+
+Step 1: Data Model and Initial Values
+-----------------------------------------
+
+```{r}
+# Make cumulative
+apply(cases, 2,cumsum)
+
+
+weser.data_model = DataModel(Y=apply(cases, 2,cumsum), 
+                             type = "identity",      # Assume data is correct 
+                             compartment = "I_star", # Data related to new infections
+                             cumulative = TRUE       # Not reported on cumulative scale
+                             )
+
+I0 = (apply(cases[1:3,], 2, max) > 0)*2
+E0 = I0
+R0 = 0*I0
+S0 = N-E0-I0-R0
+
+weser.initial_values = InitialValueContainer(S0 = S0, 
+                                             E0 = E0,
+                                             I0 = I0,
+                                             R0 = R0)
+
+# No reinfection
+weser.reinfection_model = ReinfectionModel("SEIR")
+
+
+```
+
+Step 2: Exposure Process
+------------------------------------
+
+To specify the exposure process, we need to create the exposure design matrix. This matrix of temporal and spatial 
+covariates must have a particular structure. Each of the $J$ spatial locations receives a $T\times p$ design matrix, 
+where $p$ is the number of covariates. These matrices are then 'stacked' row-wise in the same spatial ordering
+as presented in the columns and rows of the neighborhood matrix (defined above). 
+
+Here, we include the following covariates:
+
+1. An intercept term
+2. The population density
+3. The proportion of students with a vaccine card
+4. The proportion of students receiving at least one vaccination
+5. The proportion of students who were doubly vaccinated
+6. A three degree of freedom trigonometric temporal basis, to capture seasonality
+
+For more information on these covariates, see the documentation for the 'measlesWeserEMS' data.
+
+As you can see, while ABSEIR doesn't directly fit SEIRV models (which incorporate a vaccination compartment),
+we can include vaccination data into the exposure probability structure, effectively giving vaccinated persons
+a different probability of contracting the pathogen of interest. 
+
+```{r}
+n.locations <- ncol(neighbourhood)
+n.timepoints <- length(week)
+
+time_invariant_covariates <- data.frame(intercept = rep(1, nrow(vaccine.data)),
+                                        popDensity = vaccine.data$POPULATION/vaccine.data$AREA,
+                                        proportionVaccineCard = vaccine.data$vaccdoc.2004,
+                                        proportionVaccine1 = vaccine.data$vacc1.2004,
+                                        proportionVaccine2 = vaccine.data$vacc2.2004)
+
+time_varying_covariates <- data.frame(sin_component = sin(week/52*2*pi),
+                                      cos_component = cos(week/52*2*pi),
+                                      trig_interact = sin(week/52*2*pi)*cos(week/52*2*pi))
+
+exposure.design.matrix <- as.matrix(
+                            cbind(
+                              time_invariant_covariates[rep(1:n.locations, each = n.timepoints),],
+                              time_varying_covariates[rep(1:n.timepoints, n.locations),]
+                            )
+                          )
+
+## Build the exposure model
+
+weser.exposure_model <- ExposureModel(X = exposure.design.matrix,
+                                      nTpt = n.timepoints,
+                                      nLoc = n.locations,
+                                      betaPriorPrecision = rep(1, ncol(exposure.design.matrix)),
+                                      betaPriorMean = rep(0, ncol(exposure.design.matrix)))
+
+```
+
+
+Step 3: Contact Structure
+-----------------------------
+
+We now need to specify the contact structures. Here, we'll build both a gravity model
+(which depends on population size and distance), and a simple CAR model (which just depends
+on shared borders between regions).
+
+```{r}
+# Build a gravity model, in which the contact process between a pair of
+# spatial locations is proportional to the product of their populations divided
+# by the squared 'distance'
+
+pop.matrix <- matrix(N, nrow = length(N), ncol = length(N))
+gravityModel <- (pop.matrix * t(pop.matrix))/neighbourhood^2
+diag(gravityModel) <- 1
+# Rescale
+maxRowSum <- max(apply(gravityModel,1,sum))
+gravityModel <- gravityModel/maxRowSum
+
+weser.distance_model <- DistanceModel(list(gravityModel), 
+                                      priorAlpha = 1,
+                                      priorBeta = 1)
+
+# Build a simpler contact model, in which the contact probability between
+# a pair of spatial locations is only nonzero when the distance is equal to 1
+# (CAR specification)
+weser.CAR_model <- DistanceModel(list((neighbourhood == 1)*1), 
+                                 priorAlpha = 1,
+                                 priorBeta = 1
+                                 )
+
+
+```
+Step 4: Specify Latent and Infectious Period Transition Models
+-------------------------------------------------------------------
+
+
+```{r}
+# 9-12 day latent period
+# Infectious
+weser.transition_priors = ExponentialTransitionPriors(p_ei = 0.8, # Guess at E to I transition probability (per week)
+                                                      p_ir = 0.8, # Guess at I to R transition probability (per week)
+                                                      p_ei_ess = 10, # confidence
+                                                      p_ir_ess = 10  # confidence
+                                                      )
+
+
+```
+
+Step 5: Configure ABC Sampler
+--------------------------------
+```{r}
+
+
+weser.sampling_control <- SamplingControl(seed=123123,
+                                               n_cores = 14,
+                                               algorithm = "Beaumont2009",
+                                               params = list(
+                                                  batch_size = 2000,
+                                                  init_batch_size = 100000,
+                                                  epochs = 1e6,
+                                                  shrinkage = 0.99,
+                                                  max_batches = 200,
+                                                  multivariate_perturbation=FALSE
+                                              ))
+
+
+```
+
+Step 6: Run Our Two Models
+-------------------------------
+
+
+```{r}
+
+if (!file.exists( "weserModel1.rda")){
+  t1 <- system.time(
+    {
+    weser.model1 <- SpatialSEIRModel(data_model = weser.data_model,
+                                     exposure_model = weser.exposure_model,
+                                     reinfection_model = weser.reinfection_model,
+                                     distance_model = weser.distance_model,
+                                     transition_priors = weser.transition_priors,
+                                     initial_value_container = weser.initial_values,
+                                     sampling_control = weser.sampling_control,
+                                     samples = 50, 
+                                     verbose = FALSE)
+    }
+  )
+  save("weser.model1", "t1", file = "weserModel1.rda")
+  
+} else {
+  load("weserModel1.rda")
+}
+
+
+if (!file.exists( "weserModel2.rda")){
+  t2 <- system.time(
+    {
+    weser.model2 <- SpatialSEIRModel(data_model = weser.data_model,
+                                   exposure_model = weser.exposure_model,
+                                   reinfection_model = weser.reinfection_model,
+                                   distance_model = weser.CAR_model,
+                                   transition_priors = weser.transition_priors,
+                                   initial_value_container = weser.initial_values,
+                                   sampling_control = weser.sampling_control,
+                                   samples = 50,
+                                   verbose = FALSE)
+    }
+  )
+  save("weser.model2", "t2", file = "weserModel2.rda")
+  
+} else {
+  load("weserModel2.rda")
+}
+
+print(t1)
+print(t2)
+```
+
+Parameter Summaries
+=======================
+```{r}
+summary(weser.model1)
+summary(weser.model2)
+```
+
+Graphical Summary Function
+=============================
+This function will plot cases each of the spatial locations for a model, add a black line for the 
+mean posterior predictive number of cases, and add blue dashed lines for the 99% credible interval for the number of
+cases. 
+
+```{r}
+
+makePlots <- function(modelObj, nm){
+  sims <- epidemic.simulations(modelObj, replicates = 50)
+  Is <- lapply(sims$simulationResults, function(x){x$I_star})
+  Is <- array(Reduce(c, Is), dim = c(nrow(Is[[1]]),
+                                           ncol(Is[[2]]),
+                                           length(Is)))
+  
+  Ism <- apply(Is, 1:2, mean)
+  Islb <- apply(Is, 1:2, quantile, probs = c(0.005))
+  Isub <- apply(Is, 1:2, quantile, probs = c(0.995))
+  
+  plotLocation <- function(x, model){
+    plot(cases[,x], ylim = c(0, max(Isub[,x])),
+         main = paste(model, ": Observed and Posterior Predictive Simulation.\n location ", 
+                      colnames(neighbourhood)[x], sep = ""))
+    lines(Ism[,x], col = rgb(0,0,0,0.8), lwd = 2)
+    lines(Islb[,x], col = rgb(0,0,0.5,0.8), lwd = 1, lty = 2)
+    lines(Isub[,x], col = rgb(0,0,0.5,0.8), lwd = 1, lty = 2)
+    #apply(Is, 3, function(i){
+    #  lines(i[,x], col = rgb(0,0,0,0.1))
+    #})
+    points(cases[,x], pch = 16, col = "blue")
+  }
+  
+  for (i in 1:ncol(neighbourhood)){
+    plotLocation(i, nm)
+  }
+}
+```
+
+Graphical Illustration of Model 1:
+=====================================
+
+```{r}
+makePlots(weser.model1, "Dist")
+```
+
+Graphical Illustration of Model 2:
+=====================================
+
+```{r}
+makePlots(weser.model2, "CAR")
+```
+
+Bayes Factors Comparing the Models (row v. column):
+======================================================
+```{r}
+compareModels(modelList = list(weser.model1, weser.model2), n_samples = 100)
+```
