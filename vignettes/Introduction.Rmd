@@ -71,8 +71,7 @@ the practical details of actually working with these models. It is not intended 
 provide a comprehensive background on epidemic modeling techniques or approximate Bayesian
 methodology more generally. Questions are, however, encouraged, and should be directed to the
 [issues](https://github.com/grantbrown/ABSEIR/issues) section of our GitHub page.
-This documentation also does not cover installation, which is currently only an option
-for users of Linux and OSX. Detailed instructions are available [here](https://github.com/grantbrown/ABSEIR/wiki/Installation), and we hope to soon support Windows as well. 
+This documentation also does not cover installation, Detailed instructions are available [here](https://github.com/grantbrown/ABSEIR/wiki/Installation).
 
 
 Tutorials
@@ -80,6 +79,6 @@ Tutorials
 
 * [Single location analysis of the 1995 outbreak of Ebola in Kikwit, Nigeria](./Kikwit.html)
 * [Spatial analysis of the 2014-2015 outbreak of Ebola in West Africa](WestAfrica.html)
-* (more to come - suggestions welcome)
+* [Spatial analysis of the measlesWeserEms data from the surveillance R package.](Measles.html)
 
 
