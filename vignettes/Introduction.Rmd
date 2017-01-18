@@ -79,6 +79,6 @@ Tutorials
 
 * [Single location analysis of the 1995 outbreak of Ebola in Kikwit, Nigeria](./Kikwit.html)
 * [Spatial analysis of the 2014-2015 outbreak of Ebola in West Africa](WestAfrica.html)
-* (more to come - suggestions welcome)
+* [Spatial analysis of the measlesWeserEms data from the surveillance R package.](Measles.html)
 
 

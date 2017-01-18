@@ -1,5 +1,5 @@
 ---
-title: "Kikwit Ebola Analysis"
+title: "Measles Example"
 output: html_document
 ---
 
@@ -48,9 +48,6 @@ Step 1: Data Model and Initial Values
 
 ```{r}
 # Make cumulative
-apply(cases, 2,cumsum)
-
-
 weser.data_model = DataModel(Y=apply(cases, 2,cumsum), 
                              type = "identity",      # Assume data is correct 
                              compartment = "I_star", # Data related to new infections
@@ -182,12 +179,12 @@ Step 5: Configure ABC Sampler
 ```{r}
 
 
-weser.sampling_control <- SamplingControl(seed=123123,
+weser.sampling_control <- SamplingControl(seed=123124,
                                                n_cores = 14,
                                                algorithm = "Beaumont2009",
                                                params = list(
                                                   batch_size = 2000,
-                                                  init_batch_size = 100000,
+                                                  init_batch_size = 1000000,
                                                   epochs = 1e6,
                                                   shrinkage = 0.99,
                                                   max_batches = 200,
@@ -202,7 +199,7 @@ Step 6: Run Our Two Models
 
 
 ```{r}
-
+# Cache the model objects so we don't need to re-run the analysis for things like format tweaks
 if (!file.exists( "weserModel1.rda")){
   t1 <- system.time(
     {
@@ -235,7 +232,7 @@ if (!file.exists( "weserModel2.rda")){
                                    initial_value_container = weser.initial_values,
                                    sampling_control = weser.sampling_control,
                                    samples = 50,
-                                   verbose = FALSE)
+                                   verbose = 2)
     }
   )
   save("weser.model2", "t2", file = "weserModel2.rda")
@@ -271,8 +268,8 @@ makePlots <- function(modelObj, nm){
                                            length(Is)))
   
   Ism <- apply(Is, 1:2, mean)
-  Islb <- apply(Is, 1:2, quantile, probs = c(0.005))
-  Isub <- apply(Is, 1:2, quantile, probs = c(0.995))
+  Islb <- apply(Is, 1:2, quantile, probs = c(0.025))
+  Isub <- apply(Is, 1:2, quantile, probs = c(0.975))
   
   plotLocation <- function(x, model){
     plot(cases[,x], ylim = c(0, max(Isub[,x])),
@@ -310,5 +307,9 @@ makePlots(weser.model2, "CAR")
 Bayes Factors Comparing the Models (row v. column):
 ======================================================
 ```{r}
-compareModels(modelList = list(weser.model1, weser.model2), n_samples = 100)
+comps <- compareModels(modelList = list(weser.model1, weser.model2), n_samples = 100)
+rownames(comps) <- colnames(comps) <- c("Distance", "CAR")
+print(comps)
 ```
+
+It looks like the preferred model is the CAR model. 
