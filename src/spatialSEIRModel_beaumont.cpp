@@ -54,7 +54,6 @@ void proposeParams_beaumont_multivariate(Eigen::MatrixXd* outParams,
     auto normDist = std::normal_distribution<double>(0.0,1.0);
     int i, j;
     const int N = outParams -> rows();
-    const int nParams = outParams -> cols();
     Eigen::MatrixXd curSamp = *outParams;
     Eigen::RowVectorXd parameterMeans = curSamp.colwise().mean();
     auto parameterCentered = (curSamp.rowwise() - parameterMeans);
@@ -376,7 +375,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                             &results_complete);
 
            //std::vector<size_t> preproposal_order = sort_indexes_eigen(preproposal_results); 
-           int orderIdx;
            for (i = 0; i < Nsim && currentIdx < Npart; i++)
            {
                if (preproposal_results(i,0) < e1)
@@ -416,7 +414,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             wtTot = 0.0;
             double newWt, tmpWt;
             double tmpWeightComp;
-            double tmpWeight;
             Eigen::VectorXd tmpParams;
             if (samplingControlInstance -> multivariatePerturbation)
             {
