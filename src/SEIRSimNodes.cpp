@@ -176,6 +176,7 @@ void NodeWorker::operator()()
         {
             // Do these need to be re-sorted?
             simulationResultSet result = node -> simulate(task.params, true);
+            (*(pool -> result_pointer)).row(task.param_idx) = result.result; 
             pool -> result_complete_pointer -> push_back(result);
             pool -> index_pointer -> push_back(task.param_idx);
         }
@@ -217,6 +218,7 @@ void NodeWorker::operator()()
                 std::unique_lock<std::mutex> lock(pool -> result_mutex);
                 pool -> index_pointer -> push_back(task.param_idx);
                 pool -> result_complete_pointer -> push_back(result);
+                (*(pool -> result_pointer)).row(task.param_idx) = result.result; 
                 while (!((node -> messages).empty())) 
                 {
                     (pool -> messages).push_back((node -> messages).front()); 

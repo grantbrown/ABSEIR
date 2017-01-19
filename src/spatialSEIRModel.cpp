@@ -16,18 +16,6 @@
 
 using namespace Rcpp;
 
-std::vector<size_t> sort_indexes(Rcpp::NumericVector inVec)
-{
-    vector<size_t> idx(inVec.size());
-    for (size_t i = 0; i < idx.size(); i++)
-    {
-        idx[i] = i;
-    }
-    std::sort(idx.begin(), idx.end(),
-         [&inVec](size_t i1, size_t i2){return(inVec(i1) < inVec(i2));});
-    return(idx);    
-}
-
 spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                                    exposureModel& exposureModel_,
                                    reinfectionModel& reinfectionModel_,
@@ -178,7 +166,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     parameterL = Eigen::MatrixXd::Zero(nParams, nParams);
     parameterICovDet = 0.0;
 
-
+    result_idx = std::vector<int>();
 
     // Create the worker pool
     worker_pool = std::unique_ptr<NodePool>(
@@ -387,7 +375,7 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
         {
             Rcpp::stop("Model must be initialized before simulating.");
         }
-        return(sample_Simulate(N, V));
+        return(sample_Simulate(N, 0, V));
     }
 }
 

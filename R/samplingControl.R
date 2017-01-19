@@ -55,6 +55,7 @@
 #' values must be provided, following the format created by the other
 #' algorithms. This functonality is used primarily for debugging purposes; most
 #' users should perform such simulations using the 
+#' \item{keep_compartments}{Logical: should the simulated compartment values be retained?}
 #' \code{\link{epidemic.simulations}} function instead.}
 #' \item{replicates}{For the 'simulate' algorithm, a number of replicate
 #' simulations to be performed per particle.}}
@@ -90,7 +91,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  multivariate_perturbation = 0,
                  m=1,
                  particles=-1,
-                 replicates=-1)
+                 replicates=-1,
+                 keep_compartments=0)
         }
         else if (algorithm == "DelMoral2012")
         {
@@ -104,7 +106,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  multivariate_perturbation = 0,
                  m=5,
                  particles=-1,
-                 replicates=-1)           
+                 replicates=-1,
+                 keep_compartments=0)           
         }
         else if (algorithm == "simulate")
         {
@@ -122,7 +125,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  multivariate_perturbation = 0,
                  m=1,
                  particles=-1,
-                 replicates=-1)
+                 replicates=-1,
+                 keep_compartments=0)
         }
     }
     else if (class(params) == "list")
@@ -163,7 +167,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("replicates" %in% names(params))){
                 params[["replicates"]] = -1
             }
-
+            if (!("keep_compartments" %in% names(params))){
+                params[["keep_compartments"]] = 0
+            }
         }
         else if (algorithm == "DelMoral2012")
         {
@@ -199,6 +205,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("replicates" %in% names(params))){
                 params[["replicates"]] = -1
+            }
+            if (!("keep_compartments" %in% names(params))){
+                params[["keep_compartments"]] = 0
             }
         }
         else if (algorithm == "simulate")
@@ -236,6 +245,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("replicates" %in% names(params))){
                 params[["replicates"]] = 1
             }
+            if (!("keep_compartments" %in% names(params))){
+                params[["keep_compartments"]] = 1
+            }
         }
         else if (algorithm == "BasicABC")
         {
@@ -272,6 +284,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("replicates" %in% names(params))){
                 params[["replicates"]] = -1
             }
+            if (!("keep_compartments" %in% names(params))){
+                params[["keep_compartments"]] = 0
+            }
         }
         else
         {
@@ -293,7 +308,8 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "multivariate_perturbation" = params$multivariate_perturbation,
                    "m"=params$m,
                    "particles"=params$particles,
-                   "replicates"=params$replicates
+                   "replicates"=params$replicates,
+                   "keep_compartments"=params$keep_compartments
                    ), class = "SamplingControl")
 }
 

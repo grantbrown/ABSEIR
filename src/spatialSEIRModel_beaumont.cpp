@@ -16,6 +16,18 @@
 
 
                                                                                 
+std::vector<size_t> sort_indexes(std::vector<int> inVec)
+{
+    vector<size_t> idx(inVec.size());
+    for (size_t i = 0; i < idx.size(); i++)
+    {
+        idx[i] = i;
+    }
+    std::sort(idx.begin(), idx.end(),
+         [&inVec](size_t i1, size_t i2){return(inVec[i1] < inVec[i2]);});
+    return(idx);    
+}
+
 std::vector<size_t> sort_indexes_eigen(Eigen::MatrixXd inMat)                     
 {                                                                               
         vector<size_t> idx(inMat.rows());                                           
@@ -180,6 +192,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
 
     // Accepted params/results are nSample size
     results_complete = std::vector<simulationResultSet>();
+    proposed_results_complete = std::vector<simulationResultSet>();
     results_double = Eigen::MatrixXd::Zero(nSample, 
                                            samplingControlInstance -> m); 
     param_matrix = Eigen::MatrixXd::Zero(nSample, 
@@ -278,7 +291,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                       (param_matrix.colwise()).mean()
                       ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
-
 
     for (iteration = 0; iteration < num_iterations && !terminate; iteration++)
     {   
@@ -474,13 +486,209 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         results_double = proposed_results_double;
     }
 
-    // Todo: keep an eye on this object handling. It may have unreasonable
-    // overhead, and is kind of complex.  
     Rcpp::List outList;
     if (sim_type_atom == sim_result_atom)
     {
-        // keep_samples indicates a debug mode, so don't worry if we can't make
-        // a regular data frame from the list.
+        // Need to do an extra iteration to generate compartment data. 
+         
+        /// BEGIN REVISIONS
+        
+        // NOTE: this code is largely copied from the main loop. 
+        // If revisions need to be made, make sure to check both spots
+        
+        Rcpp::checkUserInterrupt();       
+        if (verbose > 0){
+            Rcpp::Rcout << "Running additional iteration to capture compartments";
+        }
+
+        // Calculating tau
+        tau = std::sqrt(0.5)*(param_matrix.rowwise() - 
+              (param_matrix.colwise()).mean()
+                ).colwise().norm()/std::sqrt((double) 
+                        (param_matrix.rows())-1.0);
+
+        if (verbose > 2)
+        {
+            Rcpp::Rcout << "tau inverse: \n" << tau << "\n";
+        }
+
+
+        // Back off the shrinkage
+        e1 = e0/std::pow((samplingControlInstance -> shrinkage), 2);
+        if (verbose > 2)
+        {
+            Rcpp::Rcout << "   e1 = " << e1 << "\n";
+            Rcpp::Rcout << "   w0, 1-10: ";
+            for (i = 0; i < std::min(10, (int) w1.size()); i++)
+            {
+                Rcpp::Rcout << w0(i) << ", ";
+            }
+            Rcpp::Rcout << "\n";
+        }
+
+        // Reorder parameters by weight
+        reweight_idx = sort_indexes_eigen_vec(w0); 
+        for (i = w0.size()-1; i >= 0; i--){
+            w1(i) = w0(reweight_idx[i]);
+            preproposal_params.row(i) = param_matrix.row(reweight_idx[i]);
+        }
+        for (i = 0; i < param_matrix.rows(); i++)
+        {
+            w0(i) = w1(i);
+            param_matrix.row(i) = preproposal_params.row(i);
+        }
+
+        cum_weights(0) = w1(0);
+        for (i = 1; i < w1.size(); i++)
+        {
+            cum_weights(i) = w1(i) + cum_weights(i-1);
+        }
+        if (std::abs(cum_weights.maxCoeff() - 1) > 1e-10)
+        {
+            Rcpp::Rcout << "cumulative weight: " << cum_weights.maxCoeff() << "\n";
+            Rcpp::stop("particle weights do not sum to one\n");
+        }
+
+        // Propose params and run simulations
+        int currentIdx = 0;
+        int nBatches = 0;
+        while (currentIdx < Npart)
+        {
+            // perturb parameters
+            if (samplingControlInstance -> multivariatePerturbation)
+            {
+                proposeParams_beaumont_multivariate(&preproposal_params, 
+                              &param_matrix,
+                              &cum_weights,
+                              &tau,
+                              generator,
+                              this);
+            }
+            else
+            {
+                proposeParams_beaumont(&preproposal_params, 
+                              &param_matrix,
+                              &cum_weights,
+                              &tau,
+                              generator,
+                              this);     
+            }
+
+           proposed_results_complete.clear();
+           result_idx.clear();
+
+            // run simulations
+            run_simulations(preproposal_params,
+                            sim_type_atom,
+                            &preproposal_results, 
+                            &proposed_results_complete);
+
+           std::vector<size_t> result_order = sort_indexes(result_idx); 
+           for (i = 0; i < Nsim && currentIdx < Npart; i++)
+           {
+               if (preproposal_results(i,0) < e1)
+               {
+                   proposed_param_matrix.row(currentIdx) = 
+                       preproposal_params.row(i);
+                   proposed_results_double.row(currentIdx) = 
+                       preproposal_results.row(i);
+                   results_complete.push_back(proposed_results_complete[result_order[i]]);
+                   currentIdx++;
+               }
+           }
+           if (currentIdx < Npart && verbose > 1)
+           {
+                Rcpp::Rcout << "  batch " << nBatches << ", " << currentIdx << 
+                    "/" << Npart << " accepted\n";
+           }
+           nBatches ++;
+           // Need to use indexes for results complete
+        }
+
+        e0 = e1;
+        w0 = w1;
+        double wtTot = 0.0;
+        if (currentIdx + 1 < Npart)
+        {
+            if (verbose > 1)
+            {
+                Rcpp::Rcout << "\n";
+                Rcpp::Rcout << "Maximum batches exceeded: " << currentIdx + 1 << "/" 
+                    << Npart << " acceptances in " << nBatches << " batches of max " <<
+                    maxBatches << "\n";
+                Rcpp::Rcout << "Returning last params\n";
+            }
+            terminate = 1;
+        }
+        else
+        {
+            wtTot = 0.0;
+            double newWt, tmpWt;
+            double tmpWeightComp;
+            Eigen::VectorXd tmpParams;
+            if (samplingControlInstance -> multivariatePerturbation)
+            {
+                // Column vector of difference
+                tmpWeightComp = (-nParams/2.0)*std::log(2.0*3.14159) 
+                    - 0.5*std::log((parameterICovDet));
+                Eigen::MatrixXd a = Eigen::MatrixXd::Zero(param_matrix.cols(), 1);
+                for (i = 0; i < proposed_param_matrix.rows(); i++)
+                {
+                   newWt = 0.0; 
+                   for (j = 0; j < param_matrix.rows(); j++)
+                   {
+                       a.col(0) = (proposed_param_matrix.row(i) - 
+                                   param_matrix.row(j));
+                       newWt += w0(j)*std::exp(tmpWeightComp - 
+                               0.5*((a.transpose()*parameterICov*a)(0)));
+                   }
+
+                   w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
+                   if (std::isnan(w1(i)))
+                   {
+                       Rcpp::stop("nan weights encountered.");
+                   }
+                   wtTot += w1(i);
+                }
+                w1.array() /= wtTot;
+           }
+            else
+            {
+                for (i = 0; i < proposed_param_matrix.rows(); i++)
+                {
+                   newWt = 0.0; 
+                   tmpWt = 0.0;
+                   for (j = 0; j < param_matrix.rows(); j++)
+                   {
+                       tmpWt = 0.0;
+                       for (k = 0; k < proposed_param_matrix.cols(); k++)
+                       {
+                          tmpWt += R::dnorm(proposed_param_matrix(i,k),
+                                            param_matrix(j,k),
+                                            tau(k), 1);
+                       }
+                       newWt += w0(j)*std::exp(tmpWt);
+                   }
+                   w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
+                   if (std::isnan(w1(i)))
+                   {
+                       Rcpp::stop("nan weights encountered.");
+                   }
+                   wtTot += w1(i);
+                }
+                w1.array() /= wtTot;
+            }
+        }
+
+        w0 = w1;
+        param_matrix = proposed_param_matrix;
+        results_double = proposed_results_double;
+
+        /// END REVISIONS
+    
+        // Todo: keep an eye on this object handling. It may have unreasonable
+        // overhead, and is kind of complex.  
+        Rcpp::List simulationResults; 
         for (i = 0; i < (int) results_complete.size(); i++)
         {
             Rcpp::List subList;
@@ -511,13 +719,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                 // TODO: output reinfection info
             }
             subList["result"] = Rcpp::wrap(results_complete[i].result);
-            outList[std::to_string(i)] = subList;
+            simulationResults[std::to_string(i)] = subList;
         }
+        outList["simulationResults"] = simulationResults;
     }
-    else if (sim_type_atom == sim_atom)
-    {
-        outList["result"] = Rcpp::wrap(results_double);
-    }
+    outList["result"] = Rcpp::wrap(results_double);
     outList["params"] = Rcpp::wrap(param_matrix);
     outList["completedEpochs"] = iteration;
     outList["weights"] = Rcpp::wrap(w1);

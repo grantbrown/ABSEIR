@@ -320,7 +320,9 @@ SpatialSEIRModel = function(data_model,
                                                           previous_eps)
         }
         if (verbose) cat("Running main simulation\n")
-        rslt = modelComponents[["SEIR_model"]]$sample(samples, 0, verbose*1)
+        rslt = modelComponents[["SEIR_model"]]$sample(samples, 
+                                                      sampling_control$keep_compartments*1, 
+                                                      verbose*1)
 
         if (verbose) cat("Simulation complete\n")
 
@@ -381,6 +383,9 @@ SpatialSEIRModel = function(data_model,
                      sampling_control = sampling_control
         ) 
         modelResults[["completedEpochs"]] = completed_epochs
+        if (sampling_control$keep_compartments > 0){
+            modelResults[["simulationResults"]] = rslt$simulationResults
+        }
     },
     warning=function(w)
     {

@@ -214,7 +214,8 @@ sampling_control = SamplingControl(seed = 123123,
                                            epochs = 1e6,
                                            max_batches = 100,
                                            shrinkage = 0.99,
-                                           multivariate_perturbation=TRUE
+                                           multivariate_perturbation=TRUE,
+                                           keep_compartments = TRUE
                                          )
                                    )
 
@@ -291,6 +292,8 @@ system.time(simulations1 <- ComputeR0(simulations1))
 system.time(simulations2 <- ComputeR0(simulations2))
 
 
+
+
 plotPosteriorPredictive = function(simulations, main)
 {
   allSimulatedI_star = sapply(simulations$simulationResults, function(x){x$I_star})
@@ -310,8 +313,12 @@ plotPosteriorPredictive = function(simulations, main)
          pch = c(NA,NA,1), col = c("blue", "blue", "black"), cex = 1)
 }
 
+
+
 plotPosteriorPredictive(simulations1, "Model 1: Posterior Predictive Distribution")
+plotPosteriorPredictive(result1, "Model 1: Posterior Distribution")
 plotPosteriorPredictive(simulations2, "Model 2: Posterior Predictive Distribution")
+plotPosteriorPredictive(result2, "Model 2: Posterior Distribution")
 
 ```
 

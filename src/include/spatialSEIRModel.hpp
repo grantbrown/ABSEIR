@@ -112,7 +112,7 @@ class spatialSEIRModel
                                 std::string sim_type_atom);
 
         /** Use current parameters to simulate epidemics*/
-        Rcpp::List sample_Simulate(int nSample, int verbose);
+        Rcpp::List sample_Simulate(int nSample, int enforceEps, int verbose);
 
         /** Flag for whether params have been initialized*/
         bool is_initialized;
@@ -156,14 +156,20 @@ class spatialSEIRModel
         /** Results vector*/
         Eigen::MatrixXd proposed_results_double;
 
+        /** particles - cache*/
         Eigen::MatrixXd proposal_cache;
 
+        /** particles - cache*/
         Eigen::MatrixXd preproposal_params;
 
+        /** particles - cache*/
         Eigen::MatrixXd preproposal_results;
 
         /** Complete results vector */
         std::vector<simulationResultSet> results_complete;
+
+        /** Complete results vector */
+        std::vector<simulationResultSet> proposed_results_complete;
 
         /** Pointer to a dataModel object*/
         dataModel* dataModelInstance;

@@ -13,7 +13,7 @@ samplingControl::samplingControl(SEXP integerParameters,
     if (inIntegerParams.size() != 10 ||
         inNumericParams.size() != 3)
     {
-        Rcpp::stop("Exactly 13 samplingControl parameters are required.");
+        Rcpp::stop("Exactly 14 samplingControl parameters are required.");
     }
 
     simulation_width = inIntegerParams(0);

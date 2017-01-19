@@ -15,6 +15,7 @@
 #include <SEIRSimNodes.hpp>
 
 Rcpp::List spatialSEIRModel::sample_Simulate(int nSample, 
+                                             int enforceEps,
                                              int verbose) 
 {
 
@@ -37,6 +38,9 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
     results_double = Eigen::MatrixXd::Zero(param_matrix.rows(), 1);
     results_complete = std::vector<simulationResultSet>();
 
+    results_complete.clear();
+    result_idx.clear();
+
     std::vector<simulationResultSet> finalResults = std::vector<simulationResultSet>();
     for (batch = 0; batch < samplingControlInstance -> max_batches &&
             Naccept < nSample; batch ++)
@@ -46,20 +50,34 @@ Rcpp::List spatialSEIRModel::sample_Simulate(int nSample,
                         &results_double,
                         &results_complete); 
 
-        for (i = 0; i < results_double.rows(); i++)
+        if (enforceEps != 0)
         {
-            if (results_double(i,0) < eps)
+            for (i = 0; i < results_double.rows(); i++)
+            {
+                if (results_double(i,0) < eps)
+                {
+                    finalResults.push_back(results_complete[i]);
+                    Naccept++;
+                }
+                if (Naccept == nSample)
+                {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (i = 0; i < results_double.rows(); i++)
             {
                 finalResults.push_back(results_complete[i]);
                 Naccept++;
-            }
-            if (Naccept == nSample)
-            {
-                break;
+                if (Naccept == nSample)
+                {
+                    break;
+                }
             }
         }
     }
-
 
     Rcpp::List outList;
 
