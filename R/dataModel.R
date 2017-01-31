@@ -2,9 +2,9 @@
 #' 
 #' @param Y  A matrix with T rows and n columns, for time points and spatial locations respectively.
 #' @param type  A string equal to "identity", "overdispersion", or "fractional"
-#' @param compartment:  A string equal to "I_star" or "R_star" 
-#' @param cumulative:  A logical value indicating whether the data is reported on a cumulative scale
-#' @param params:  A list of optional parameters 
+#' @param compartment  A string equal to "I_star" or "R_star" 
+#' @param cumulative  A logical value indicating whether the data is reported on a cumulative scale
+#' @param params  A list of optional parameters 
 #'         
 #' @return an object of type \code{\link{DataModel}} 
 #'

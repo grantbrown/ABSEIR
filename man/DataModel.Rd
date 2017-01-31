@@ -13,11 +13,11 @@ DataModel(Y, type = c("identity", "overdispersion"),
 
 \item{type}{A string equal to "identity", "overdispersion", or "fractional"}
 
-\item{compartment:}{A string equal to "I_star" or "R_star"}
+\item{compartment}{A string equal to "I_star" or "R_star"}
 
-\item{cumulative:}{A logical value indicating whether the data is reported on a cumulative scale}
+\item{cumulative}{A logical value indicating whether the data is reported on a cumulative scale}
 
-\item{params:}{A list of optional parameters}
+\item{params}{A list of optional parameters}
 }
 \value{
 an object of type \code{\link{DataModel}}
