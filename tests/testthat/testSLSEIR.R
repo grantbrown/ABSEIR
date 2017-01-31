@@ -11,7 +11,7 @@ test_that("Single location SEIR models can be constructed", {
   data_model_3 = DataModel(Kikwit1995$Count,
                            type = "overdispersion",
                            compartment="I_star",
-                           cumulative=FALSE, phi = 1)
+                           cumulative=FALSE, params=list(phi = 1))
   dataModelList = list(data_model_1,
                        data_model_2,
                        data_model_3)

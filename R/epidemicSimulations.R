@@ -24,14 +24,14 @@ epidemic.simulations = function(modelObject,
                                 verbose = FALSE)
 {
     returnCompartments = TRUE
-    checkArgument("modelObject", list(argClassValidator("SpatialSEIRModel")))
-    checkArgument("replicates", list(argClassValidator(c("numeric", "integer")),
-                                      argLengthValidator(1)))
-    checkArgument("returnCompartments", list(argClassValidator(c("logical")),
-                                      argLengthValidator(1)))
-    checkArgument("verbose", list(argClassValidator(c("logical", "integer", 
+    checkArgument("modelObject", mustHaveClass("SpatialSEIRModel"))
+    checkArgument("replicates", mustHaveClass(c("numeric", "integer")),
+                                      mustBeLen(1))
+    checkArgument("returnCompartments", mustHaveClass(c("logical")),
+                                      mustBeLen(1))
+    checkArgument("verbose", mustHaveClass(c("logical", "integer", 
                                                       "numeric")),
-                                      argLengthValidator(1)))
+                                      mustBeLen(1))
 
     modelCache = list()
     modelResult = list()
@@ -52,7 +52,9 @@ epidemic.simulations = function(modelObject,
                                             dataModelInstance$type,
                                             dataModelInstance$compartment,
                                             dataModelInstance$cumulative,
-                                            dataModelInstance$phi,
+                                            c(dataModelInstance$phi,
+                                              dataModelInstance$report_fraction,
+                                              dataModelInstance$report_fraction_ess),
                                             dataModelInstance$na_mask)
 
         if (verbose) cat("...Building distance model\n")

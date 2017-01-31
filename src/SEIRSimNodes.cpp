@@ -133,6 +133,7 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::VectorXd offs,
                        Eigen::MatrixXi y,
                        MatrixXb nm,
+                       int dmt,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                        std::vector<int> tdme,
@@ -148,14 +149,16 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::VectorXd se_mean,
                        Eigen::VectorXd rs_mean,
                        double ph,
+                       double rf,
+                       double rfe,
                        int dmc,
                        bool cmltv,
                        int m)
 {
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
-                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,rf,rfe,dmc,cmltv, m));
 }
 
 void NodeWorker::operator()()
@@ -248,6 +251,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                        Eigen::VectorXd offs,
                        Eigen::MatrixXi y,
                        MatrixXb nm,
+                       int dmt,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                        std::vector<int> tdme,
@@ -263,6 +267,8 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                        Eigen::VectorXd se_mean,
                        Eigen::VectorXd rs_mean,
                        double ph,
+                       double rf,
+                       double rfe,
                        int dmc,
                        bool cmltv,
                        int m)
@@ -276,16 +282,16 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     // Single threaded mode only needs single worker
     nodes.push_back(NodeWorker(this,
                                            sd + 1000*(1),s,e,i,
-                     r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
+                     r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,rf,rfe,dmc,cmltv, m
                     ));
 #else
     for (int itr = 0; itr < threads; itr++)
     {
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
-                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,rf,rfe,dmc,cmltv, m
                         )));
     }
 #endif
@@ -362,6 +368,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                              Eigen::VectorXd offs,
                              Eigen::MatrixXi y,
                              MatrixXb nm,
+                             int dmt,
                              std::vector<Eigen::MatrixXd> dmv,
                              std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                              std::vector<int> tdme,
@@ -377,6 +384,8 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                              Eigen::VectorXd se_mean,
                              Eigen::VectorXd rs_mean,
                              double ph,
+                             double rf,
+                             double rfe,
                              int dmc,
                              bool cmltv,
                              int m_
@@ -389,6 +398,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                                  offset(offs),
                                  Y(y),
                                  na_mask(nm),
+                                 dataModelType(dmt),
                                  DM_vec(dmv),
                                  TDM_vec(tdmv),
                                  TDM_empty(tdme),
@@ -404,6 +414,8 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                                  exposure_mean(se_mean),
                                  reinfection_mean(rs_mean),
                                  phi(ph),
+                                 report_fraction(rf),
+                                 report_fraction_ess(rfe),
                                  data_compartment(dmc),
                                  cumulative(cmltv),
                                  m(m_)

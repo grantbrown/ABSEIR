@@ -6,7 +6,24 @@ Ifelse <- function(x, a, b)
     b
 }
 
-argLengthValidator <- function(len)
+validateIf <- function(cond, validator)
+{
+    if (cond){
+        return(validator)
+    }
+    return(function(x){})
+}
+
+mustHaveMember <- function(name){
+    function(arg){
+        if (!(name %in% names(arg)))
+        {
+            return(paste("must have element: ", name, sep = ""))
+        }
+    }
+}
+
+mustBeLen <- function(len)
 {
     function(arg)
     {
@@ -18,7 +35,7 @@ argLengthValidator <- function(len)
     }
 }
 
-argClassValidator <- function(classes)
+mustHaveClass <- function(classes)
 {
     function(arg){
         if (length(intersect(class(arg), classes)) == 0) 
@@ -31,7 +48,7 @@ argClassValidator <- function(classes)
     }
 }
 
-numericRangeValidator <- function(lower=-Inf,upper=Inf, 
+mustBeInRange <- function(lower=-Inf,upper=Inf, 
                                   rightClosed = TRUE, 
                                   leftClosed=TRUE){
     rightComp <- ifelse(rightClosed, `<=`, `<`)
@@ -59,10 +76,9 @@ numericRangeValidator <- function(lower=-Inf,upper=Inf,
 }
 
 checkArgument <- function(argName, 
-                          argValidators,
-                          dotValidators,
                           ...)
 {
+    argValidators <- list(...)
     argValue <- get(argName, parent.frame())
     errs <- 0;
     for (validator in argValidators)
@@ -80,9 +96,5 @@ checkArgument <- function(argName,
     if (errs > 0)
     {
         stop("Invalid argument.")
-    }
-    if (!missing(dotValidators))
-    {
-        warning("checkArgument does not currently support dotValidators")
     }
 }
