@@ -458,7 +458,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                 I_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
             }
         }
-        if (phi > 0)
+        if (dataModelType == 1 && phi > 0)
         {   
             // We take the floor of the resulting continuous normal, so shift by 0.5
             overdispersion_distribution = std::normal_distribution<double>(0.5, 
@@ -468,7 +468,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
     catch (int e)
     {
         // TODO: handle these errors
-        //aout(this) << "Error in constructor: " << e << "\n"; 
+        // aout(this) << "Error in constructor: " << e << "\n"; 
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
@@ -586,7 +586,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXi previous_I(S0.size(), m);
     Eigen::MatrixXi previous_R(S0.size(), m);
 
-
     Eigen::MatrixXi previous_S_star(S0.size(), m);
     Eigen::MatrixXi previous_E_star(S0.size(), m);
     Eigen::MatrixXi previous_I_star(S0.size(), m);
@@ -654,16 +653,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
         }
     }
-    /*
-    if (has_ts_spatial)
-    {
-        if (!TDM_empty[0])
-        {
-            p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
-        }
-    }
-    */
-
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
@@ -853,11 +842,23 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 cumulative_compartment(i) = (*comparison_compartment)(i);
             }
 
-            results(w) += (na_mask(0,i) ? 0 : 
-                    pow(((*comparison_compartment)(i,w) + 
-                            (phi > 0 ? 
-                             std::floor(overdispersion_distribution(*generator)) : 0)
-                            - Y(0, i)), 2.0)); 
+            if (!na_mask(0,i))
+            {
+                if (dataModelType == 1){
+                    results(w) += std::pow((*comparison_compartment)(i,w) + 
+                        std::floor(overdispersion_distribution(*generator)) -
+                        Y(0, i), 2.0);
+                }
+                else if (dataModelType == 2){
+                    results(w) += std::pow(std::binomial_distribution<int>(
+                                (*comparison_compartment)(i,w),
+                            report_fraction)(*generator) - Y(0,i), 2.0);
+                }
+                else{
+                    results(w) += std::pow((*comparison_compartment)(i,w) -
+                        Y(0, i), 2.0);
+                }
+            }
         }// End i loop
     }// End w loop
 
@@ -890,17 +891,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             I_paths[w].row(0) = previous_I_star.col(w);
         }
     }
-
-    /*
-    if (has_ts_spatial)
-    {
-        for (w = 0; w < m; w++)
-        {
-            I_lag[w].push(previous_I.col(w));
-        }
-    }
-    */
-
 
     previous_S = current_S;
     previous_E = current_E;
@@ -1045,19 +1035,43 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     cumulative_compartment(i,w) += (*comparison_compartment)(i,w); 
 
-                    results(w) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((cumulative_compartment)(i,w) 
-                                + (phi > 0 ? 
-                                    std::floor(overdispersion_distribution(*generator)) 
-                                    : 0)
-                                - Y(time_idx, i)), 2.0)); 
+                    if (!na_mask(time_idx,i))
+                    {
+                        if (dataModelType == 1){
+                            results(w) += std::pow((cumulative_compartment)(i,w) + 
+                                std::floor(overdispersion_distribution(*generator)) -
+                                Y(time_idx, i), 2.0);
+                        }
+                        else if (dataModelType == 2){
+                            results(w) += std::pow(std::binomial_distribution<int>(
+                                        (cumulative_compartment)(i,w),
+                                    report_fraction)(*generator) - Y(time_idx,i), 2.0);
+                        }
+                        else{
+                            results(w) += std::pow((cumulative_compartment)(i,w) -
+                                                   Y(time_idx, i), 2.0);
+                        }
+                    }
                 }
                 else
                 {
-                    results(w) += (na_mask(time_idx, i) ? 0 : 
-                            pow(((*comparison_compartment)(i,w) + (phi > 0 ? 
-                                        std::floor(overdispersion_distribution(*generator))
-                                        : 0)- Y(time_idx, i)), 2.0)); 
+                    if (!na_mask(time_idx,i))
+                    {
+                        if (dataModelType == 1){
+                            results(w) += std::pow((*comparison_compartment)(i,w) + 
+                                std::floor(overdispersion_distribution(*generator)) -
+                                Y(time_idx, i), 2.0);
+                        }
+                        else if (dataModelType == 2){
+                            results(w) += std::pow(std::binomial_distribution<int>(
+                                        (*comparison_compartment)(i,w),
+                                    report_fraction)(*generator) - Y(time_idx,i), 2.0);
+                        }
+                        else{
+                            results(w) += std::pow((*comparison_compartment)(i,w) -
+                                Y(time_idx, i), 2.0);
+                        }
+                    }
                 }
             }
 
