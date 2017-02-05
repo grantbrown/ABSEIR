@@ -64,8 +64,6 @@ class SEIR_sim_node {
                       Eigen::VectorXd se_mean,
                       Eigen::VectorXd rs_mean,
                       double phi,
-                      double report_fraction,
-                      double report_fraction_ess,
                       int data_compartment,
                       bool cumulative,
                       int m);
@@ -106,14 +104,13 @@ class SEIR_sim_node {
         std::unique_ptr<transitionDistribution> IR_transition_dist;
         void nodeMessage(std::string);
         double phi;
-        double report_fraction;
-        double report_fraction_ess;
         int dataModelType;
         int seed;
         double value;
         bool has_spatial;
         bool has_ts_spatial;
         bool has_reinfection;
+        bool has_report_fraction;
         int total_size;
         int data_compartment;
         bool cumulative;
@@ -151,8 +148,6 @@ class NodeWorker{
                    Eigen::VectorXd se_mean,
                    Eigen::VectorXd rs_mean,
                    double phi,
-                   double report_fraction,
-                   double report_fraction_ess,
                    int data_compartment,
                    bool cumulative,
                    int m);
@@ -195,8 +190,6 @@ class NodePool{
                  Eigen::VectorXd se_mean,
                  Eigen::VectorXd rs_mean,
                  double phi,
-                 double report_fraction,
-                 double report_fraction_ess,
                  int data_compartment,
                  bool cumulative,
                  int m

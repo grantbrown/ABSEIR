@@ -9,7 +9,7 @@
 #include "./initialValueContainer.hpp"
 #include "./reinfectionModel.hpp"
 #include "./samplingControl.hpp"
-#include "./spatialSEIRModel.hpp"
+#include "./SEIRSimNodes.hpp"
 #include "./transitionPriors.hpp"
 #include "./transitionDistribution.hpp"
 

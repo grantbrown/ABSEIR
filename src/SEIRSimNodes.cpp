@@ -149,8 +149,6 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::VectorXd se_mean,
                        Eigen::VectorXd rs_mean,
                        double ph,
-                       double rf,
-                       double rfe,
                        int dmc,
                        bool cmltv,
                        int m)
@@ -158,7 +156,7 @@ NodeWorker::NodeWorker(NodePool* pl,
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
                          r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,rf,rfe,dmc,cmltv, m));
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
 }
 
 void NodeWorker::operator()()
@@ -267,8 +265,6 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                        Eigen::VectorXd se_mean,
                        Eigen::VectorXd rs_mean,
                        double ph,
-                       double rf,
-                       double rfe,
                        int dmc,
                        bool cmltv,
                        int m)
@@ -283,7 +279,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     nodes.push_back(NodeWorker(this,
                                            sd + 1000*(1),s,e,i,
                      r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,rf,rfe,dmc,cmltv, m
+                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                     ));
 #else
     for (int itr = 0; itr < threads; itr++)
@@ -291,7 +287,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
                          r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,rf,rfe,dmc,cmltv, m
+                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                         )));
     }
 #endif
@@ -384,8 +380,6 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                              Eigen::VectorXd se_mean,
                              Eigen::VectorXd rs_mean,
                              double ph,
-                             double rf,
-                             double rfe,
                              int dmc,
                              bool cmltv,
                              int m_
@@ -414,8 +408,6 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                                  exposure_mean(se_mean),
                                  reinfection_mean(rs_mean),
                                  phi(ph),
-                                 report_fraction(rf),
-                                 report_fraction_ess(rfe),
                                  data_compartment(dmc),
                                  cumulative(cmltv),
                                  m(m_)
@@ -473,6 +465,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
     has_ts_spatial = (TDM_vec[0].size() > 0);
+    
     const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
@@ -489,49 +482,57 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     int time_idx, i, j, k;   
     unsigned int idx; 
 
+    const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
+                     (has_spatial ? DM_vec.size() : 0));
+    const int nReinf = (has_reinfection ? X_rs.cols() : 0);
+    const int nBeta = X.cols();
+    const int nTrans = (transitionMode == "exponential" ? 2 : 
+                       (transitionMode == "weibull" ? 4 : 0));
+    int nReport = (dataModelType == 2 ? 1 : 0);
+    double report_fraction;
+    
     simulationResultSet compartmentResults;
  
     Eigen::VectorXd results = Eigen::VectorXd::Zero(m); 
-    Eigen::VectorXd beta = params.segment(0, X.cols()); 
+
+    // Load Beta
+    Eigen::VectorXd beta = params.segment(0, nBeta); 
+
+    // Load Beta RS
     Eigen::VectorXd beta_rs;
 
     if (has_reinfection) 
     {
-        beta_rs = params.segment(X.cols(), X_rs.cols());
+        beta_rs = params.segment(nBeta, nReinf);
     }
     else 
     {
         beta_rs = Eigen::VectorXd(1);
     }
-
-    int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
-                     (has_spatial ? DM_vec.size() : 0));
+     // Load Rho
     Eigen::VectorXd rho;
-    if (has_spatial && has_reinfection)
+    if (has_spatial)
     {
-        rho = params.segment(X.cols() + X_rs.cols(), nRho);
-    }
-    else if (has_spatial)
-    {
-        rho = params.segment(X.cols(), nRho);
+        rho = params.segment(nBeta + nReport, nRho);
     }
     else
     {
         rho = Eigen::VectorXd(1.0);
     }
    
+    // Load Gamma_EI
     // Should really unify these two code paths...
     double gamma_ei = (transitionMode == "exponential" ? 
-            params(params.size() - 2) : -1.0);
+            params(nBeta + nReport + nRho) : -1.0);
     double gamma_ir = (transitionMode == "exponential" ? 
-            params(params.size() - 1) : -1.0);
+            params(nBeta + nReport + nRho) : -1.0);
 
     Eigen::VectorXd EI_params;
     Eigen::VectorXd IR_params;
     if (transitionMode == "weibull")
     {
-        EI_params = params.segment(params.size() - 4, 2);
-        IR_params = params.segment(params.size() - 2, 2); 
+        EI_params = params.segment(nBeta + nReport + nRho, 2);
+        IR_params = params.segment(nBeta + nReport + nRho + 2, 2); 
         EI_transition_dist -> setCurrentParams(EI_params);
         IR_transition_dist -> setCurrentParams(IR_params);
     } 
@@ -539,6 +540,15 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         EI_params = Eigen::VectorXd::Zero(1);
         IR_params = Eigen::VectorXd::Zero(1);
+    }
+    
+    // Load report fraction
+    if (dataModelType == 2)
+    {
+        report_fraction = params(params.size() - 1);
+    }
+    else{
+        report_fraction = 0;
     }
 
     // Both Weibull and arbitrary path specific priors require
