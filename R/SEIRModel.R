@@ -369,6 +369,10 @@ SpatialSEIRModel = function(data_model,
                        )
 
         }
+        if (data_model$type == "fractional")
+        {
+            cnames <- c(cnames, "report_fraction")
+        }
         colnames(params) = cnames 
         
         modelResults[["param.samples"]] = params

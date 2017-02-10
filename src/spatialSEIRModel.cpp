@@ -526,7 +526,7 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     }
     if (dataModelInstance -> dataModelType == 2)
     {
-        outPrior += R::dbeta(param_vector(paramIdx), 
+        outPrior += R::dbeta(param_vector(param_vector.size()-1), 
                             rf_alpha,
                             rf_beta,
                             1);

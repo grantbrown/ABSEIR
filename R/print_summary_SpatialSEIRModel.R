@@ -9,6 +9,8 @@ print.summary.SpatialSEIRModel = function(x, ...)
     cat(paste("Summary: SEIR Model", nl)) 
     cat(paste("Locations: ", x$nLoc, "\n",
               "Time Points: ", x$nTpt,"\n", sep = ""))
+    cat(paste("Data Model Parameters: ", 
+              x$dataModelParams, "\n", sep = ""))
     cat(paste("Exposure Process Parameters: ", 
               x$exposureParams, "\n", sep = ""))
     cat(paste("Reinfection Model Parameters: ", 
