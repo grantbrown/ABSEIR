@@ -3,6 +3,7 @@
 
 #include <Rcpp.h>
 #include <memory>
+#include <random>
 #include "./dataModel.hpp"
 #include "./distanceModel.hpp"
 #include "./exposureModel.hpp"
