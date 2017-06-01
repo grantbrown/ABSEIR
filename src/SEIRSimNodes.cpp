@@ -505,7 +505,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
     else
     {
-        rho = Eigen::VectorXd(1.0);
+        rho = Eigen::VectorXd(1);
+        rho(0) = 1.0;
     }
    
     // Should really unify these two code paths...
