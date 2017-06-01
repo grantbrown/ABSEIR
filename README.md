@@ -7,4 +7,4 @@ Spatial SEIR modeling via Approximate Bayesian Computation
 
 <img src="https://travis-ci.org/grantbrown/ABSEIR.svg?branch=master"/>
 
-**Note: ** Current Travis CI failures appear to be due to the change discussed here: https://github.com/RcppCore/Rcpp/issues/636 This should be fixed soon. 
+**Note:** Current Travis CI failures appear to be due to the change discussed here: https://github.com/RcppCore/Rcpp/issues/636 This should be fixed soon. 
