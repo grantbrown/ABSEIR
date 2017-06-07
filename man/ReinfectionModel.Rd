@@ -37,4 +37,3 @@ SEIR models are probably the most commonly employed version of compartmental
 \examples{
 reinfectionModel = ReinfectionModel("SEIR")
 }
-

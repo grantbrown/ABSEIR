@@ -21,4 +21,3 @@ provided.}
 \description{
 Update a \code{\link{SpatialSEIRModel}} object by drawing additional samples.
 }
-

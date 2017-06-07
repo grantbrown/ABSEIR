@@ -57,4 +57,3 @@ for the end user
                                    transition_priors,
                                    initial_value_container)}
 }
-

@@ -28,4 +28,3 @@ The main SpatialSEIRModel functon performs many simulations, but for the sake of
                                                  verbose = TRUE))} 
 
 }
-

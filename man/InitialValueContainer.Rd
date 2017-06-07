@@ -34,4 +34,3 @@ inits <- InitialValueContainer(c(1000,1000),
                                           c(0,0),
                                           c(100,100))
 }
-

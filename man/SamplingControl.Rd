@@ -80,4 +80,3 @@ simulations to be performed per particle.}}
 \examples{
 samplingControl <- SamplingControl(123123, 2)
 }
-

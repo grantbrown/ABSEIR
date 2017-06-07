@@ -39,4 +39,3 @@ transitionPriors <- PathSpecificTransitionPriors(Z1 = function(x){dunif(x, 2, 10
 \code{\link{TransitionPriors}}, \code{\link{ExponentialTransitionPriors}}
 \code{\link{WeibullTransitionPriors}}
 }
-
