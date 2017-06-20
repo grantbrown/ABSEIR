@@ -2,6 +2,11 @@
 title: "Kikwit Ebola Analysis"
 output: html_document
 ---
+<!--
+%\VignetteEngine{knitr::rmarkdown}
+%\VignetteIndexEntry{Kikwit Ebola Analysis}
+-->
+
 
 **Note:** This tutorial assumes that you have successfully installed ABSEIR, and are 
 at least passingly familiar with compartmental models. Some introductory information is available

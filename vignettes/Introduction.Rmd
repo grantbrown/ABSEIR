@@ -2,12 +2,12 @@
 title: "ABSEIR"
 author: "Grant Brown"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{ABSEIR}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+output: html_document
 ---
+<!--
+%\VignetteEngine{knitr::rmarkdown}
+%\VignetteIndexEntry{ABSEIR}
+-->
 
 Introduction
 ----------------

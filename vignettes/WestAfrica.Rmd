@@ -2,6 +2,11 @@
 title: "West Africa Ebola Analysis"
 output: html_document
 ---
+<!--
+%\VignetteEngine{knitr::rmarkdown}
+%\VignetteIndexEntry{West Africa Ebola Analysis}
+-->
+
 
 Introduction
 ---------------
