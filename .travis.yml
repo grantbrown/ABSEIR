@@ -27,7 +27,6 @@ r_github_packages:
      - rstudio/rmarkdown
 
 script:
-  - |
-  travis_wait 40 R CMD BUILD .
-  travis_wait 40 R CMD check ABSEIR*tar.gz
+    - travis_wait 40 R CMD BUILD .
+    - travis_wait 40 R CMD check ABSEIR*tar.gz
 
