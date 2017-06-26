@@ -5,6 +5,7 @@ output: html_document
 <!--
 %\VignetteEngine{knitr::rmarkdown}
 %\VignetteIndexEntry{West Africa Ebola Analysis}
+%\VignetteEncoding{UTF-8}
 -->
 
 
@@ -98,7 +99,7 @@ sampling_control = SamplingControl(seed = 123124,
                                            #max_batches = 2000,
                                            max_batches = 100,
                                            shrinkage = 0.99,
-                                           multivariate_perturbation=TRUE
+                                           multivariate_perturbation=FALSE
                                          )
                                    )
 
@@ -148,7 +149,7 @@ EAR0_mean = apply(eaR0ar,1:2,mean)
 EAR0_LB = apply(eaR0ar,1:2,quantile, probs = 0.025)
 EAR0_UB = apply(eaR0ar,1:2,quantile, probs = 0.975)
 plotRepNum <- function(idx, lbl){
-  plot(eaRmean[,idx], type = "l", ylim = c(0, max(EAR0_UB[,idx])), col = "blue", lwd = 2,
+  plot(EAR0_mean[,idx], type = "l", ylim = c(0, max(EAR0_UB[,idx])), col = "blue", lwd = 2,
        ylab = "Empirically Adjusted R0",
        xlab = "Time Index", main = lbl)
   lines(EAR0_UB[,idx], col = "blue", lty = 2)

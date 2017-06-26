@@ -5,6 +5,7 @@ output: html_document
 <!--
 %\VignetteEngine{knitr::rmarkdown}
 %\VignetteIndexEntry{Kikwit Ebola Analysis}
+%\VignetteEncoding{UTF-8}
 -->
 
 
@@ -219,7 +220,7 @@ sampling_control = SamplingControl(seed = 123123,
                                            epochs = 1e6,
                                            max_batches = 100,
                                            shrinkage = 0.99,
-                                           multivariate_perturbation=TRUE,
+                                           multivariate_perturbation=FALSE,
                                            keep_compartments = TRUE
                                          )
                                    )

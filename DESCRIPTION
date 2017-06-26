@@ -23,5 +23,5 @@ Suggests:
     knitr,
     rmarkdown,
     testthat
-VignetteBuilder: rmarkdown
+VignetteBuilder: knitr
 RoxygenNote: 6.0.1

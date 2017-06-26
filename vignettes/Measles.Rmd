@@ -5,6 +5,7 @@ output: html_document
 <!--
 %\VignetteEngine{knitr::rmarkdown}
 %\VignetteIndexEntry{Measles Example}
+%\VignetteEncoding{UTF-8}
 -->
 
 
