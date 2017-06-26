@@ -77,11 +77,11 @@ SpatialSEIRModel = function(data_model,
                           verbose=FALSE,
                           ...)
 {
-    checkArgument("samples", list(argClassValidator(c("integer",
+    checkArgument("samples", mustHaveClass(c("integer",
                                                       "numeric")),
-                                  argLengthValidator(1),
-                                  numericRangeValidator(lower = 1)
-                          )) 
+                             mustBeLen(1),
+                             mustBeInRange(lower = 1)
+                          ) 
     # Todo: convert following checks to new infrastructure
 
     if (class(data_model) != "DataModel")
@@ -173,7 +173,9 @@ SpatialSEIRModel = function(data_model,
                                             data_model$type,
                                             data_model$compartment,
                                             data_model$cumulative,
-                                            data_model$phi,
+                                            c(data_model$phi,
+                                              data_model$report_fraction,
+                                              data_model$report_fraction_ess),
                                             data_model$na_mask*1)
 
         if (verbose) cat("...Building distance model\n")
@@ -366,6 +368,10 @@ SpatialSEIRModel = function(data_model,
                        "infectious_scale"
                        )
 
+        }
+        if (data_model$type == "fractional")
+        {
+            cnames <- c(cnames, "report_fraction")
         }
         colnames(params) = cnames 
         

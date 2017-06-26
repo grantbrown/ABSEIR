@@ -13,6 +13,7 @@ summary.SpatialSEIRModel = function(object, ...)
     hasSpatial = (object$modelComponents$exposure_model$nLoc > 1) 
     hasReinfection = 
         (object$modelComponents$reinfection_model$integerMode != 3) 
+    hasReportFraction = object$modelComponents$data_model$type == "fractional"
 
     qtiles = t(apply(object$param.samples, 2, quantile, 
                    probs = c(0.025, 0.975)))
@@ -35,7 +36,8 @@ summary.SpatialSEIRModel = function(object, ...)
             length(object$modelComponents$distance_model$distanceList) + nLags,
             0),
        transitionParams = Ifelse(transitionMode == "exponential", 2,
-                          Ifelse(transitionMode == "weibull", 4, 0))
+                          Ifelse(transitionMode == "weibull", 4, 0)),
+       dataModelParams = Ifelse(hasReportFraction, 1, 0)
        ), class = "summary.SpatialSEIRModel")
 }
 

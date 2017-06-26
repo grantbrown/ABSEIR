@@ -5,7 +5,7 @@
 using namespace Rcpp;
 
 dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment, 
-        SEXP _cumulative, SEXP _phi, SEXP _na_mask)
+        SEXP _cumulative, SEXP _parms, SEXP _na_mask)
 {
     Rcpp::NumericMatrix input(_Y);
     Rcpp::IntegerMatrix input_na_mask(_na_mask);
@@ -16,9 +16,12 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment,
 
     nLoc = input.ncol();
     nTpt = input.nrow();
-    Rcpp::NumericVector in_phi(_phi);
+    Rcpp::NumericVector in_params(_parms);
 
-    phi = in_phi(0);
+    phi = in_params(0);
+    report_fraction = in_params(1);
+    report_fraction_ess = in_params(2);
+
 
     Rcpp::StringVector inputType(type);
     Rcpp::StringVector inputCompartment(compartment);
@@ -30,6 +33,10 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment,
     else if (inputType(0) == "overdispersion")
     {
         dataModelType = 1;
+    }
+    else if (inputType(0) == "fractional")
+    {
+        dataModelType = 2;
     }
     else
     {
@@ -101,6 +108,10 @@ void dataModel::summary()
     else if (dataModelType == 1)
     {
         Rcpp::Rcout << "overdispersion\n";
+    }
+    else if (dataModelType == 2)
+    {
+        Rcpp::Rcout << "fractional\n";
     }
     else
     {

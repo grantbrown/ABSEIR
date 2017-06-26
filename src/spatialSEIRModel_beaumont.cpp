@@ -489,12 +489,12 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
     Rcpp::List outList;
     if (sim_type_atom == sim_result_atom)
     {
-        // Need to do an extra iteration to generate compartment data. 
-         
-        /// BEGIN REVISIONS
+        // Need to do an extra iteration to generate compartment data.  
         
         // NOTE: this code is largely copied from the main loop. 
         // If revisions need to be made, make sure to check both spots
+        //
+        // Todo: think about a way to refactor this
         
         Rcpp::checkUserInterrupt();       
         if (verbose > 0){
@@ -552,6 +552,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         // Propose params and run simulations
         int currentIdx = 0;
         int nBatches = 0;
+        results_complete.clear();
         while (currentIdx < Npart)
         {
             // perturb parameters
@@ -592,7 +593,8 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                        preproposal_params.row(i);
                    proposed_results_double.row(currentIdx) = 
                        preproposal_results.row(i);
-                   results_complete.push_back(proposed_results_complete[result_order[i]]);
+                   results_complete.push_back(
+                           proposed_results_complete[result_order[i]]);
                    currentIdx++;
                }
            }
@@ -683,8 +685,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         w0 = w1;
         param_matrix = proposed_param_matrix;
         results_double = proposed_results_double;
-
-        /// END REVISIONS
     
         // Todo: keep an eye on this object handling. It may have unreasonable
         // overhead, and is kind of complex.  

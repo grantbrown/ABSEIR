@@ -16,6 +16,12 @@
 
 using namespace Rcpp;
 
+double rbeta(double a, double b, std::mt19937* generator){
+    double x = std::gamma_distribution<double>(a,1)(*generator);
+    double y = std::gamma_distribution<double>(b,1)(*generator);
+    return(x/(x+y));
+}
+
 spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                                    exposureModel& exposureModel_,
                                    reinfectionModel& reinfectionModel_,
@@ -140,8 +146,9 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
+    const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
 
-    const int nParams = nBeta + nBetaRS + nRho + nTrans;
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
 
     // Set up random number provider 
     std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
@@ -182,6 +189,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      exposureModelInstance -> offset,
                      dataModelInstance -> Y,
                      dataModelInstance -> na_mask,
+                     dataModelInstance -> dataModelType,
                      distanceModelInstance -> dm_list,
                      distanceModelInstance -> tdm_list,
                      distanceModelInstance -> tdm_empty,
@@ -216,11 +224,22 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
+    const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
 
-    const int nParams = nBeta + nBetaRS + nRho + nTrans;
+
     int N = nParticles;
 
     int i, j;
+
+    double rf_alpha = (dataModelInstance -> dataModelType == 2  ?
+                       (dataModelInstance -> report_fraction)*(dataModelInstance -> report_fraction_ess) :
+                       -1.0);
+    double rf_beta = (dataModelInstance -> dataModelType == 2 ?
+                       (1.0 - dataModelInstance -> report_fraction)*(dataModelInstance -> report_fraction_ess) :
+                       -1.0);
+
+
 
     Eigen::MatrixXd outParams = Eigen::MatrixXd::Zero(N, nParams);
 
@@ -333,6 +352,15 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
             }
         }
     }
+    // Draw report fraction
+    if (dataModelInstance -> dataModelType == 2)
+    {
+        int lastcol = outParams.cols() -1;
+        for (i = 0; i < nParticles; i++)
+        {
+            outParams(i,lastcol) = rbeta(rf_alpha, rf_beta, generator);
+        }
+    }
     return(outParams);
 }
 
@@ -393,7 +421,9 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
 
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
-    const int nParams = nBeta + nBetaRS + nRho + nTrans;
+    const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
+
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
     
     if (params.cols() != nParams)
     {
@@ -428,6 +458,15 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
+    const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
+    double rf_alpha = (dataModelInstance -> dataModelType == 2 ?
+                       (dataModelInstance -> report_fraction)*(dataModelInstance -> report_fraction_ess) :
+                       -1.0);
+    double rf_beta = (dataModelInstance -> dataModelType == 2 ?
+                       (1.0 - dataModelInstance -> report_fraction)*(dataModelInstance -> report_fraction_ess) :
+                       -1.0);
+
+
 
     int i;
     int paramIdx = 0;
@@ -484,6 +523,13 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
         outPrior += IR_transition_dist -> evalParamPrior(
                 param_vector.segment(paramIdx, 2)); 
         paramIdx += 2;
+    }
+    if (dataModelInstance -> dataModelType == 2)
+    {
+        outPrior += R::dbeta(param_vector(param_vector.size()-1), 
+                            rf_alpha,
+                            rf_beta,
+                            1);
     }
     return(std::exp(outPrior));
 }

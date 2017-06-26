@@ -48,6 +48,7 @@ class SEIR_sim_node {
                       Eigen::VectorXd offset,
                       Eigen::MatrixXi Y,
                       MatrixXb na_mask,
+                      int dataModelType,
                       std::vector<Eigen::MatrixXd> DM_vec,
                       std::vector<std::vector<Eigen::MatrixXd> > tdm_vec,
                       std::vector<int> tdm_empty,
@@ -103,11 +104,13 @@ class SEIR_sim_node {
         std::unique_ptr<transitionDistribution> IR_transition_dist;
         void nodeMessage(std::string);
         double phi;
+        int dataModelType;
         int seed;
         double value;
         bool has_spatial;
         bool has_ts_spatial;
         bool has_reinfection;
+        bool has_report_fraction;
         int total_size;
         int data_compartment;
         bool cumulative;
@@ -129,6 +132,7 @@ class NodeWorker{
                    Eigen::VectorXd offset,
                    Eigen::MatrixXi Y,
                    MatrixXb na_mask,
+                   int dataModelType,
                    std::vector<Eigen::MatrixXd> DM_vec,
                    std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
                    std::vector<int> TDM_empty,
@@ -170,6 +174,7 @@ class NodePool{
                  Eigen::VectorXd offset,
                  Eigen::MatrixXi Y,
                  MatrixXb na_mask,
+                 int dataModelType,
                  std::vector<Eigen::MatrixXd> DM_vec,
                  std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
                  std::vector<int> TDM_empty,

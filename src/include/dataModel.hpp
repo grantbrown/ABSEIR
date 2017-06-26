@@ -27,6 +27,8 @@ class dataModel : public modelComponent
         int dataModelCompartment;
         bool cumulative;
         double phi;
+        double report_fraction;
+        double report_fraction_ess;
         Eigen::MatrixXi Y;
         MatrixXb na_mask;
         ~dataModel();

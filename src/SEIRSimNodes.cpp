@@ -133,6 +133,7 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::VectorXd offs,
                        Eigen::MatrixXi y,
                        MatrixXb nm,
+                       int dmt,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                        std::vector<int> tdme,
@@ -154,7 +155,7 @@ NodeWorker::NodeWorker(NodePool* pl,
 {
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
-                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
 }
 
@@ -248,6 +249,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                        Eigen::VectorXd offs,
                        Eigen::MatrixXi y,
                        MatrixXb nm,
+                       int dmt,
                        std::vector<Eigen::MatrixXd> dmv,
                        std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                        std::vector<int> tdme,
@@ -276,7 +278,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     // Single threaded mode only needs single worker
     nodes.push_back(NodeWorker(this,
                                            sd + 1000*(1),s,e,i,
-                     r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                     r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                      sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                     ));
 #else
@@ -284,7 +286,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     {
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
-                         r,offs,y,nm,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                         )));
     }
@@ -362,6 +364,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                              Eigen::VectorXd offs,
                              Eigen::MatrixXi y,
                              MatrixXb nm,
+                             int dmt,
                              std::vector<Eigen::MatrixXd> dmv,
                              std::vector<std::vector<Eigen::MatrixXd> > tdmv,
                              std::vector<int> tdme,
@@ -389,6 +392,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                                  offset(offs),
                                  Y(y),
                                  na_mask(nm),
+                                 dataModelType(dmt),
                                  DM_vec(dmv),
                                  TDM_vec(tdmv),
                                  TDM_empty(tdme),
@@ -446,7 +450,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                 I_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
             }
         }
-        if (phi > 0)
+        if (dataModelType == 1 && phi > 0)
         {   
             // We take the floor of the resulting continuous normal, so shift by 0.5
             overdispersion_distribution = std::normal_distribution<double>(0.5, 
@@ -456,11 +460,12 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
     catch (int e)
     {
         // TODO: handle these errors
-        //aout(this) << "Error in constructor: " << e << "\n"; 
+        // aout(this) << "Error in constructor: " << e << "\n"; 
     }
     has_reinfection = (reinfection_precision(0) > 0); 
     has_spatial = (Y.cols() > 1);
     has_ts_spatial = (TDM_vec[0].size() > 0);
+    
     const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
@@ -477,31 +482,38 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     int time_idx, i, j, k;   
     unsigned int idx; 
 
+    const int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
+                     (has_spatial ? DM_vec.size() : 0));
+    const int nReinf = (has_reinfection ? X_rs.cols() : 0);
+    const int nBeta = X.cols();
+    const int nTrans = (transitionMode == "exponential" ? 2 : 
+                       (transitionMode == "weibull" ? 4 : 0));
+    int nReport = (dataModelType == 2 ? 1 : 0);
+    double report_fraction;
+    
     simulationResultSet compartmentResults;
  
     Eigen::VectorXd results = Eigen::VectorXd::Zero(m); 
-    Eigen::VectorXd beta = params.segment(0, X.cols()); 
+
+    // Load Beta
+    Eigen::VectorXd beta = params.segment(0, nBeta); 
+
+    // Load Beta RS
     Eigen::VectorXd beta_rs;
 
     if (has_reinfection) 
     {
-        beta_rs = params.segment(X.cols(), X_rs.cols());
+        beta_rs = params.segment(nBeta, nReinf);
     }
     else 
     {
         beta_rs = Eigen::VectorXd(1);
     }
-
-    int nRho = (has_spatial && has_ts_spatial ? DM_vec.size() + TDM_vec[0].size() :
-                     (has_spatial ? DM_vec.size() : 0));
+     // Load Rho
     Eigen::VectorXd rho;
-    if (has_spatial && has_reinfection)
+    if (has_spatial)
     {
-        rho = params.segment(X.cols() + X_rs.cols(), nRho);
-    }
-    else if (has_spatial)
-    {
-        rho = params.segment(X.cols(), nRho);
+        rho = params.segment(nBeta + nReport, nRho);
     }
     else
     {
@@ -509,18 +521,19 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         rho(0) = 1.0;
     }
    
+    // Load Gamma_EI
     // Should really unify these two code paths...
     double gamma_ei = (transitionMode == "exponential" ? 
-            params(params.size() - 2) : -1.0);
+            params(nBeta + nReport + nRho) : -1.0);
     double gamma_ir = (transitionMode == "exponential" ? 
-            params(params.size() - 1) : -1.0);
+            params(nBeta + nReport + nRho) : -1.0);
 
     Eigen::VectorXd EI_params;
     Eigen::VectorXd IR_params;
     if (transitionMode == "weibull")
     {
-        EI_params = params.segment(params.size() - 4, 2);
-        IR_params = params.segment(params.size() - 2, 2); 
+        EI_params = params.segment(nBeta + nReport + nRho, 2);
+        IR_params = params.segment(nBeta + nReport + nRho + 2, 2); 
         EI_transition_dist -> setCurrentParams(EI_params);
         IR_transition_dist -> setCurrentParams(IR_params);
     } 
@@ -528,6 +541,15 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         EI_params = Eigen::VectorXd::Zero(1);
         IR_params = Eigen::VectorXd::Zero(1);
+    }
+    
+    // Load report fraction
+    if (dataModelType == 2)
+    {
+        report_fraction = params(params.size() - 1);
+    }
+    else{
+        report_fraction = 0;
     }
 
     // Both Weibull and arbitrary path specific priors require
@@ -574,7 +596,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXi previous_E(S0.size(), m);
     Eigen::MatrixXi previous_I(S0.size(), m);
     Eigen::MatrixXi previous_R(S0.size(), m);
-
 
     Eigen::MatrixXi previous_S_star(S0.size(), m);
     Eigen::MatrixXi previous_E_star(S0.size(), m);
@@ -643,16 +664,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             p_se += rho[idx]*(DM_vec[idx] * (p_se_cache));
         }
     }
-    /*
-    if (has_ts_spatial)
-    {
-        if (!TDM_empty[0])
-        {
-            p_se += rho[DM_vec.size()]*(TDM_vec[0][0] * p_se_cache);
-        }
-    }
-    */
-
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
@@ -842,11 +853,23 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 cumulative_compartment(i) = (*comparison_compartment)(i);
             }
 
-            results(w) += (na_mask(0,i) ? 0 : 
-                    pow(((*comparison_compartment)(i,w) + 
-                            (phi > 0 ? 
-                             std::floor(overdispersion_distribution(*generator)) : 0)
-                            - Y(0, i)), 2.0)); 
+            if (!na_mask(0,i))
+            {
+                if (dataModelType == 1){
+                    results(w) += std::pow((*comparison_compartment)(i,w) + 
+                        std::floor(overdispersion_distribution(*generator)) -
+                        Y(0, i), 2.0);
+                }
+                else if (dataModelType == 2){
+                    results(w) += std::pow(std::binomial_distribution<int>(
+                                (*comparison_compartment)(i,w),
+                            report_fraction)(*generator) - Y(0,i), 2.0);
+                }
+                else{
+                    results(w) += std::pow((*comparison_compartment)(i,w) -
+                        Y(0, i), 2.0);
+                }
+            }
         }// End i loop
     }// End w loop
 
@@ -879,17 +902,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             I_paths[w].row(0) = previous_I_star.col(w);
         }
     }
-
-    /*
-    if (has_ts_spatial)
-    {
-        for (w = 0; w < m; w++)
-        {
-            I_lag[w].push(previous_I.col(w));
-        }
-    }
-    */
-
 
     previous_S = current_S;
     previous_E = current_E;
@@ -1034,19 +1046,43 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 {
                     cumulative_compartment(i,w) += (*comparison_compartment)(i,w); 
 
-                    results(w) += (na_mask(time_idx, i) ? 0 : 
-                        pow(((cumulative_compartment)(i,w) 
-                                + (phi > 0 ? 
-                                    std::floor(overdispersion_distribution(*generator)) 
-                                    : 0)
-                                - Y(time_idx, i)), 2.0)); 
+                    if (!na_mask(time_idx,i))
+                    {
+                        if (dataModelType == 1){
+                            results(w) += std::pow((cumulative_compartment)(i,w) + 
+                                std::floor(overdispersion_distribution(*generator)) -
+                                Y(time_idx, i), 2.0);
+                        }
+                        else if (dataModelType == 2){
+                            results(w) += std::pow(std::binomial_distribution<int>(
+                                        (cumulative_compartment)(i,w),
+                                    report_fraction)(*generator) - Y(time_idx,i), 2.0);
+                        }
+                        else{
+                            results(w) += std::pow((cumulative_compartment)(i,w) -
+                                                   Y(time_idx, i), 2.0);
+                        }
+                    }
                 }
                 else
                 {
-                    results(w) += (na_mask(time_idx, i) ? 0 : 
-                            pow(((*comparison_compartment)(i,w) + (phi > 0 ? 
-                                        std::floor(overdispersion_distribution(*generator))
-                                        : 0)- Y(time_idx, i)), 2.0)); 
+                    if (!na_mask(time_idx,i))
+                    {
+                        if (dataModelType == 1){
+                            results(w) += std::pow((*comparison_compartment)(i,w) + 
+                                std::floor(overdispersion_distribution(*generator)) -
+                                Y(time_idx, i), 2.0);
+                        }
+                        else if (dataModelType == 2){
+                            results(w) += std::pow(std::binomial_distribution<int>(
+                                        (*comparison_compartment)(i,w),
+                                    report_fraction)(*generator) - Y(time_idx,i), 2.0);
+                        }
+                        else{
+                            results(w) += std::pow((*comparison_compartment)(i,w) -
+                                Y(time_idx, i), 2.0);
+                        }
+                    }
                 }
             }
 
