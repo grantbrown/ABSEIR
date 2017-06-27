@@ -526,7 +526,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     double gamma_ei = (transitionMode == "exponential" ? 
             params(nBeta + nReport + nRho) : -1.0);
     double gamma_ir = (transitionMode == "exponential" ? 
-            params(nBeta + nReport + nRho) : -1.0);
+            params(nBeta + nReport + nRho + 1) : -1.0);
 
     Eigen::VectorXd EI_params;
     Eigen::VectorXd IR_params;
