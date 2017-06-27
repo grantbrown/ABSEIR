@@ -513,7 +513,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::VectorXd rho;
     if (has_spatial)
     {
-        rho = params.segment(nBeta + nReport, nRho);
+        rho = params.segment(nBeta + nReinf, nRho);
     }
     else
     {
@@ -524,16 +524,16 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     // Load Gamma_EI
     // Should really unify these two code paths...
     double gamma_ei = (transitionMode == "exponential" ? 
-            params(nBeta + nReport + nRho) : -1.0);
+            params(nBeta + nReinf + nRho) : -1.0);
     double gamma_ir = (transitionMode == "exponential" ? 
-            params(nBeta + nReport + nRho + 1) : -1.0);
+            params(nBeta + nReinf + nRho + 1) : -1.0);
 
     Eigen::VectorXd EI_params;
     Eigen::VectorXd IR_params;
     if (transitionMode == "weibull")
     {
-        EI_params = params.segment(nBeta + nReport + nRho, 2);
-        IR_params = params.segment(nBeta + nReport + nRho + 2, 2); 
+        EI_params = params.segment(nBeta + nReinf + nRho, 2);
+        IR_params = params.segment(nBeta + nReinf + nRho + 2, 2); 
         EI_transition_dist -> setCurrentParams(EI_params);
         IR_transition_dist -> setCurrentParams(IR_params);
     } 
