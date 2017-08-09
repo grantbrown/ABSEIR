@@ -6,9 +6,10 @@
 
 using namespace Rcpp;
 
-transitionPriors::transitionPriors(SEXP _mode)
+transitionPriors::transitionPriors(SEXP _mode, SEXP _latent)
 {
     Rcpp::CharacterVector inMode(_mode);
+    Rcpp::IntegerVector inLatent(_latent);
     mode = inMode(0);
     // Store dummy transition info
     inf_mean = -1.0;
@@ -26,6 +27,7 @@ transitionPriors::transitionPriors(SEXP _mode)
             I_to_R_params(0,i) = 1.0;
         }
     }
+    enable_latent = inLatent(0);
 }
 
 int transitionPriors::getModelComponentType()
@@ -158,7 +160,7 @@ RCPP_MODULE(mod_transitionPriors)
 {
     using namespace Rcpp;
     class_<transitionPriors>( "transitionPriors" )
-    .constructor<SEXP>()
+    .constructor<SEXP, SEXP>()
     .method("setUniformExpPriors", &transitionPriors::setUniformExpPriors)
     .method("setPathSpecificPriors", &transitionPriors::setPathSpecificPriors)
     .method("setPriorsFromProbabilities", &transitionPriors::setPriorsFromProbabilities)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/transitionPriors.R
 \name{ExponentialTransitionPriors}
 \alias{ExponentialTransitionPriors}
-\title{Build an exponential TransitionPriors object, which governs how individuals move from
+\title{(depricated) Build an exponential TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.}
 \usage{
 ExponentialTransitionPriors(p_ei, p_ir, p_ei_ess, p_ir_ess)
@@ -21,7 +21,7 @@ of the E to I process, associated with \code{p_ei}}
 of the I to R process, associated with \code{p_ir}}
 }
 \description{
-Build an exponential TransitionPriors object, which governs how individuals move from
+(depricated) Build an exponential TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.
 }
 \details{

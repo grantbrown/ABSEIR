@@ -137,6 +137,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     // Set up param matrix
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
+    const bool hasLatentPeriod = (transitionPriorsInstance -> enable_latent) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
@@ -144,8 +145,10 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
-    const int nTrans = (transitionMode == "exponential" ? 2 :
-                       (transitionMode == "weibull" ? 4 : 0));
+    const int nTrans = (transitionMode == "exponential" ? 
+                       (hasLatentPeriod ? 2 : 1) :
+                       (transitionMode == "weibull" ? 
+                       (hasLatentPeriod ? 4 : 2) : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
 
     const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
@@ -199,6 +202,7 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      transitionPriorsInstance -> E_to_I_params,
                      transitionPriorsInstance -> I_to_R_params,
                      transitionPriorsInstance -> inf_mean,
+                     transitionPriorsInstance -> enable_latent, 
                      distanceModelInstance -> spatial_prior,
                      exposureModelInstance -> betaPriorPrecision,
                      reinfectionModelInstance -> betaPriorPrecision, 
@@ -215,6 +219,7 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 {
     const bool hasReinfection = (reinfectionModelInstance -> 
             betaPriorPrecision)(0) > 0;
+    const bool hasLatentPeriod = (transitionPriorsInstance -> enable_latent) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
 
@@ -222,8 +227,10 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
-    const int nTrans = (transitionMode == "exponential" ? 2 :
-                       (transitionMode == "weibull" ? 4 : 0));
+    const int nTrans = (transitionMode == "exponential" ? 
+                       (hasLatentPeriod ? 2 : 1) :
+                       (transitionMode == "weibull" ? 
+                       (hasLatentPeriod ? 4 : 2) : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
     const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
 
@@ -256,21 +263,25 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 
     if (transitionMode == "exponential")
     {
-        gammaEIDist.push_back(std::gamma_distribution<>(
-                (transitionPriorsInstance -> E_to_I_params)(0,0),
-            1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
+        if (hasLatentPeriod){
+            gammaEIDist.push_back(std::gamma_distribution<>(
+                    (transitionPriorsInstance -> E_to_I_params)(0,0),
+                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
+        }
         gammaIRDist.push_back(std::gamma_distribution<>(
                 (transitionPriorsInstance -> I_to_R_params)(0,0),
             1.0/(transitionPriorsInstance -> I_to_R_params)(1,0)));
     }   
     else if (transitionMode == "weibull")
     {
-        gammaEIDist.push_back(std::gamma_distribution<>(
-                (transitionPriorsInstance -> E_to_I_params)(0,0),
-            1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
-        gammaEIDist.push_back(std::gamma_distribution<>(
-                (transitionPriorsInstance -> E_to_I_params)(2,0),
-            1.0/(transitionPriorsInstance -> E_to_I_params)(3,0)));
+        if (hasLatentPeriod){
+            gammaEIDist.push_back(std::gamma_distribution<>(
+                    (transitionPriorsInstance -> E_to_I_params)(0,0),
+                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0)));
+            gammaEIDist.push_back(std::gamma_distribution<>(
+                    (transitionPriorsInstance -> E_to_I_params)(2,0),
+                1.0/(transitionPriorsInstance -> E_to_I_params)(3,0)));
+        }
 
         gammaIRDist.push_back(std::gamma_distribution<>(
                 (transitionPriorsInstance -> I_to_R_params)(0,0),
@@ -298,10 +309,12 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
         for (i = 0; i < nParticles; i++)
         {
             // Draw gamma_ei
-            outParams(i, nBeta + nBetaRS + nRho) = 
-                gammaEIDist[0](*generator);
+            if (hasLatentPeriod){
+                outParams(i, nBeta + nBetaRS + nRho) = 
+                    gammaEIDist[0](*generator);
+            }
             // Draw gamma_ir
-            outParams(i, nBeta + nBetaRS + nRho + 1) = 
+            outParams(i, nBeta + nBetaRS + nRho + hasLatentPeriod) = 
                 gammaIRDist[0](*generator);
         }
     }
@@ -309,10 +322,12 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     {
         for (i = 0; i < nParticles; i++)
         {
-            outParams(i, nBeta + nBetaRS + nRho) = gammaEIDist[0](*generator);
-            outParams(i, nBeta + nBetaRS + nRho + 1) = gammaEIDist[1](*generator);
-            outParams(i, nBeta + nBetaRS + nRho + 2) = gammaIRDist[0](*generator);
-            outParams(i, nBeta + nBetaRS + nRho + 3) = gammaIRDist[1](*generator);
+            if (hasLatentPeriod){
+                outParams(i, nBeta + nBetaRS + nRho) = gammaEIDist[0](*generator);
+                outParams(i, nBeta + nBetaRS + nRho + 1) = gammaEIDist[1](*generator);
+            }
+            outParams(i, nBeta + nBetaRS + nRho + 2*hasLatentPeriod) = gammaIRDist[0](*generator);
+            outParams(i, nBeta + nBetaRS + nRho + 2*hasLatentPeriod + 1) = gammaIRDist[1](*generator);
         }
     }
     // Draw reinfection parameters
@@ -395,10 +410,10 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     }
     else 
     {
-	if (samplingControlInstance -> algorithm != ALG_Simulate)
-	{
-            Rcpp::stop("Unknown algorithm.");
-	}
+        if (samplingControlInstance -> algorithm != ALG_Simulate)
+        {
+                Rcpp::stop("Unknown algorithm.");
+        }
         if (!is_initialized)
         {
             Rcpp::stop("Model must be initialized before simulating.");
@@ -412,6 +427,7 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
 {
     const bool hasReinfection = (reinfectionModelInstance ->                    
                         betaPriorPrecision)(0) > 0; 
+    const bool hasLatentPeriod = (transitionPriorsInstance -> enable_latent) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;                
     std::string transitionMode = transitionPriorsInstance -> mode;
     const int nBeta = (exposureModelInstance -> X).cols();
@@ -419,8 +435,10 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
 
-    const int nTrans = (transitionMode == "exponential" ? 2 :
-                       (transitionMode == "weibull" ? 4 : 0));
+    const int nTrans = (transitionMode == "exponential" ? 
+                       (hasLatentPeriod ? 2 : 1) :
+                       (transitionMode == "weibull" ? 
+                       (hasLatentPeriod ? 4 : 2) : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
 
     const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
@@ -452,6 +470,7 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     double outPrior = 0.0;
     double constr = 0.0;
     const bool hasReinfection = (reinfectionModelInstance -> betaPriorPrecision)(0) > 0;
+    const bool hasLatentPeriod = (transitionPriorsInstance -> enable_latent) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
     const int nBeta = (exposureModelInstance -> X).cols();
@@ -506,10 +525,12 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
 
     if (transitionMode == "exponential")
     {
-        outPrior += R::dgamma(param_vector(paramIdx), 
-                (transitionPriorsInstance -> E_to_I_params)(0,0),
-                1.0/(transitionPriorsInstance -> E_to_I_params)(1,0), 1);
-        paramIdx++;
+        if (hasLatentPeriod){
+            outPrior += R::dgamma(param_vector(paramIdx), 
+                    (transitionPriorsInstance -> E_to_I_params)(0,0),
+                    1.0/(transitionPriorsInstance -> E_to_I_params)(1,0), 1);
+            paramIdx++;
+        }
 
         outPrior += R::dgamma(param_vector(paramIdx), 
                 (transitionPriorsInstance -> I_to_R_params)(0,0),
@@ -517,9 +538,11 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     }
     else if (transitionMode == "weibull")
     {
-        outPrior += EI_transition_dist -> evalParamPrior(
-                param_vector.segment(paramIdx, 2)); 
-        paramIdx += 2;
+        if (hasLatentPeriod){
+            outPrior += EI_transition_dist -> evalParamPrior(
+                    param_vector.segment(paramIdx, 2)); 
+            paramIdx += 2;
+        }
         outPrior += IR_transition_dist -> evalParamPrior(
                 param_vector.segment(paramIdx, 2)); 
         paramIdx += 2;

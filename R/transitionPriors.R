@@ -4,6 +4,9 @@
 #' @param mode  The type of transition model to employ ("exponential" or "path_specific) 
 #' @param params  Additional parameters, specific to the type of transition model. See
 #' details section for additional information. 
+#' @param enable_latent  Logical - allow the model to have a latent period? If TRUE, 
+#' a SEIR(S) model is fit. If FALSE, a SIR(S) model is fit, by coercing the E and I 
+#' compartments to be identical, and ignoring the E to I transition. 
 #' 
 #' @details 
 #'  The TransitionPriors component of spatial SEIR(S) models captures the  
@@ -44,22 +47,33 @@
 #' @references "A path-specific SEIR model for use with general 
 #'                latent and infectious time distributions." 2013. Porter, Aaron T, Oleson, Jacob J. Biometrics 69(1)
 #' @export 
-TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"), params = list())
+TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"), 
+                            params = list(), 
+                            enable_latent = TRUE)
 {
     if (class(params) != "list")
     {
         stop("The params argument must be a list")
     }
+    if (!enable_latent && mode != "exponential"){
+        stop("SIR modelts only implmented for exponential transitions.")
+    }
 
     if (mode == "exponential")
     {
-        if (!("p_ei" %in% names(params)) || 
-            !("p_ir" %in% names(params)) || 
-            !("p_ei_ess" %in% names(params)) || 
-            !("p_ir_ess" %in% names(params)))
-        {
-            stop(paste("Exponential transition priors require four parameters: ", 
-                 "p_ei, p_ir, p_ei_ess, and p_ir_ess", sep = ""))
+        if (enable_latent){
+            required_params <- c("p_ei", "p_ei_ess",
+                                 "p_ir", "p_ir_ess")
+        }
+        else {
+            params$p_ei <- 0.5
+            params$p_ei_ess <- 1
+            required_params <- c("p_ir", "p_ir_ess")
+        }
+        matched_params <- intersect(required_params, names(params)) 
+        if (length(matched_params) != length(required_params)){
+            stop(paste("Exponential transition priors requires: ",
+                       paste(required_params, collapse = ", "), sep = ""))
         }
         else
         {
@@ -68,10 +82,11 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
                        p_ir=params$p_ir,
                        p_ei_ess=params$p_ei_ess,
                        p_ir_ess=params$p_ir_ess,
-                       priorAlpha_gammaEI=NA,
-                       priorBeta_gamma_EI=NA,
-                       priorAlpha_gammaIR=NA,
-                       priorBeta_gamma_IR=NA), class = "TransitionPriors"))
+                       priorAlpha_gammaEI=1,
+                       priorBeta_gamma_EI=1,
+                       priorAlpha_gammaIR=1,
+                       priorBeta_gamma_IR=1,
+                       enable_latent=enable_latent), class = "TransitionPriors"))
         }
     }
     else if (mode == "weibull")
@@ -84,6 +99,16 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
                            "infectious_shape_prior_beta",
                            "infectious_scale_prior_alpha",
                            "infectious_scale_prior_beta")
+        if (!enable_latent){
+            requiredParams <- setdiff(requiredParams, c("latent_shape_prior_alpha", 
+                                                        "latent_shape_prior_beta",
+                                                        "latent_scale_prior_alpha",
+                                                        "latent_scale_prior_beta"))
+            params$latent_shape_prior_alpha <- NA  
+            params$latent_shape_prior_beta <- NA  
+            params$latent_scale_prior_alpha <- NA  
+            params$latent_scale_prior_beta <- NA  
+        }
         if (!all(sapply(requiredParams, function(x){x %in% names(params)})))
         {
             strParams = paste(requiredParams, collapse = ", ")
@@ -105,13 +130,13 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
                                    params$infectious_scale_prior_beta)
         max_IR_idx = qweibull(1-1e-4, minIRShape, maxIRScale)
 
-        if (max_EI_idx > 10000)
+        if (enable_latent && max_EI_idx > 10000)
         {
             stop(paste("Your E to I transition prior allows individuals",
                           "to remain latent for up to ", max_EI_idx,  
                           ". Not recommended."))
         }
-        else if (max_EI_idx > 100)
+        else if (enable_latent && max_EI_idx > 100)
         {
             warning(paste("Your E to I transition prior allows individuals",
                           "to remain latent for up to ", max_EI_idx,  
@@ -142,22 +167,28 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
                    infectious_scale_prior_alpha = params$infectious_scale_prior_alpha,
                    infectious_scale_prior_beta = params$infectious_scale_prior_beta,
                    max_EI_idx = max_EI_idx,
-                   max_IR_idx = max_IR_idx), 
+                   max_IR_idx = max_IR_idx,
+                   enable_latent = enable_latent), 
                          class = "TransitionPriors"))
     }
     else if (mode == "path_specific")
     {
-        if (!("Z1" %in% names(params)) || 
-            !("Z2" %in% names(params)))
-        {
+        if (enable_latent){
+            required_params <- c("Z1", "Z2")
+        } else {
+            required_params <- c("Z2")
+        }
+        matched_params <- intersect(required_params, names(params)) 
+        if (length(matched_params) != length(required_params)){
             stop(paste("Path specific transition models require a distribution ",
                        "for the latent period, Z1, and for the infectious period, Z2\n",
                        sep = ""))
         }
+
         truncation_prob = ifelse("truncation_prob" %in% names(params), 
                                  params$truncation_prob, 1e-6)
 
-        Z1 = params$Z1
+        Z1 = ifelse(enable_latent, params$Z1, function(x){NA})
         Z2 = params$Z2
         # we can't assume that the functions passed in by the user are vectorized
         f1 = function(x){ sapply(x, Z1) }
@@ -171,6 +202,7 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
         })} 
 
         pdists = lapply(list(f1, f2), function(x){ 
+            if (all(is.na(x))){return(x)}
             n = 100
             itrs = 0
             cmProb = 0
@@ -198,7 +230,8 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
         return(structure(list(mode="path_specific",
                               ei_pdist = pdists[[1]],
                               ir_pdist = pdists[[2]],
-                              inf_mean = inf.mean), 
+                              inf_mean = inf.mean,
+                              enable_latent = enable_latent), 
                class = "TransitionPriors"))
     }
     else
@@ -208,7 +241,7 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
     }
 }
 
-#' Build a path specific TransitionPriors object, which governs how individuals move from
+#' (depricated) Build a path specific TransitionPriors object, which governs how individuals move from
 #' the exposed to infectious and infectious to removed compartments. 
 #' 
 #' @param Z1 a probability density function for the length of time individuals spend in 
@@ -250,7 +283,7 @@ TransitionPriors = function(mode = c("exponential", "weibull", "path_specific"),
     }
 
 
-#' Build an exponential TransitionPriors object, which governs how individuals move from
+#' (depricated) Build an exponential TransitionPriors object, which governs how individuals move from
 #' the exposed to infectious and infectious to removed compartments. 
 #' 
 #' @param p_ei the estimated probability that, at a given time point, an exposed 
@@ -281,7 +314,7 @@ ExponentialTransitionPriors = function(p_ei, p_ir, p_ei_ess, p_ir_ess)
 }
 
 
-#' Build a path specific Weibull TransitionPriors object, with 
+#' (depricated) Build a path specific Weibull TransitionPriors object, with 
 #' independent gamma priors for the shape/scale parameters of the 
 #' latent and infectious time distributions. 
 #' @param latent_shape_prior_alpha The alpha (shape) value for the 

@@ -270,7 +270,8 @@ SpatialSEIRModel = function(data_model,
 
         if (verbose) cat("...Building transition priors\n") 
         modelComponents[["transitionPriors"]] = new(transitionPriors, 
-                                                    transition_priors$mode)
+                                                    transition_priors$mode, 
+                                                    transition_priors$enable_latent)
         if (transitionMode == "exponential")
         {
             modelComponents[["transitionPriors"]]$setPriorsFromProbabilities(
@@ -357,7 +358,12 @@ SpatialSEIRModel = function(data_model,
         }
         if (transitionMode == "exponential")
         { 
-            cnames = c(cnames, "gamma_EI", "gamma_IR")
+            if (transition_priors$enable_latent){
+                cnames = c(cnames, "gamma_EI", "gamma_IR")
+            }
+            else {
+                cnames = c(cnames, "gamma_IR")
+            }
         }
         else if (transitionMode == "weibull")
         {

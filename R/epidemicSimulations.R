@@ -152,7 +152,8 @@ epidemic.simulations = function(modelObject,
 
         if (verbose) cat("...building transition priors\n") 
         modelCache[["transitionPriors"]] = new(transitionPriors,
-                                               transitionPriorsInstance$mode)
+                                               transitionPriorsInstance$mode,
+                                               transitionPriorsInstance$enable_latent)
         transitionMode = transitionPriorsInstance$mode
         if (transitionMode == "exponential")
         {

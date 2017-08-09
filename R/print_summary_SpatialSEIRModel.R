@@ -6,7 +6,12 @@
 print.summary.SpatialSEIRModel = function(x, ...)
 {
     nl = "\n\n"
-    cat(paste("Summary: SEIR Model", nl)) 
+    if (x$transitionParams > 1){
+        cat(paste("Summary: SEIR Model", nl)) 
+    }
+    else{
+        cat(paste("Summary: SIR Model", nl)) 
+    }
     cat(paste("Locations: ", x$nLoc, "\n",
               "Time Points: ", x$nTpt,"\n", sep = ""))
     cat(paste("Data Model Parameters: ", 

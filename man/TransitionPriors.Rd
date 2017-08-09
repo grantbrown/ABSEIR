@@ -6,13 +6,17 @@
 the exposed to infectious and infectious to removed compartments.}
 \usage{
 TransitionPriors(mode = c("exponential", "weibull", "path_specific"),
-  params = list())
+  params = list(), enable_latent = TRUE)
 }
 \arguments{
 \item{mode}{The type of transition model to employ ("exponential" or "path_specific)}
 
 \item{params}{Additional parameters, specific to the type of transition model. See
 details section for additional information.}
+
+\item{enable_latent}{Logical - allow the model to have a latent period? If TRUE, 
+a SEIR(S) model is fit. If FALSE, a SIR(S) model is fit, by coercing the E and I 
+compartments to be identical, and ignoring the E to I transition.}
 }
 \description{
 Build a TransitionPriors object, which governs how individuals move from

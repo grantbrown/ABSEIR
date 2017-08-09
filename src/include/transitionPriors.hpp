@@ -9,7 +9,7 @@ RCPP_EXPOSED_CLASS(transitionPriors)
 class transitionPriors : public modelComponent
 {
     public:
-        transitionPriors(SEXP mode);
+        transitionPriors(SEXP mode, SEXP latent);
         void setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, SEXP p_ei_ess, SEXP p_ir_ess);
         void setPathSpecificPriors(SEXP Zmat1, SEXP Zmat2, SEXP inf_mean);
         void setPriorsForWeibull(SEXP E_to_I_params,
@@ -27,6 +27,7 @@ class transitionPriors : public modelComponent
         int max_latent;
         int max_infectious;
         double inf_mean;
+        int enable_latent;
 
         ~transitionPriors();
 };

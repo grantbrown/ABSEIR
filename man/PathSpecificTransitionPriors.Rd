@@ -2,7 +2,7 @@
 % Please edit documentation in R/transitionPriors.R
 \name{PathSpecificTransitionPriors}
 \alias{PathSpecificTransitionPriors}
-\title{Build a path specific TransitionPriors object, which governs how individuals move from
+\title{(depricated) Build a path specific TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.}
 \usage{
 PathSpecificTransitionPriors(Z1 = NA, Z2 = NA, truncation_prob = 1e-06)
@@ -21,7 +21,7 @@ conditional probability of remaining in a disease state can become before indivi
 are forced to transition.}
 }
 \description{
-Build a path specific TransitionPriors object, which governs how individuals move from
+(depricated) Build a path specific TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.
 }
 \details{

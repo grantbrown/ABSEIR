@@ -143,6 +143,7 @@ NodeWorker::NodeWorker(NodePool* pl,
                        Eigen::MatrixXd ei_prior,
                        Eigen::MatrixXd ir_prior,
                        double avgI,
+                       int latent,
                        Eigen::VectorXd sp_prior,
                        Eigen::VectorXd se_prec,
                        Eigen::VectorXd rs_prec,
@@ -155,7 +156,7 @@ NodeWorker::NodeWorker(NodePool* pl,
 {
     pool = pl;
     node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
-                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,latent,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m));
 }
 
@@ -259,6 +260,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                        Eigen::MatrixXd ei_prior,
                        Eigen::MatrixXd ir_prior,
                        double avgI,
+                       int latent,
                        Eigen::VectorXd sp_prior,
                        Eigen::VectorXd se_prec,
                        Eigen::VectorXd rs_prec,
@@ -278,7 +280,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     // Single threaded mode only needs single worker
     nodes.push_back(NodeWorker(this,
                                            sd + 1000*(1),s,e,i,
-                     r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                     r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,latent,
                      sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                     ));
 #else
@@ -286,7 +288,7 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
     {
         nodes.push_back(std::thread(NodeWorker(this,
                                                sd + 1000*(itr+1),s,e,i,
-                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
+                         r,offs,y,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,latent,
                          sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m
                         )));
     }
@@ -374,6 +376,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                              Eigen::MatrixXd ei_prior,
                              Eigen::MatrixXd ir_prior,
                              double avgI,
+                             int latent,
                              Eigen::VectorXd sp_prior,
                              Eigen::VectorXd se_prec,
                              Eigen::VectorXd rs_prec,
@@ -402,6 +405,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                                  E_to_I_prior(ei_prior),
                                  I_to_R_prior(ir_prior),
                                  inf_mean(avgI),
+                                 has_latent(latent),
                                  spatial_prior(sp_prior),
                                  exposure_precision(se_prec),
                                  reinfection_precision(rs_prec),
@@ -426,19 +430,25 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
 
         if (transitionMode == "weibull")
         {
-            EI_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
-                    new weibullTransitionDistribution(E_to_I_prior.col(0)));
+            if (has_latent){
+                EI_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
+                        new weibullTransitionDistribution(E_to_I_prior.col(0)));
+            }
             IR_transition_dist = std::unique_ptr<weibullTransitionDistribution>(
                     new weibullTransitionDistribution(I_to_R_prior.col(0)));
             for (i = 0; i < m; i++){
-                E_paths.push_back(Eigen::MatrixXi((int) E_to_I_prior(4,0), Y.cols()));
+                if (has_latent){
+                    E_paths.push_back(Eigen::MatrixXi((int) E_to_I_prior(4,0), Y.cols()));
+                }
                 I_paths.push_back(Eigen::MatrixXi((int) I_to_R_prior(4,0), Y.cols()));
             }
         }
         else if (transitionMode == "path_specific")
         {
             for (i = 0; i < m; i++){
-                E_paths.push_back(Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols()));
+                if (has_latent){
+                    E_paths.push_back(Eigen::MatrixXi(E_to_I_prior.rows(),Y.cols()));
+                }
                 I_paths.push_back(Eigen::MatrixXi(I_to_R_prior.rows(),Y.cols()));
             }
         }
@@ -446,7 +456,9 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
         {
             for (i = 0; i < m; i++)
             {
-                E_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
+                if (has_latent){
+                    E_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
+                }
                 I_paths.push_back(Eigen::MatrixXi(1,Y.cols()));
             }
         }
@@ -470,8 +482,10 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
-    const int nTrans = (transitionMode == "exponential" ? 2 : 
-                       (transitionMode == "weibull" ? 4 : 0));
+    const int nTrans = (transitionMode == "exponential" ? 
+                            (has_latent ? 2 : 1) : 
+                       (transitionMode == "weibull" ? 
+                            (has_latent ? 4 : 2) : 0));
     total_size = nRho + nReinf + nBeta + nTrans;
 }
 
@@ -486,8 +500,10 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
-    const int nTrans = (transitionMode == "exponential" ? 2 : 
-                       (transitionMode == "weibull" ? 4 : 0));
+    const int nTrans = (transitionMode == "exponential" ? 
+                            (has_latent ? 2 : 1) : 
+                       (transitionMode == "weibull" ? 
+                            (has_latent ? 4 : 2) : 0));
     int nReport = (dataModelType == 2 ? 1 : 0);
     double report_fraction;
     
@@ -509,7 +525,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         beta_rs = Eigen::VectorXd(1);
     }
-     // Load Rho
+    // Load Rho
     Eigen::VectorXd rho;
     if (has_spatial)
     {
@@ -523,18 +539,24 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
    
     // Load Gamma_EI
     // Should really unify these two code paths...
-    double gamma_ei = (transitionMode == "exponential" ? 
-            params(nBeta + nReinf + nRho) : -1.0);
-    double gamma_ir = (transitionMode == "exponential" ? 
+    double gamma_ei;
+    double gamma_ir;
+    if (has_latent){
+        gamma_ei = (transitionMode == "exponential" ? 
+                params(nBeta + nReinf + nRho) : -1.0);
+    }
+    gamma_ir = (transitionMode == "exponential" ? 
             params(nBeta + nReinf + nRho + 1) : -1.0);
 
     Eigen::VectorXd EI_params;
     Eigen::VectorXd IR_params;
     if (transitionMode == "weibull")
     {
-        EI_params = params.segment(nBeta + nReinf + nRho, 2);
-        IR_params = params.segment(nBeta + nReinf + nRho + 2, 2); 
-        EI_transition_dist -> setCurrentParams(EI_params);
+        if (has_latent){
+            EI_params = params.segment(nBeta + nReinf + nRho, 2);
+            EI_transition_dist -> setCurrentParams(EI_params);
+        }
+        IR_params = params.segment(nBeta + nReinf + nRho + 2*has_latent, 2); 
         IR_transition_dist -> setCurrentParams(IR_params);
     } 
     else
@@ -559,11 +581,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         // Clear out paths
         for (k = 0; k < m; k++)
         {
-            for (i = 0; i < E_paths[k].cols(); i++)
-            {
-                for(j = 0; j < E_paths[k].rows(); j++)
+            if (has_latent){
+                for (i = 0; i < E_paths[k].cols(); i++)
                 {
-                    E_paths[k](j,i) = 0;
+                    for(j = 0; j < E_paths[k].rows(); j++)
+                    {
+                        E_paths[k](j,i) = 0;
+                    }
                 }
             }
             for (i = 0; i < I_paths[k].cols(); i++)
@@ -626,7 +650,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     for (i = 0; i < m; i++)
     {
         previous_S.col(i) = S0;
-        previous_E.col(i) = E0;
+        if (has_latent){
+            previous_E.col(i) = E0;
+        }
+        else {
+            previous_E.col(i) = 0*S0;
+        }
         previous_I.col(i) = I0;
         previous_R.col(i) = R0;
         previous_S_star.col(i) = Eigen::VectorXi::Zero(S0.size());
@@ -647,7 +676,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         for (i = 0; i < m; i++)
         {
             I_paths[i].row(0) = I0;
-            E_paths[i].row(0) = E0;
+            if (has_latent){
+                E_paths[i].row(0) = E0;
+            }
         }
     }
 
@@ -670,8 +701,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
 
 
     // Not used if transitionMode != "exponential"
-    Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
+    
+    Eigen::VectorXd p_ei;
+    if (has_latent){
+        p_ei = (-1.0*gamma_ei*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));});
+    }
     
     Eigen::VectorXd p_ir = (-1.0*gamma_ir*offset)
                             .unaryExpr([](double e){return(1-std::exp(e));}); 
@@ -696,12 +731,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             compartmentResults.result(i) = 0.0;
         }
         compartmentResults.S = Eigen::MatrixXi(Y.rows(), Y.cols());
-        compartmentResults.E = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.E = Eigen::MatrixXi::Zero(Y.rows(), Y.cols());
         compartmentResults.I = Eigen::MatrixXi(Y.rows(), Y.cols());
         compartmentResults.R = Eigen::MatrixXi(Y.rows(), Y.cols());
 
         compartmentResults.S_star = Eigen::MatrixXi(Y.rows(), Y.cols());
-        compartmentResults.E_star = Eigen::MatrixXi(Y.rows(), Y.cols());
+        compartmentResults.E_star = Eigen::MatrixXi::Zero(Y.rows(), Y.cols());
         compartmentResults.I_star = Eigen::MatrixXi(Y.rows(), Y.cols());
         compartmentResults.R_star = Eigen::MatrixXi(Y.rows(), Y.cols());
         
@@ -714,12 +749,16 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         compartmentResults.p_se.row(0) = p_se.col(0);
         if (transitionMode == "exponential")
         {
-            compartmentResults.p_ei = p_ei.transpose(); 
+            if (has_latent){
+                compartmentResults.p_ei = p_ei.transpose(); 
+            }
             compartmentResults.p_ir = p_ir.transpose(); 
         }
         else
         {
-            compartmentResults.p_ei = EI_params;
+            if (has_latent){
+                compartmentResults.p_ei = EI_params;
+            }
             compartmentResults.p_ir = IR_params; 
         }
         if (has_spatial)
@@ -743,18 +782,28 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         {
             previous_S_star(i, w) = std::binomial_distribution<int>(
                     previous_R(i, w), p_rs(0))(*generator);
-            previous_E_star(i, w) = std::binomial_distribution<int>(
-                    previous_S(i, w), p_se(i, w))(*generator);
+            if (has_latent){
+                previous_E_star(i, w) = std::binomial_distribution<int>(
+                        previous_S(i, w), p_se(i, w))(*generator);
+            }
+            else {
+                previous_I_star(i, w) = std::binomial_distribution<int>(
+                        previous_S(i, w), p_se(i, w))(*generator);
+            }
 
             if (transitionMode == "exponential")
             {
-                previous_I_star(i, w) = std::binomial_distribution<int>(
+                if (has_latent){
+                    previous_I_star(i, w) = std::binomial_distribution<int>(
                         previous_E(i, w), p_ei(0))(*generator);
+                }
                 previous_R_star(i, w) = std::binomial_distribution<int>(
                         previous_I(i, w), p_ir(0))(*generator);
             }
             else if (transitionMode == "path_specific")
             {
+                // End updates for SIR mode in WB and PS cases
+                //
                 // Updating E_paths and I_paths is repetative - factor out into a function?
                 // That might be costly, unless it's inlined...
                 previous_I_star(i, w) = E_paths[w](E_paths[w].rows() - 1, i); // could take outside loop
@@ -878,21 +927,28 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         for (i = 0; i < S0.size(); i++)
         {
             compartmentResults.S(time_idx, i) = S0(i);
-            compartmentResults.E(time_idx, i) = E0(i);
+            compartmentResults.E(time_idx, i) = (has_latent ? E0(i) : 0);
             compartmentResults.I(time_idx, i) = I0(i);
             compartmentResults.R(time_idx, i) = R0(i);
 
             compartmentResults.S_star(time_idx, i) = previous_S_star(i,0);
-            compartmentResults.E_star(time_idx, i) = previous_E_star(i,0);
+            compartmentResults.E_star(time_idx, i) = (has_latent ? previous_E_star(i,0) : 0);
             compartmentResults.I_star(time_idx, i) = previous_I_star(i,0);
             compartmentResults.R_star(time_idx, i) = previous_R_star(i,0);
         }
     }
 
-    current_S = previous_S + previous_S_star - previous_E_star;
-    current_E = previous_E + previous_E_star - previous_I_star;
-    current_I = previous_I + previous_I_star - previous_R_star;
-    current_R = previous_R + previous_R_star - previous_S_star;
+    if (has_latent){
+        current_S = previous_S + previous_S_star - previous_E_star;
+        current_E = previous_E + previous_E_star - previous_I_star;
+        current_I = previous_I + previous_I_star - previous_R_star;
+        current_R = previous_R + previous_R_star - previous_S_star;
+    }
+    else {
+        current_S = previous_S + previous_S_star - previous_I_star;
+        current_I = previous_I + previous_I_star - previous_R_star;
+        current_R = previous_R + previous_R_star - previous_S_star;
+    }
 
     if (transitionMode != "exponential")
     {
@@ -904,7 +960,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     }
 
     previous_S = current_S;
-    previous_E = current_E;
+    if (has_latent){
+        previous_E = current_E;
+    }
     previous_I = current_I;
     previous_R = current_R;
 
@@ -943,11 +1001,18 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             for (i = 0; i < Y.cols(); i++)
             {
                 previous_S_star(i,w) = std::binomial_distribution<int>(previous_R(i,w), p_rs(time_idx))(*generator);
-                previous_E_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,0))(*generator);
+                if (has_latent){
+                    previous_E_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,0))(*generator);
+                }
+                else {
+                    previous_I_star(i,w) = std::binomial_distribution<int>(previous_S(i,w), p_se(i,0))(*generator);
+                }
 
                 if (transitionMode == "exponential")
                 {
-                    previous_I_star(i,w) = std::binomial_distribution<int>(previous_E(i,w), p_ei(time_idx))(*generator);
+                    if (has_latent){
+                        previous_I_star(i,w) = std::binomial_distribution<int>(previous_E(i,w), p_ei(time_idx))(*generator);
+                    }
                     previous_R_star(i,w) = std::binomial_distribution<int>(previous_I(i,w), p_ir(time_idx))(*generator);
                 }
                 else if (transitionMode == "path_specific")
@@ -1091,12 +1156,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 for (i = 0; i < S0.size(); i++)
                 {
                     compartmentResults.S(time_idx, i) = previous_S(i,0);
-                    compartmentResults.E(time_idx, i) = previous_E(i,0);
+                    compartmentResults.E(time_idx, i) = (has_latent ? previous_E(i,0) : 0);
                     compartmentResults.I(time_idx, i) = previous_I(i,0);
                     compartmentResults.R(time_idx, i) = previous_R(i,0);
 
                     compartmentResults.S_star(time_idx, i) = previous_S_star(i,0);
-                    compartmentResults.E_star(time_idx, i) = previous_E_star(i,0);
+                    compartmentResults.E_star(time_idx, i) = (has_latent ? previous_E_star(i,0) : 0);
                     compartmentResults.I_star(time_idx, i) = previous_I_star(i,0);
                     compartmentResults.R_star(time_idx, i) = previous_R_star(i,0);
 
@@ -1104,10 +1169,17 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 }
             }
 
-            current_S.col(w) = previous_S.col(w) + previous_S_star.col(w) - previous_E_star.col(w);
-            current_E.col(w) = previous_E.col(w) + previous_E_star.col(w) - previous_I_star.col(w);
-            current_I.col(w) = previous_I.col(w) + previous_I_star.col(w) - previous_R_star.col(w);
-            current_R.col(w) = previous_R.col(w) + previous_R_star.col(w) - previous_S_star.col(w);
+            if (has_latent){
+                current_S.col(w) = previous_S.col(w) + previous_S_star.col(w) - previous_E_star.col(w);
+                current_E.col(w) = previous_E.col(w) + previous_E_star.col(w) - previous_I_star.col(w);
+                current_I.col(w) = previous_I.col(w) + previous_I_star.col(w) - previous_R_star.col(w);
+                current_R.col(w) = previous_R.col(w) + previous_R_star.col(w) - previous_S_star.col(w);
+            }
+            else {
+                current_S.col(w) = previous_S.col(w) + previous_S_star.col(w) - previous_I_star.col(w);
+                current_I.col(w) = previous_I.col(w) + previous_I_star.col(w) - previous_R_star.col(w);
+                current_R.col(w) = previous_R.col(w) + previous_R_star.col(w) - previous_S_star.col(w);
+            }
 
             if (transitionMode != "exponential")
             {
@@ -1119,11 +1191,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             {
                 I_lag[w].push(previous_I.col(w));
             }
+
             previous_S.col(w) = current_S.col(w);
-            previous_E.col(w) = current_E.col(w);
+            if (has_latent){
+                previous_E.col(w) = current_E.col(w);
+            }
             previous_I.col(w) = current_I.col(w);
             previous_R.col(w) = current_R.col(w);
-
         }
     }
 

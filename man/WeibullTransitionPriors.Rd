@@ -2,7 +2,7 @@
 % Please edit documentation in R/transitionPriors.R
 \name{WeibullTransitionPriors}
 \alias{WeibullTransitionPriors}
-\title{Build a path specific Weibull TransitionPriors object, with 
+\title{(depricated) Build a path specific Weibull TransitionPriors object, with 
 independent gamma priors for the shape/scale parameters of the 
 latent and infectious time distributions.}
 \usage{
@@ -37,7 +37,7 @@ hyperprior on the infectious period scale parameter}
 hyperprior on the infectious period scale parameter}
 }
 \description{
-Build a path specific Weibull TransitionPriors object, with 
+(depricated) Build a path specific Weibull TransitionPriors object, with 
 independent gamma priors for the shape/scale parameters of the 
 latent and infectious time distributions.
 }

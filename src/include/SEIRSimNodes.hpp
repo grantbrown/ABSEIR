@@ -58,6 +58,7 @@ class SEIR_sim_node {
                       Eigen::MatrixXd ei_prior,
                       Eigen::MatrixXd ir_prior,
                       double avgI,
+                      int hasLatent, 
                       Eigen::VectorXd sp_prior,
                       Eigen::VectorXd se_prec,
                       Eigen::VectorXd rs_prec,
@@ -93,6 +94,7 @@ class SEIR_sim_node {
         Eigen::MatrixXd E_to_I_prior;
         Eigen::MatrixXd I_to_R_prior;
         double inf_mean;
+        int has_latent;
         Eigen::VectorXd spatial_prior;
         Eigen::VectorXd exposure_precision;
         Eigen::VectorXd reinfection_precision;
@@ -142,6 +144,7 @@ class NodeWorker{
                    Eigen::MatrixXd ei_prior,
                    Eigen::MatrixXd ir_prior,
                    double avgI,
+                   int hasLatent,
                    Eigen::VectorXd sp_prior,
                    Eigen::VectorXd se_prec,
                    Eigen::VectorXd rs_prec,
@@ -184,6 +187,7 @@ class NodePool{
                  Eigen::MatrixXd ei_prior,
                  Eigen::MatrixXd ir_prior,
                  double avgI,
+                 int hasLatent,
                  Eigen::VectorXd sp_prior,
                  Eigen::VectorXd se_prec,
                  Eigen::VectorXd rs_prec,
