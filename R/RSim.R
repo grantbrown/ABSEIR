@@ -63,10 +63,12 @@ Rsim <- function(seed,
   nLags <- length(distance_model$laggedDistanceList[[1]])
   hasTSSpatial <- nLags > 0
   hasReinfection <- (reinfection_model$integerMode != 3)
+  has_latent <- transition_priors$enable_latent 
+
   X_RS <- reinfection_model$X_prs
   
   if (transition_priors$mode == "exponential"){
-      gamma_EI <- params$gamma_EI #-log(1-transition_priors$p_ei)
+      gamma_EI <- ifelse(has_latent, params$gamma_EI, NA) #-log(1-transition_priors$p_ei)
       gamma_IR <- params$gamma_IR #-log(1-transition_priors$p_ir)
       p_EI <- 1-exp(-gamma_EI)    #transition_priors$p_ei
       p_IR <- 1-exp(-gamma_IR)    #transition_priors$p_ir
@@ -180,13 +182,21 @@ Rsim <- function(seed,
     }
     
     p_SE = 1-exp(-intensity)
-    E_star[i,] <- rbinom(n = rep(1, ncol(E_star)), 
-                         size = S[i,],
-                         prob = p_SE)
+    if (has_latent){
+        E_star[i,] <- rbinom(n = rep(1, ncol(E_star)), 
+                             size = S[i,],
+                             prob = p_SE)
+    } else {
+        I_star[i,] <- rbinom(n = rep(1, ncol(I_star)), 
+                             size = S[i,],
+                             prob = p_SE)
+    }
     if (transition_priors$mode == "exponential"){
-        I_star[i,] <- rbinom(n = rep(1, ncol(I_star)),
-                            size = E[i,],
-                            prob = p_EI)
+        if (has_latent){
+            I_star[i,] <- rbinom(n = rep(1, ncol(I_star)),
+                                size = E[i,],
+                                prob = p_EI)
+        }
         R_star[i,] = rbinom(n = rep(1, ncol(R_star)),
                             size = I[i,],
                             prob = p_IR)
@@ -217,14 +227,22 @@ Rsim <- function(seed,
     
     if (i != nTpt)
     {
-      S[i+1,] = S[i,] + S_star[i,] - E_star[i,]
-      E[i+1,] = E[i,] + E_star[i,] - I_star[i,]
-      I[i+1,] = I[i,] + I_star[i,] - R_star[i,]
-      R[i+1,] = R[i,] + R_star[i,] - S_star[i,]
+        if (has_latent){
+              S[i+1,] = S[i,] + S_star[i,] - E_star[i,]
+              E[i+1,] = E[i,] + E_star[i,] - I_star[i,]
+              I[i+1,] = I[i,] + I_star[i,] - R_star[i,]
+              R[i+1,] = R[i,] + R_star[i,] - S_star[i,]
+        }
+        else {
+              S[i+1,] = S[i,] + S_star[i,] - I_star[i,]
+              I[i+1,] = I[i,] + I_star[i,] - R_star[i,]
+              R[i+1,] = R[i,] + R_star[i,] - S_star[i,]
+        }
     }
   }
   
-  list(S=S,
+
+    return(list(S=S,
        E=E,
        I=I,
        R=R,
@@ -235,5 +253,5 @@ Rsim <- function(seed,
        S_star=S_star,
        E_star=E_star,
        I_star=I_star,
-       R_star=R_star)
+       R_star=R_star))
 } 
