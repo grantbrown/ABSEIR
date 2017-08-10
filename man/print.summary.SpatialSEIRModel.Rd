@@ -14,3 +14,4 @@
 \description{
 Print a \code{summary.SpatialSEIRModel} object
 }
+

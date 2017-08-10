@@ -61,3 +61,4 @@ transitionPriors <- WeibullTransitionPriors(35,20,150,20,90,20,220,20)
 \code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}}, 
 \code{\link{ExponentialTransitionPriors}}
 }
+

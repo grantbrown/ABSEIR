@@ -37,3 +37,4 @@ transitionPriors <- ExponentialTransitionPriors(1/5,1/7, 100, 100)
 \code{\link{TransitionPriors}}, \code{\link{PathSpecificTransitionPriors}}, 
 \code{\link{WeibullTransitionPriors}}
 }
+

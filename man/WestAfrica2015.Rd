@@ -35,3 +35,4 @@ WestAfrica2015
 A dataset containing cumulative Ebola case counts between 3-22-2014 and 3-29-2015
 }
 \keyword{datasets}
+

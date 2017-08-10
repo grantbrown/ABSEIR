@@ -56,11 +56,9 @@ The TransitionPriors component of spatial SEIR(S) models captures the
 transitionPriors <- TransitionPriors("exponential", params=list(p_ei=
                                         1/5, p_ir=1/7, p_ei_ess=100, p_ir_ess=100))
 
-transitionPriors <- TransitionPriors("path_specific", params = list(
-                                        Z1 = function(x){dunif(x, 2, 10)},
-                                        Z2 = function(x){dunif(x, 7, 24)}))
 }
 \references{
 "A path-specific SEIR model for use with general 
                latent and infectious time distributions." 2013. Porter, Aaron T, Oleson, Jacob J. Biometrics 69(1)
 }
+

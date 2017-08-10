@@ -48,3 +48,4 @@ In stochastic spatial SEIR models as specified in Brown et al. 2015,
 \examples{
 distanceModel <- DistanceModel(list(1-diag(4)))
 }
+

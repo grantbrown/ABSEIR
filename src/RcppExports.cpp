@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 // calculate_weights_DM
 Eigen::VectorXd calculate_weights_DM(double cur_e, double prev_e, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
-RcppExport SEXP ABSEIR_calculate_weights_DM(SEXP cur_eSEXP, SEXP prev_eSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
+RcppExport SEXP _ABSEIR_calculate_weights_DM(SEXP cur_eSEXP, SEXP prev_eSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,7 +22,7 @@ END_RCPP
 }
 // solve_for_epsilon
 double solve_for_epsilon(double LB, double UB, double prev_e, double alpha, Eigen::MatrixXd eps, Eigen::VectorXd prev_wts);
-RcppExport SEXP ABSEIR_solve_for_epsilon(SEXP LBSEXP, SEXP UBSEXP, SEXP prev_eSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
+RcppExport SEXP _ABSEIR_solve_for_epsilon(SEXP LBSEXP, SEXP UBSEXP, SEXP prev_eSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP prev_wtsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -47,8 +47,8 @@ RcppExport SEXP _rcpp_module_boot_mod_spatialSEIRModel();
 RcppExport SEXP _rcpp_module_boot_mod_transitionPriors();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"ABSEIR_calculate_weights_DM", (DL_FUNC) &ABSEIR_calculate_weights_DM, 4},
-    {"ABSEIR_solve_for_epsilon", (DL_FUNC) &ABSEIR_solve_for_epsilon, 6},
+    {"_ABSEIR_calculate_weights_DM", (DL_FUNC) &_ABSEIR_calculate_weights_DM, 4},
+    {"_ABSEIR_solve_for_epsilon", (DL_FUNC) &_ABSEIR_solve_for_epsilon, 6},
     {"_rcpp_module_boot_mod_dataModel", (DL_FUNC) &_rcpp_module_boot_mod_dataModel, 0},
     {"_rcpp_module_boot_mod_distanceModel", (DL_FUNC) &_rcpp_module_boot_mod_distanceModel, 0},
     {"_rcpp_module_boot_mod_exposureModel", (DL_FUNC) &_rcpp_module_boot_mod_exposureModel, 0},

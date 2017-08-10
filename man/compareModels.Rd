@@ -42,3 +42,4 @@ the parameter acceptance rate at a new iteration.
 \dontrun{compareModels(list(model1, model2))}
                                                
 }
+

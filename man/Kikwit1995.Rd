@@ -20,3 +20,4 @@ Lekone, P.E. and Finkenstadt, B.F. (2006). Statistical inference in a stochastic
 SEIR model with control intervention: Ebola as a case study. Biometrics 62,1170-1177
 }
 \keyword{datasets}
+
