@@ -17,4 +17,3 @@ a summary.SpatialSEIRModel object
 \description{
 Produce a summary of the results of fitting a SEIR model
 }
-

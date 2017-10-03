@@ -337,19 +337,16 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             w1(i) = w0(reweight_idx[i]);
             preproposal_params.row(i) = param_matrix.row(reweight_idx[i]);
         }
-        for (i = 0; i < param_matrix.rows(); i++)
-        {
+        for (i = 0; i < param_matrix.rows(); i++){
             w0(i) = w1(i);
             param_matrix.row(i) = preproposal_params.row(i);
         }
 
         cum_weights(0) = w1(0);
-        for (i = 1; i < w1.size(); i++)
-        {
+        for (i = 1; i < w1.size(); i++){
             cum_weights(i) = w1(i) + cum_weights(i-1);
         }
-        if (std::abs(cum_weights.maxCoeff() - 1) > 1e-10)
-        {
+        if (std::abs(cum_weights.maxCoeff() - 1) > 1e-10){
             Rcpp::Rcout << "cumulative weight: " << cum_weights.maxCoeff() << "\n";
             Rcpp::stop("particle weights do not sum to one\n");
         }
@@ -418,6 +415,15 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                     << Npart << " acceptances in " << nBatches << " batches of max " <<
                     maxBatches << "\n";
                 Rcpp::Rcout << "Returning last params\n";
+            }
+            terminate = 1;
+        }
+        else if (e1 <= samplingControlInstance -> target_eps)
+        {
+            if (verbose > 1){
+                Rcpp::Rcout << "\n";
+                Rcpp::Rcout << "Target epsilon reached: " << e1 << " <= " << 
+                    (samplingControlInstance -> target_eps) << "\n";
             }
             terminate = 1;
         }

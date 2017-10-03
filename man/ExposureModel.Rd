@@ -42,4 +42,3 @@ exposureModel <- ExposureModel(cbind(1, (1:25)/25),
                                          betaPriorPrecision = 0.1,
                                          betaPriorMean = 0)
 }
-

@@ -44,4 +44,3 @@ A fundamental task in building hierarchical models is to describe the way in whi
 \examples{
 dataModel = DataModel(rpois(100, 10)) 
 }
-

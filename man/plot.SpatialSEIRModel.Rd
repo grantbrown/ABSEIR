@@ -17,4 +17,3 @@ Plot a graphical summary of the marginal posterior distribution of SEIR model pa
 \examples{
 \dontrun{plot(modelObject)}
 }
-
