@@ -19,7 +19,7 @@
 #' @export
 ComputeR0 <- function(SimObject, cores = 1)
 { 
-  checkArgument("SimObject", mustHaveClass("SpatialSEIRModel"))
+  checkArgument("SimObject", mustHaveClass("PosteriorSimulation"))
   #cores <- SimObject$modelObject$modelComponents$sampling_control$n_cores
   cl <- makeCluster(cores)
   clusterExport(cl, "SimObject", envir = environment())
