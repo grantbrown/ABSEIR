@@ -420,7 +420,7 @@ SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
         std::seed_seq q(std::begin(seed_data), std::end(seed_data));
         generator = new mt19937{q};   
         int i;
-
+ 
         E_paths = std::vector<Eigen::MatrixXi>();
         I_paths = std::vector<Eigen::MatrixXi>();
 
@@ -618,9 +618,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     Eigen::MatrixXd eta = (X*beta).unaryExpr([](double elem){return(
                 std::exp(elem));
             });
+    //printDMatrix(eta, "eta");
 
     Eigen::Map<Eigen::MatrixXd, Eigen::ColMajor> p_se_components(eta.data(), 
                 Y.rows(), Y.cols());
+
+    //printDMatrix(p_se_components, "p_se_components");
+
 
     time_idx = 0;
     for (i = 0; i < m; i++)
@@ -667,7 +671,14 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
-
+    // Sanity check - this shouldn't be neccessary?
+    for (int g = 0; g < p_se.rows(); g++){
+        for (int f = 0; f < p_se.cols(); f++){
+            if (std::isfinite(!p_se(g,f))){
+                p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
+            }
+        }
+    }
 
     // Not used if transitionMode != "exponential"
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -909,6 +920,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     previous_R = current_R;
 
     // Simulation: iterative case
+    //printDMatrix(p_se_components, "p_se_components");
     int lag;
     for (w = 0; w < m; w++)
     {
@@ -916,6 +928,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         {
             p_se_cache = (previous_I.cast<double>().array().col(w)).array()
                 /N.cast<double>().array()*p_se_components.row(time_idx).transpose().array();
+            //printDMatrix(p_se_cache, "p_se_cache");
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
@@ -937,8 +950,20 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             }
 
 
+            //Rcpp::Rcout << "offset(" << time_idx << "): " << offset(time_idx) << "\n";
             p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()
                     ).unaryExpr([](double e){return(1-std::exp(e));});
+
+            // Sanity check - this shouldn't be neccessary?
+            for (int g = 0; g < p_se.rows(); g++){
+                for (int f = 0; f < p_se.cols(); f++){
+                    if (std::isfinite(!p_se(g,f))){
+                        p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
+                    }
+                }
+            }
+
+
      
             for (i = 0; i < Y.cols(); i++)
             {
