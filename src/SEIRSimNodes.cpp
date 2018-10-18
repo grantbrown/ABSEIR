@@ -674,7 +674,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     // Sanity check - this shouldn't be neccessary?
     for (int g = 0; g < p_se.rows(); g++){
         for (int f = 0; f < p_se.cols(); f++){
-            if (std::isfinite(!p_se(g,f))){
+            if (!std::isfinite(!p_se(g,f))){
                 p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
             }
         }
@@ -957,7 +957,7 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             // Sanity check - this shouldn't be neccessary?
             for (int g = 0; g < p_se.rows(); g++){
                 for (int f = 0; f < p_se.cols(); f++){
-                    if (std::isfinite(!p_se(g,f))){
+                    if (!std::isfinite(!p_se(g,f))){
                         p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
                     }
                 }
