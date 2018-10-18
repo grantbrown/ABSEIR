@@ -73,7 +73,6 @@ class SEIR_sim_node {
 
     private: 
         NodeWorker* parent;
-        int sim_width;
         unsigned int random_seed;
         Eigen::VectorXi S0;
         Eigen::VectorXi E0;
@@ -81,12 +80,12 @@ class SEIR_sim_node {
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
         Eigen::MatrixXi Y;
-        std::vector<Eigen::MatrixXi> E_paths;
-        std::vector<Eigen::MatrixXi> I_paths;
         MatrixXb na_mask;
+        int dataModelType;
         std::vector<Eigen::MatrixXd> DM_vec;
         std::vector<std::vector<Eigen::MatrixXd> > TDM_vec;
         std::vector<int> TDM_empty;
+
         Eigen::MatrixXd X;
         Eigen::MatrixXd X_rs;
         std::string transitionMode;
@@ -98,13 +97,20 @@ class SEIR_sim_node {
         Eigen::VectorXd reinfection_precision;
         Eigen::VectorXd exposure_mean;
         Eigen::VectorXd reinfection_mean;
+        double phi;
+        int data_compartment;
+        bool cumulative;
+        int m;
+
+        std::vector<Eigen::MatrixXi> E_paths;
+        std::vector<Eigen::MatrixXi> I_paths;
+
         /** General E to I transition Distribution*/
         std::unique_ptr<transitionDistribution> EI_transition_dist;
         /** General I to R transition Distribution*/
         std::unique_ptr<transitionDistribution> IR_transition_dist;
         void nodeMessage(std::string);
-        double phi;
-        int dataModelType;
+
         int seed;
         double value;
         bool has_spatial;
@@ -112,9 +118,8 @@ class SEIR_sim_node {
         bool has_reinfection;
         bool has_report_fraction;
         int total_size;
-        int data_compartment;
-        bool cumulative;
-        int m;
+
+        int sim_width;
         mt19937* generator;
         std::normal_distribution<double> overdispersion_distribution;
 };
