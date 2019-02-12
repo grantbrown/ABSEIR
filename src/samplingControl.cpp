@@ -29,7 +29,7 @@ samplingControl::samplingControl(SEXP integerParameters,
 #ifdef SPATIALSEIR_SINGLETHREAD
     if (CPU_cores > 1)
     {
-        Rcpp::warning("Multiple cores requested for ABSEIR compiled in single thread mode");
+        Rcpp::stop("Error: multiple cores requested for ABSEIR compiled in single thread mode");
     }
 #endif
 

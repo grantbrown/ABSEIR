@@ -486,9 +486,9 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
-    const int nTrans = (transitionMode == "exponential" ? 2 : 
-                       (transitionMode == "weibull" ? 4 : 0));
-    int nReport = (dataModelType == 2 ? 1 : 0);
+    //const int nTrans = (transitionMode == "exponential" ? 2 : 
+    //                   (transitionMode == "weibull" ? 4 : 0));
+    //int nReport = (dataModelType == 2 ? 1 : 0);
     double report_fraction;
     
     simulationResultSet compartmentResults;
@@ -655,9 +655,12 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
-    p_se_cache = ((previous_I.cast<double>().array().colwise())
+    p_se_cache = (((previous_I.cast<double>().array().colwise())
         /N.cast<double>().array()).array().colwise()*
-        p_se_components.row(0).transpose().array();
+        p_se_components.row(0).transpose().array()).unaryExpr([](double e){
+            // Protect against overflow in components
+            return(e == e ? e : 0);
+        });
 
     Eigen::MatrixXd p_se = 1*p_se_cache; 
 
@@ -671,14 +674,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     p_se = (((-1.0*p_se.array()) * (offset(0)))).unaryExpr([](double e){
             return(1-std::exp(e));
             }); 
-    // Sanity check - this shouldn't be neccessary?
-    for (int g = 0; g < p_se.rows(); g++){
-        for (int f = 0; f < p_se.cols(); f++){
-            if (!std::isfinite(!p_se(g,f))){
-                p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
-            }
-        }
-    }
 
     // Not used if transitionMode != "exponential"
     Eigen::VectorXd p_ei = (-1.0*gamma_ei*offset)
@@ -926,9 +921,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     {
         for (time_idx = 1; time_idx < Y.rows(); time_idx++)
         {
-            p_se_cache = (previous_I.cast<double>().array().col(w)).array()
-                /N.cast<double>().array()*p_se_components.row(time_idx).transpose().array();
-            //printDMatrix(p_se_cache, "p_se_cache");
+            p_se_cache = ((previous_I.cast<double>().array().col(w)).array()
+                /N.cast<double>().array()*
+                p_se_components.row(time_idx).transpose().array()
+                ).unaryExpr([](double e){
+                    // Protect against overflow in components
+                    return(e == e ? e : 0);
+                });
 
             p_se = 1*p_se_cache; 
             if (has_spatial)
@@ -943,8 +942,13 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             {   
                 for (lag = 0; time_idx - lag - 1 >= 0 && lag < (int) TDM_vec[0].size(); lag++)
                 {
-                    p_se_cache = (I_lag[w].get(lag).cast<double>()).array()
-                        /N.cast<double>().array()*p_se_components.row(time_idx - lag - 1).transpose().array();
+                    p_se_cache = ((I_lag[w].get(lag).cast<double>()).array()
+                        /N.cast<double>().array()*
+                        p_se_components.row(time_idx - lag - 1).transpose().array()
+                        ).unaryExpr([](double e){
+                            // Protect against overflow in components
+                            return(e == e ? e : 0);}
+                        );
                     p_se += rho[DM_vec.size() + lag]*(TDM_vec[time_idx-lag - 1][lag] * p_se_cache);
                 }
             }
@@ -953,17 +957,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
             //Rcpp::Rcout << "offset(" << time_idx << "): " << offset(time_idx) << "\n";
             p_se = ((-1.0*p_se.array() * offset(time_idx)).matrix()
                     ).unaryExpr([](double e){return(1-std::exp(e));});
-
-            // Sanity check - this shouldn't be neccessary?
-            for (int g = 0; g < p_se.rows(); g++){
-                for (int f = 0; f < p_se.cols(); f++){
-                    if (!std::isfinite(!p_se(g,f))){
-                        p_se(g,f) = p_se_cache(g,f) > 0 ? 1 : 0;
-                    }
-                }
-            }
-
-
      
             for (i = 0; i < Y.cols(); i++)
             {
@@ -1152,11 +1145,6 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         }
     }
 
-    /*
-    compartmentResults.result = results.unaryExpr([](double elem){
-            return(std::sqrt(elem));
-            }); 
-    */
     compartmentResults.result = results;
     return(compartmentResults);
 }

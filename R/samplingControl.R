@@ -294,6 +294,11 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
         }
     }
 
+    if (params$multivariate_perturbation != 0){
+        warning("Multivariate perturbation is not currently supported, disabling.")
+        params$multivariate_perturbation = 0
+    }
+
     structure(list("sim_width" = 1,
                    "seed" = seed,
                    "n_cores" = n_cores,

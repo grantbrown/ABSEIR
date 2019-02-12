@@ -458,7 +458,7 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
                       (distanceModelInstance -> tdm_list)[0].size())*hasSpatial;
-    const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
+    //const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
     double rf_alpha = (dataModelInstance -> dataModelType == 2 ?
                        (dataModelInstance -> report_fraction)*(dataModelInstance -> report_fraction_ess) :
                        -1.0);

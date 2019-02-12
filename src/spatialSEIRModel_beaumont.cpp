@@ -331,28 +331,34 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             Rcpp::Rcout << "\n";
         }
 
+
+
         // Reorder parameters by weight
         reweight_idx = sort_indexes_eigen_vec(w0); 
         for (i = w0.size()-1; i >= 0; i--){
             w1(i) = w0(reweight_idx[i]);
             preproposal_params.row(i) = param_matrix.row(reweight_idx[i]);
         }
+
         for (i = 0; i < param_matrix.rows(); i++)
         {
             w0(i) = w1(i);
             param_matrix.row(i) = preproposal_params.row(i);
         }
 
+
         cum_weights(0) = w1(0);
         for (i = 1; i < w1.size(); i++)
         {
             cum_weights(i) = w1(i) + cum_weights(i-1);
         }
+
         if (std::abs(cum_weights.maxCoeff() - 1) > 1e-10)
         {
             Rcpp::Rcout << "cumulative weight: " << cum_weights.maxCoeff() << "\n";
             Rcpp::stop("particle weights do not sum to one\n");
         }
+
 
         // Propose params and run simulations
         int currentIdx = 0;
@@ -360,6 +366,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         while (currentIdx < Npart && 
                nBatches < maxBatches)
         {
+
             // perturb parameters
             if (samplingControlInstance -> multivariatePerturbation)
             {
@@ -380,11 +387,13 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                               this);     
             }
 
+
             // run simulations
             run_simulations(preproposal_params,
                             sim_atom,
                             &preproposal_results, 
                             &results_complete);
+
 
            //std::vector<size_t> preproposal_order = sort_indexes_eigen(preproposal_results); 
            for (i = 0; i < Nsim && currentIdx < Npart; i++)
