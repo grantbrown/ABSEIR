@@ -75,7 +75,7 @@ test_that("Epsilon calculations are correct",{
                                             epochs = 2,
                                             max_batches = 100,
                                             shrinkage = 0.99,
-                                            multivariate_perturbation=TRUE,
+                                            multivariate_perturbation=FALSE,
                                             keep_compartments = TRUE
                                        )
     )

@@ -59,7 +59,7 @@ test_that("Single location SEIR models can be constructed", {
                                           epochs = 5,
                                           max_batches = 2,
                                           shrinkage = 0.99,
-                                          multivariate_perturbation=TRUE
+                                          multivariate_perturbation=FALSE
                                      )
   )
   
