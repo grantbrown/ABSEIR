@@ -36,8 +36,9 @@ samplingControl::samplingControl(SEXP integerParameters,
 
     accept_fraction = inNumericParams(0);
     shrinkage = inNumericParams(1);
-    target_eps = inNumericParams(2);
-    lpow = inNumericParams(3);
+    lpow = inNumericParams(2);
+    target_eps = inNumericParams(3);
+    
 
     if (algorithm != ALG_BasicABC && 
         algorithm != ALG_ModifiedBeaumont2009 && 
