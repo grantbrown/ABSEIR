@@ -146,6 +146,7 @@ epidemic.simulations = function(modelObject,
               ),
             c(samplingControlInstance$acceptance_fraction, 
               samplingControlInstance$shrinkage, 
+              samplingControlInstance$lpow,
               samplingControlInstance$target_eps
               )
         )

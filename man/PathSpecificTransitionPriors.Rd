@@ -5,7 +5,8 @@
 \title{Build a path specific TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.}
 \usage{
-PathSpecificTransitionPriors(Z1 = NA, Z2 = NA, truncation_prob = 1e-06)
+PathSpecificTransitionPriors(Z1 = NA, Z2 = NA,
+  truncation_prob = 1e-06)
 }
 \arguments{
 \item{Z1}{a probability density function for the length of time individuals spend in 

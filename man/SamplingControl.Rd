@@ -26,57 +26,6 @@ an object of type \code{\link{SamplingControl}}
 Create a SamplingControl object, which determines which ABC algorithm is 
 to be used, and how it is configured.
 }
-\details{
-The basic ABC algorithm is useful in cases where good prior information is
-available, and proposals from the prior distribution are therefore likely to 
-fall with relative frequency into high posterior density regions. In cases
-where the prior is diffuse with respect to the posterior, this can be very
-inefficient. The SMC algorithms of Del Moral 2012 and
-Beaumont et al. 2009 randomly generate
-parameters from a sequence of approximations to the posterior distribution, and
-can greatly improve efficiency.\\
-
-Additional parameters which may be passed to the algorithms:
-\itemize{ 
-\item{acceptance_fraction: }{For the BasicABC algorithm, this gives
-the proportion of simulated epidemics to accept. The smaller the acceptance
-fraction, the better the approximation to the posterior distribution, and the 
-more computation time required.}
-\item{target_eps:}{For all algorithms, this determines an epsilon value at which 
-the program will terminate, declaring convergence.}
-\item{batch_size: }{For all algorithms, this determines the number of
-epidemics to simulate in parallel, before returning to the main process to evaluate
-them. \code{batch_size} must be greater than the number of samples requested 
-in the \code{\link{SpatialSEIRModel}} function.}
-\item{init_batch_size: }{For all algorithms, this optionally determines
-a distinct batch size for the first iteration.}
-\item{epochs: }{For the Beaumont2009 and DelMoral2012 algorithms, 
-\code{epochs} determines the maximum
-number of iterations.}
-\item{shrinkage: }{for the Beaumont2009 algorithm, \code{shrinkage} defines the multiplicative
-constant by which the maximum distance between simulated and observed
-epidemics is shrunk between each iteration. For the DelMoral2012 algorithm, this
-parameter determines the quality index, \eqn{\alpha}{alpha} between zero and one.}
-\item{max_batches: }{for the Beaumont2009 and DelMoral2012 algorithms, \code{max_batches} determines
-the maximum number of parallel batches to run before which a new set of 
-parameters must be accepted. If an insufficient number of parameters are accepted
-by the time the algorithm reaches \code{max_batches}, the program will terminate
-under the assumption that the parameters have converged.}
-\item{multivariate_perturbation}{A logical value indicating whether, for the
-Beaumont2009 algorithm, parameter perturbations should be made from a
-mulivariate normal distribuion rather than independent normals.}
-\item{m}{For the DelMoral2012 algorithm, an integer determining the number of 
-simulated epidemics to use for each set of basis parameters (parameterized
-as in the 2012 paper.)}
-\item{particles}{For the 'simulate' algorithm, a raw matrix of parameter 
-values must be provided, following the format created by the other
-algorithms. This functonality is used primarily for debugging purposes; most
-users should perform such simulations using the 
-\item{keep_compartments}{Logical: should the simulated compartment values be retained?}
-\code{\link{epidemic.simulations}} function instead.}
-\item{replicates}{For the 'simulate' algorithm, a number of replicate
-simulations to be performed per particle.}}
-}
 \examples{
 samplingControl <- SamplingControl(123123, 2)
 }

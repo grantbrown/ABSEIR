@@ -264,7 +264,7 @@ SpatialSEIRModel = function(data_model,
               sampling_control$multivariate_perturbation, 
               sampling_control$m),
             c(sampling_control$acceptance_fraction, sampling_control$shrinkage,
-              sampling_control$target_eps
+              sampling_control$lpow,sampling_control$target_eps
               )
         )
 

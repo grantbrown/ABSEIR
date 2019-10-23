@@ -4,9 +4,9 @@
 \alias{SpatialSEIRModel}
 \title{Fit a spatial/non-spatial SEIR/SEIRS model based on the provided model components.}
 \usage{
-SpatialSEIRModel(data_model, exposure_model, reinfection_model, distance_model,
-  transition_priors, initial_value_container, sampling_control, samples = 100,
-  verbose = FALSE, ...)
+SpatialSEIRModel(data_model, exposure_model, reinfection_model,
+  distance_model, transition_priors, initial_value_container,
+  sampling_control, samples = 100, verbose = FALSE, ...)
 }
 \arguments{
 \item{data_model}{A data model object, describing the link between

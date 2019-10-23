@@ -5,8 +5,8 @@
 \title{Create a ReinfectionModel object, which determines whether and how individuals
 may return to the susceptible population after an infection runs its course.}
 \usage{
-ReinfectionModel(reinfectMode = c("SEIR", "SEIRS", "Fixed"), X_prs = NA,
-  priorPrecision = NA, priorMean = NA)
+ReinfectionModel(reinfectMode = c("SEIR", "SEIRS", "Fixed"),
+  X_prs = NA, priorPrecision = NA, priorMean = NA)
 }
 \arguments{
 \item{reinfectMode}{a string equal to one of: \code{"SEIR"}

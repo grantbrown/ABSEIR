@@ -66,7 +66,8 @@ class SEIR_sim_node {
                       double phi,
                       int data_compartment,
                       bool cumulative,
-                      int m);
+                      int m, 
+					  double lpow);
         ~SEIR_sim_node();
         std::deque<std::string> messages;
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
@@ -101,6 +102,7 @@ class SEIR_sim_node {
         int data_compartment;
         bool cumulative;
         int m;
+		double lpow;
 
         std::vector<Eigen::MatrixXi> E_paths;
         std::vector<Eigen::MatrixXi> I_paths;
@@ -155,7 +157,8 @@ class NodeWorker{
                    double phi,
                    int data_compartment,
                    bool cumulative,
-                   int m);
+                   int m, 
+				   double lpow);
         void operator()();
         void addMessage(std::string);
 
@@ -197,7 +200,8 @@ class NodePool{
                  double phi,
                  int data_compartment,
                  bool cumulative,
-                 int m
+                 int m, 
+				 double lpow
               );
         void setResultsDest(Eigen::MatrixXd* result_pointer,
                             std::vector<simulationResultSet>* result_complete_pointer);

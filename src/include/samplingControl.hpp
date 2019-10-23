@@ -35,6 +35,7 @@ class samplingControl : public modelComponent
     int CPU_cores;
     int epochs;
     int m;
+	double lpow;
     bool multivariatePerturbation;
 };
 

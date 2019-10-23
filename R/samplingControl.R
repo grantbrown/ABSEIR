@@ -40,6 +40,7 @@
 #' constant by which the maximum distance between simulated and observed
 #' epidemics is shrunk between each iteration. For the DelMoral2012 algorithm, this
 #' parameter determines the quality index, \eqn{\alpha}{alpha} between zero and one.}
+#' \item{lpow: }{Integer exponent for comparison of simulated and observed epidemics (L1, L2, etc)}
 #' \item{max_batches: }{for the Beaumont2009 and DelMoral2012 algorithms, \code{max_batches} determines
 #' the maximum number of parallel batches to run before which a new set of 
 #' parameters must be accepted. If an insufficient number of parameters are accepted
@@ -54,11 +55,10 @@
 #' \item{particles}{For the 'simulate' algorithm, a raw matrix of parameter 
 #' values must be provided, following the format created by the other
 #' algorithms. This functonality is used primarily for debugging purposes; most
-#' users should perform such simulations using the 
-#' \item{keep_compartments}{Logical: should the simulated compartment values be retained?}
-#' \code{\link{epidemic.simulations}} function instead.}
+#' users should perform such simulations using the \code{\link{epidemic.simulations}} function instead.}
+#' \item{keep_compartments}{Logical: should the simulated compartment values be retained?
 #' \item{replicates}{For the 'simulate' algorithm, a number of replicate
-#' simulations to be performed per particle.}}
+#' simulations to be performed per particle.}
 #' 
 #' 
 #' @examples samplingControl <- SamplingControl(123123, 2)
@@ -87,6 +87,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  init_batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
+                 lpow = 2,
                  max_batches = 20,
                  multivariate_perturbation = 0,
                  m=1,
@@ -102,6 +103,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  init_batch_size = 5000,
                  epochs = 100, 
                  shrinkage = 0.9,
+                 lpow = 2,
                  max_batches = 20,
                  multivariate_perturbation = 0,
                  m=5,
@@ -121,6 +123,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                  init_batch_size = 10000,
                  epochs = 1,
                  shrinkage = 1,
+                 lpow = 2,
                  max_batches = 1,
                  multivariate_perturbation = 0,
                  m=1,
@@ -148,6 +151,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("shrinkage" %in% names(params))) {
                 params[["shrinkage"]] = 0.9
+            }
+            if (!("lpow" %in% names(params))) {
+                params[["lpow"]] = 2
             }
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 1
@@ -187,6 +193,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("shrinkage" %in% names(params))) {
                 params[["shrinkage"]] = 0.9
+            }
+            if (!("lpow" %in% names(params))) {
+                params[["lpow"]] = 2
             }
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 1
@@ -227,6 +236,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             if (!("shrinkage" %in% names(params))) {
                 params[["shrinkage"]] = 0.9
             }
+            if (!("lpow" %in% names(params))) {
+                params[["lpow"]] = 2
+            }
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 1
             }
@@ -265,6 +277,9 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
             }
             if (!("shrinkage" %in% names(params))) {
                 params[["shrinkage"]] = 1
+            }
+            if (!("lpow" %in% names(params))) {
+                params[["lpow"]] = 2
             }
             if (!("acceptance_fraction" %in% names(params))) {
                 params[["acceptance_fraction"]] = 0.01
@@ -309,6 +324,7 @@ SamplingControl = function(seed, n_cores, algorithm="Beaumont2009",
                    "algorithm" = alg,
                    "epochs" = params$epochs,
                    "shrinkage" = params$shrinkage,
+                   "lpow" = params$lpow,
                    "max_batches" = params$max_batches,
                    "multivariate_perturbation" = params$multivariate_perturbation,
                    "m"=params$m,

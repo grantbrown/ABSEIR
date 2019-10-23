@@ -4,8 +4,8 @@
 \alias{ExposureModel}
 \title{Create an ExposureModel object, describing an epidemic intensity process}
 \usage{
-ExposureModel(X, nTpt, nLoc, betaPriorPrecision = NA, betaPriorMean = NA,
-  offset = NA)
+ExposureModel(X, nTpt, nLoc, betaPriorPrecision = NA,
+  betaPriorMean = NA, offset = NA)
 }
 \arguments{
 \item{X}{an $(n*T)$ by $p$ design matrix, where $n$ is the number

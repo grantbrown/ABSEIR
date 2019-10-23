@@ -5,7 +5,8 @@
 \title{compute approximate Bayes Factor in favor of one spatial SEIR model over another}
 \usage{
 compareModels(modelList, priors = NA, n_samples = 1000,
-  batch_size = 10000, max_itrs = 1000, epsilon = NA, verbose = FALSE)
+  batch_size = 10000, max_itrs = 1000, epsilon = NA,
+  verbose = FALSE)
 }
 \arguments{
 \item{modelList}{A list of models to compare with approximate Bayes factors.

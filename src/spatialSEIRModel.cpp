@@ -207,7 +207,8 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                      dataModelInstance -> phi,
                      dataModelInstance -> dataModelCompartment,
                      dataModelInstance -> cumulative,
-                     samplingControlInstance -> m
+                     samplingControlInstance -> m,
+                     samplingControlInstance -> lpow
                 ));
 }
 
