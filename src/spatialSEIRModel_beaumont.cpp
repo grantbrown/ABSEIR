@@ -287,7 +287,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         results_double = init_results_double;
     }
     // Calculate current parameter SD's
-    Eigen::VectorXd tau = (param_matrix.rowwise() - 
+    Eigen::VectorXd tau = 2*(param_matrix.rowwise() - 
                       (param_matrix.colwise()).mean()
                       ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
@@ -303,7 +303,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
 
         // Calculating tau
 
-        tau = std::sqrt(0.5)*(param_matrix.rowwise() - 
+        tau = 2*(param_matrix.rowwise() - 
               (param_matrix.colwise()).mean()
                 ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
@@ -511,7 +511,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         }
 
         // Calculating tau
-        tau = std::sqrt(0.5)*(param_matrix.rowwise() - 
+        tau = 2*(param_matrix.rowwise() - 
               (param_matrix.colwise()).mean()
                 ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
