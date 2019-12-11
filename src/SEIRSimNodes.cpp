@@ -1109,6 +1109,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                 }
             }
 
+            results(w) = std::pow(results(w), 1.0/lpow);
+            
             if (keepCompartments)
             {
                 for (i = 0; i < S0.size(); i++)
