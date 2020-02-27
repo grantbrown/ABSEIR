@@ -204,20 +204,20 @@ void NodeWorker::operator()()
         {
             Eigen::VectorXd result = node -> simulate(task.params, false).result;
             {
-                std::unique_lock<std::mutex> lock(pool -> result_mutex);
+				std::lock_guard<std::mutex> lock(pool -> result_mutex);
                 (*(pool -> result_pointer)).row(task.param_idx) = result; 
-                while (!(node -> messages).empty()) 
-                {
-                    (pool -> messages).push_back((node -> messages).front()); 
-                    (node -> messages).pop_front();
-                }
+				while (!(node -> messages).empty()) 
+				{
+					(pool -> messages).push_back((node -> messages).front()); 
+					(node -> messages).pop_front();
+				}
             }
         }
         else if (task.action_type == sim_result_atom)
         {
             simulationResultSet result = node -> simulate(task.params, true);
             {
-                std::unique_lock<std::mutex> lock(pool -> result_mutex);
+                std::lock_guard<std::mutex> lock(pool -> result_mutex);
                 pool -> index_pointer -> push_back(task.param_idx);
                 pool -> result_complete_pointer -> push_back(result);
                 (*(pool -> result_pointer)).row(task.param_idx) = result.result; 
@@ -230,7 +230,7 @@ void NodeWorker::operator()()
         }
 
         {
-            std::unique_lock<std::mutex> lock(pool -> queue_mutex);
+            std::lock_guard<std::mutex> lock(pool -> queue_mutex);
             (pool -> nBusy)--;
             (pool -> finished).notify_one();
         }
@@ -310,22 +310,20 @@ void NodePool::awaitFinished()
 #else
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
-        finished.wait(lock, [this](){ resolveMessages();
-                return tasks.empty() && (nBusy == 0); });
+        finished.wait(lock, [this](){return tasks.empty() && (nBusy == 0); });
     }
+	resolveMessages();
 #endif
 }
 
 void NodePool::resolveMessages()
-{
-    {
-        std::unique_lock<std::mutex> lock(result_mutex);
-        while (!(messages.empty())) 
-        {
-            Rcpp::Rcout << messages.front() << "\n"; 
-            messages.pop_front();
-        }
-    }
+{    
+	// 2020-02-27: Changed to only be called in master thread, avoid synchronization issues. 
+	while (!(messages.empty())) 
+	{
+		Rcpp::Rcout << messages.front() << "\n"; 
+		messages.pop_front();
+	}
 }
 
 void NodePool::enqueue(std::string action_type, int param_idx, Eigen::VectorXd params)
@@ -335,16 +333,19 @@ void NodePool::enqueue(std::string action_type, int param_idx, Eigen::VectorXd p
     inst.action_type = action_type;
     inst.params = params;
     {
-        std::unique_lock<std::mutex> lock(queue_mutex);
+        std::lock_guard<std::mutex> lock(queue_mutex);
         tasks.push_back(inst);
     }
-    resolveMessages();
+    //resolveMessages();
     condition.notify_one();
 }
 
 NodePool::~NodePool()
 {
-    exit = true;
+	{
+		std::lock_guard<std::mutex> lock(queue_mutex);
+		exit = true;
+	}
     condition.notify_all();
     for (unsigned int i = 0; i < nodes.size(); i++)
     {
