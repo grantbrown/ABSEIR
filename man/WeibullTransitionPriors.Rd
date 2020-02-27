@@ -6,10 +6,16 @@
 independent gamma priors for the shape/scale parameters of the 
 latent and infectious time distributions.}
 \usage{
-WeibullTransitionPriors(latent_shape_prior_alpha, latent_shape_prior_beta,
-  latent_scale_prior_alpha, latent_scale_prior_beta,
-  infectious_shape_prior_alpha, infectious_shape_prior_beta,
-  infectious_scale_prior_alpha, infectious_scale_prior_beta)
+WeibullTransitionPriors(
+  latent_shape_prior_alpha,
+  latent_shape_prior_beta,
+  latent_scale_prior_alpha,
+  latent_scale_prior_beta,
+  infectious_shape_prior_alpha,
+  infectious_shape_prior_beta,
+  infectious_scale_prior_alpha,
+  infectious_scale_prior_beta
+)
 }
 \arguments{
 \item{latent_shape_prior_alpha}{The alpha (shape) value for the 

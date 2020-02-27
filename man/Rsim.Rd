@@ -4,8 +4,15 @@
 \alias{Rsim}
 \title{Simulate from a SEIR/SEIRS process using R (debug feature)}
 \usage{
-Rsim(seed, params, exposure_model, reinfection_model, distance_model,
-  transition_priors, initial_value_container)
+Rsim(
+  seed,
+  params,
+  exposure_model,
+  reinfection_model,
+  distance_model,
+  transition_priors,
+  initial_value_container
+)
 }
 \arguments{
 \item{seed}{A random seed}

@@ -5,8 +5,10 @@
 \title{Build a TransitionPriors object, which governs how individuals move from
 the exposed to infectious and infectious to removed compartments.}
 \usage{
-TransitionPriors(mode = c("exponential", "weibull", "path_specific"),
-  params = list())
+TransitionPriors(
+  mode = c("exponential", "weibull", "path_specific"),
+  params = list()
+)
 }
 \arguments{
 \item{mode}{The type of transition model to employ ("exponential" or "path_specific)}

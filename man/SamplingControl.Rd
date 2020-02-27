@@ -26,6 +26,9 @@ an object of type \code{\link{SamplingControl}}
 Create a SamplingControl object, which determines which ABC algorithm is 
 to be used, and how it is configured.
 }
+\details{
+
+}
 \examples{
 samplingControl <- SamplingControl(123123, 2)
 }

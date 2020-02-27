@@ -56,9 +56,9 @@
 #' values must be provided, following the format created by the other
 #' algorithms. This functonality is used primarily for debugging purposes; most
 #' users should perform such simulations using the \code{\link{epidemic.simulations}} function instead.}
-#' \item{keep_compartments}{Logical: should the simulated compartment values be retained?
+#' \item{keep_compartments}{Logical: should the simulated compartment values be retained?}
 #' \item{replicates}{For the 'simulate' algorithm, a number of replicate
-#' simulations to be performed per particle.}
+#' simulations to be performed per particle.}}
 #' 
 #' 
 #' @examples samplingControl <- SamplingControl(123123, 2)

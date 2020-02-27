@@ -4,9 +4,13 @@
 \alias{DataModel}
 \title{Create a DataModel object, describing the relationship of your data to the SEIR model}
 \usage{
-DataModel(Y, type = c("identity", "overdispersion"),
-  compartment = c("I_star", "R_star", "I"), cumulative = FALSE,
-  params = list())
+DataModel(
+  Y,
+  type = c("identity", "overdispersion"),
+  compartment = c("I_star", "R_star", "I"),
+  cumulative = FALSE,
+  params = list()
+)
 }
 \arguments{
 \item{Y}{A matrix with T rows and n columns, for time points and spatial locations respectively.}

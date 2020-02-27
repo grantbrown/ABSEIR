@@ -5,8 +5,12 @@
 \title{Create a DistanceModel object describing the network structure of the 
 population under study.}
 \usage{
-DistanceModel(distanceList, scaleMode = c("none", "rowscale", "invsqrt"),
-  priorAlpha = 1, priorBeta = 1)
+DistanceModel(
+  distanceList,
+  scaleMode = c("none", "rowscale", "invsqrt"),
+  priorAlpha = 1,
+  priorBeta = 1
+)
 }
 \arguments{
 \item{distanceList}{a list of square, symmetric distance matrices.}

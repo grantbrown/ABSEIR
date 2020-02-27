@@ -5,8 +5,13 @@
 \title{Create a DistanceModel object describing the network structure of the 
 population under study. The TDistanceModel function accepts lagged}
 \usage{
-TDistanceModel(distanceList, laggedDistanceList, scaleMode = c("none",
-  "rowscale", "invsqrt"), priorAlpha = 1, priorBeta = 1)
+TDistanceModel(
+  distanceList,
+  laggedDistanceList,
+  scaleMode = c("none", "rowscale", "invsqrt"),
+  priorAlpha = 1,
+  priorBeta = 1
+)
 }
 \arguments{
 \item{distanceList}{a list of square, symmetric distance matrices.}
