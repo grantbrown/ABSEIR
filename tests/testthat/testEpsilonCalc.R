@@ -92,23 +92,23 @@ test_that("Epsilon calculations are correct",{
                                                          verbose = 2))
      e1 <- result$epsilon
      e2 <- sapply(result$simulationResults, function(x){x$result})
-     expect(all(e1 == e2), "Epsilon calculations don't agree between simulation and inference code")
+     expect(all(abs(e1 - e2) < 1e-8), "Epsilon calculations don't agree between simulation and inference code")
      if (dmobj$cumulative != TRUE){
        e3 <- sapply(result$simulationResults, function(x){
-         sum((x$I_star - Kikwit1995$Count)^2)
+         sqrt(sum((x$I_star - Kikwit1995$Count)^2))
        })
      }
      else{
        e3 <- sapply(result$simulationResults, function(x){
-         sum((cumsum(x$I_star) - cumsum(Kikwit1995$Count))^2)
+         sqrt(sum((cumsum(x$I_star) - cumsum(Kikwit1995$Count))^2))
        })
      }
      
      # 554 621 595 554 574 638 806 575 565 467 
      if (dmobj$type == "identity"){
-      expect(all(e1 == e3), "Epsilon calculations don't match squared-distance")
+      expect(all(abs(e1 - e3) < 1e-8), "Epsilon calculations don't match distance")
      } else{
-       expect(!all(e1 == e3), "Epsilon calculations unexpectedly match squared-distance")
+       expect(!all((e1-e3) < 1e-8), "Epsilon calculations unexpectedly match distance")
      }
     }
     lapply(dataModelList, rf)
