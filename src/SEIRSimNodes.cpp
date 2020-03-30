@@ -491,9 +491,11 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
                      (has_spatial ? DM_vec.size() : 0));
     const int nReinf = (has_reinfection ? X_rs.cols() : 0);
     const int nBeta = X.cols();
-    //const int nTrans = (transitionMode == "exponential" ? 2 : 
-    //                   (transitionMode == "weibull" ? 4 : 0));
-    //int nReport = (dataModelType == 2 ? 1 : 0);
+	const int nTrans = (transitionMode == "exponential" ? 2 :
+                       (transitionMode == "weibull" ? 4 : 0));
+	const int nIVC = S0.size()*4;
+    
+					   
     double report_fraction;
     
     simulationResultSet compartmentResults;
@@ -548,6 +550,20 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
         IR_params = Eigen::VectorXd::Zero(1);
     }
     
+	// Load IVC values
+	int sz = S0.size();
+	auto S0tmp = params.segment(nBeta + nReinf + nRho + nTrans, sz);
+	auto E0tmp = params.segment(nBeta + nReinf + nRho + nTrans + sz, sz);
+	auto I0tmp = params.segment(nBeta + nReinf + nRho + nTrans + 2*sz, sz);
+	auto R0tmp = params.segment(nBeta + nReinf + nRho + nTrans + 3*sz, sz);
+
+	for (int idx = 0; idx < sz; idx++){
+		S0(idx) = (int) S0tmp(idx);
+		E0(idx) = (int) E0tmp(idx);
+		I0(idx) = (int) I0tmp(idx);
+		R0(idx) = (int) R0tmp(idx);
+	}
+	
     // Load report fraction
     if (dataModelType == 2)
     {
@@ -556,7 +572,8 @@ simulationResultSet SEIR_sim_node::simulate(Eigen::VectorXd params, bool keepCom
     else{
         report_fraction = 0;
     }
-
+	
+	
     // Both Weibull and arbitrary path specific priors require
     // Empty paths at beginning of sim
     if (transitionMode != "exponential")

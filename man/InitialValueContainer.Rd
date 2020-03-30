@@ -5,7 +5,14 @@
 \title{Create an InitialValueContainer object, which catalogues the starting population
 values for an epidemic.}
 \usage{
-InitialValueContainer(S0, E0, I0, R0)
+InitialValueContainer(
+  S0,
+  E0,
+  I0,
+  R0,
+  type = c("identity", "uniform"),
+  params = list()
+)
 }
 \arguments{
 \item{S0}{An integer vector of susceptible counts}

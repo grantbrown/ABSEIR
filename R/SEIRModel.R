@@ -230,12 +230,16 @@ SpatialSEIRModel = function(data_model,
         }
 
         if (verbose) cat("...Building initial value container\n")
-        modelComponents[["initialValueContainer"]] = new(initialValueContainer)
+        modelComponents[["initialValueContainer"]] = new(initialValueContainer, initial_value_container$type)
         modelComponents[["initialValueContainer"]]$setInitialValues(
             initial_value_container$S0,
             initial_value_container$E0,
             initial_value_container$I0,
-            initial_value_container$R0
+            initial_value_container$R0,
+            initial_value_container$max_S0,
+            initial_value_container$max_E0,
+            initial_value_container$max_I0,
+            initial_value_container$max_R0
         )
 
         if (verbose) cat("...Building reinfection model\n") 

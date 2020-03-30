@@ -14,12 +14,16 @@
 #include <util.hpp>
 #include <SEIRSimNodes.hpp>
 
-using namespace Rcpp;
+using namespace Rcpp; 
 
 double rbeta(double a, double b, std::mt19937* generator){
     double x = std::gamma_distribution<double>(a,1)(*generator);
     double y = std::gamma_distribution<double>(b,1)(*generator);
     return(x/(x+y));
+}
+
+double rdunif(int a, int b, std::mt19937* generator){
+    return((double) std::uniform_int_distribution<int>(a,b)(*generator));
 }
 
 spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
@@ -218,6 +222,8 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
             betaPriorPrecision)(0) > 0;
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;
     std::string transitionMode = transitionPriorsInstance -> mode;
+    
+    const bool estimateIVC = initialValueContainerInstance -> type == 2;
 
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
@@ -226,8 +232,8 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
-    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
-
+    const int nIVC = (initialValueContainerInstance -> S0).size()*4;
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport + nIVC;
 
     int N = nParticles;
 
@@ -356,12 +362,47 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     // Draw report fraction
     if (dataModelInstance -> dataModelType == 2)
     {
-        int lastcol = outParams.cols() -1;
+        int reportcol = nBeta + nBetaRS + nRho + nTrans;
+        
         for (i = 0; i < nParticles; i++)
         {
-            outParams(i,lastcol) = rbeta(rf_alpha, rf_beta, generator);
+            outParams(i,reportcol) = rbeta(rf_alpha, rf_beta, generator);
         }
     }
+	
+	int ivcstartcol = nBeta + nBetaRS + nRho + nTrans + nReport;
+    int sz = (initialValueContainerInstance -> S0).size();    
+    if (estimateIVC){
+        //const int nIVC = (estimateIVC ? (initialValueContainerInstance -> S0).size()*4 : 0);
+        
+        for (i = 0; i < nParticles; i++)
+        {
+            for (j = 0; j < sz; j++){
+                // S
+                outParams(i,ivcstartcol+j) = rdunif(0, initialValueContainerInstance -> S0_max(j), generator);
+                // E
+                outParams(i,ivcstartcol+j+sz) = rdunif(0, initialValueContainerInstance -> E0_max(j), generator);
+                // I
+                outParams(i,ivcstartcol+j+2*sz) = rdunif(0, initialValueContainerInstance -> I0_max(j), generator);
+                // R
+                outParams(i,ivcstartcol+j+3*sz) = rdunif(0, initialValueContainerInstance -> R0_max(j), generator);
+            }
+        }
+    } else {
+		for (i = 0; i < nParticles; i++)
+        {
+            for (j = 0; j < sz; j++){
+                // S
+                outParams(i,ivcstartcol+j) = (initialValueContainerInstance -> S0(j));
+                // E
+                outParams(i,ivcstartcol+j+sz) = (initialValueContainerInstance -> E0(j));
+                // I
+                outParams(i,ivcstartcol+j+2*sz) = (initialValueContainerInstance -> I0(j));
+                // R
+                outParams(i,ivcstartcol+j+3*sz) = (initialValueContainerInstance -> R0(j));
+            }
+        }
+	}
     return(outParams);
 }
 
@@ -415,6 +456,8 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
                         betaPriorPrecision)(0) > 0; 
     const bool hasSpatial = (dataModelInstance -> Y).cols() > 1;                
     std::string transitionMode = transitionPriorsInstance -> mode;
+    const bool estimateIVC = initialValueContainerInstance -> type == 2;
+    
     const int nBeta = (exposureModelInstance -> X).cols();
     const int nBetaRS = (reinfectionModelInstance -> X_rs).cols()*hasReinfection;
     const int nRho = ((distanceModelInstance -> dm_list).size() + 
@@ -423,8 +466,8 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
-
-    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
+    const int nIVC = (estimateIVC ? (initialValueContainerInstance -> S0).size()*4 : 0);
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport + nIVC;
     
     if (params.cols() != nParams)
     {
@@ -532,6 +575,7 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
                             rf_beta,
                             1);
     }
+    // IVC priors are flat, and cancel. 
     return(std::exp(outPrior));
 }
 
