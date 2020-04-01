@@ -466,7 +466,7 @@ bool spatialSEIRModel::setParameters(Eigen::MatrixXd params,
     const int nTrans = (transitionMode == "exponential" ? 2 :
                        (transitionMode == "weibull" ? 4 : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
-    const int nIVC = (estimateIVC ? (initialValueContainerInstance -> S0).size()*4 : 0);
+    const int nIVC = (initialValueContainerInstance -> S0).size()*4;
     const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport + nIVC;
     
     if (params.cols() != nParams)
