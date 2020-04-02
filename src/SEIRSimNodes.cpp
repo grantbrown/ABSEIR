@@ -296,10 +296,12 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
 }
 
 void NodePool::setResultsDest(Eigen::MatrixXd* rslt_ptr,
-                              std::vector<simulationResultSet>* rslt_c_ptr)
+                              std::vector<simulationResultSet>* rslt_c_ptr,
+                              std::vector<int>* rslt_idx)
 {
     result_pointer = rslt_ptr;
     result_complete_pointer = rslt_c_ptr;
+    index_pointer = rslt_idx;
 }
 
 

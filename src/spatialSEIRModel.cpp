@@ -617,9 +617,12 @@ void spatialSEIRModel::run_simulations(Eigen::MatrixXd params,
                                        Eigen::MatrixXd* results_dest,
                                        std::vector<simulationResultSet>* results_c_dest)
 {
+
+    result_idx.clear();
     int i;
     worker_pool -> setResultsDest(results_dest, 
-                                  results_c_dest);
+                                  results_c_dest,
+                                  &result_idx);
     for (i = 0; i < params.rows(); i++)
     {
         worker_pool -> enqueue(sim_type_atom, i, params.row(i));

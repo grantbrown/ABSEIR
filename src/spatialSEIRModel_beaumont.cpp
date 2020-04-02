@@ -241,6 +241,13 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         for (i = tau.size()-1; i >= (tau.size()-sz*4); i--){
             fixed(i) = 1;
         }
+    } else {
+        // In this case, we need to just "fix" S0 which is deterministically
+        // related to the other compartments
+        for (i = tau.size()-sz*3-1; i >= (tau.size()-sz*4); i--){
+            fixed(i) = 1;
+        }
+
     }
 
     for (iteration = 0; iteration < num_iterations && !terminate; iteration++)
@@ -327,6 +334,13 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         // Propose params and run simulations
         int currentIdx = 0;
         int nBatches = 0;
+
+        auto Nvec = (initialValueContainerInstance -> S0) + 
+                    (initialValueContainerInstance -> E0) + 
+                    (initialValueContainerInstance -> I0) + 
+                    (initialValueContainerInstance -> R0); 
+        int sz = (initialValueContainerInstance -> S0).size();
+
         while (currentIdx < Npart && 
                nBatches < maxBatches)
         {
@@ -345,6 +359,17 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                               fixed,
                               generator,
                               this);     
+                // Hack - fix S0, which is subject to constraints
+                //for (int loc = preproposal_params.cols() - 1; loc >= preproposal_params.cols() - sz*4; loc --){
+                int startIVC = preproposal_params.cols() - sz*4;
+                for (int loc = 0; loc < sz; loc ++ ){
+                    for (i = 0; i < preproposal_params.rows(); i++){
+                        preproposal_params(i,startIVC + loc) = Nvec(loc) - 
+                            preproposal_params(i,startIVC + loc+sz) -
+                            preproposal_params(i,startIVC + loc+2*sz) - 
+                            preproposal_params(i,startIVC + loc+3*sz);
+                    }
+                }
             }
 
             // run simulations
@@ -508,6 +533,13 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         // Propose params and run simulations
         int currentIdx = 0;
         int nBatches = 0;
+        auto Nvec = (initialValueContainerInstance -> S0) + 
+                    (initialValueContainerInstance -> E0) + 
+                    (initialValueContainerInstance -> I0) + 
+                    (initialValueContainerInstance -> R0); 
+        int sz = (initialValueContainerInstance -> S0).size();
+
+
         results_complete.clear();
         while (currentIdx < Npart)
         {
@@ -525,6 +557,17 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                               fixed,
                               generator,
                               this);     
+                // Hack - fix S0, which is subject to constraints
+                
+                int startIVC = preproposal_params.cols() - sz*4;
+                for (int loc = 0; loc < sz; loc ++ ){
+                    for (i = 0; i < preproposal_params.rows(); i++){
+                        preproposal_params(i,startIVC + loc) = Nvec(loc) - 
+                            preproposal_params(i,startIVC + loc+sz) -
+                            preproposal_params(i,startIVC + loc+2*sz) - 
+                            preproposal_params(i,startIVC + loc+3*sz);
+                    }
+                }
             }
 
            proposed_results_complete.clear();
