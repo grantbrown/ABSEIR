@@ -61,7 +61,7 @@ void proposeParams_beaumont_multivariate(Eigen::MatrixXd* outParams,
                                          std::mt19937* generator,
                                          spatialSEIRModel* model)
 {
-    Rcpp::stop("Multivariate proposals are depricated")
+    Rcpp::stop("Multivariate proposals are depricated");
 }
 
 
@@ -73,8 +73,6 @@ void proposeParams_beaumont(Eigen::MatrixXd* outParams,
                             std::mt19937* generator,
                             spatialSEIRModel* model)
 {
-    Rcpp::Rcout << "PROPOSING BEAUMONT\n";
-    Rcpp::Rcout << "Dims: (" << outParams -> rows() << ", " << outParams -> cols() << ")\n"; 
     // Check if tau is valid
     int i,j;
     double drw = 0.0;
@@ -99,6 +97,11 @@ void proposeParams_beaumont(Eigen::MatrixXd* outParams,
                     //Rcpp::Rcout << "Selecting " << (*inParams)(j,2) << " at " 
                     //<< j << ", " << drw << ", " << (*cum_weights)(j) << "\n";
                     outParams -> row(i) = inParams -> row(j); 
+                    if (!(model -> evalPrior(outParams -> row(i)) > 0)){
+                        Rcpp::Rcout << "Starting from parameter with zero probability.\n";
+                        Rcpp::Rcout << "  Param: \n" << inParams -> row(j) << "\n";
+                        Rcpp::stop("Not a valid parameter.");
+                    }
                     break;
                 }
             }
@@ -225,7 +228,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         results_double = init_results_double;
     }
     // Calculate current parameter SD's
-    Eigen::VectorXd tau = 2*(param_matrix.rowwise() - 
+    Eigen::VectorXd tau = 1.41421*(param_matrix.rowwise() - 
                       (param_matrix.colwise()).mean()
                       ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
@@ -234,7 +237,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
     Eigen::VectorXi fixed = Eigen::VectorXi::Zero(tau.size());
     int sz = (initialValueContainerInstance -> S0).size();
     if (initialValueContainerInstance -> type == 1){
-        // In this case, we have some constant parameters. 
+        // In this case, we have all constant parameters for IVC
         for (i = tau.size()-1; i >= (tau.size()-sz*4); i--){
             fixed(i) = 1;
         }
@@ -242,6 +245,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
 
     for (iteration = 0; iteration < num_iterations && !terminate; iteration++)
     {   
+
         // Todo: figure out how to return results even if user interrupt
         Rcpp::checkUserInterrupt();       
         if (verbose > 0){Rcpp::Rcout << "Iteration " << iteration << " [" << 
@@ -251,10 +255,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
 
         // Calculating tau
 
-        tau = 2*(param_matrix.rowwise() - 
+        tau = 1.41421*(param_matrix.rowwise() - 
               (param_matrix.colwise()).mean()
                 ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
+
         for (i = 0; i < tau.size(); i++){
             if ((tau)(i) == 0){
                 // Is this expected?
@@ -271,15 +276,9 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         }
  
 
-        //for (i = 0; i < tau.size(); i++){
-        //    tau(i) *= 1.414214;
-        //}
-        //Rcpp::Rcout << "Tau: " << tau << "\n";
-
         if (verbose > 2)
         {
             Rcpp::Rcout << "tau inverse: \n" << tau << "\n";
-            Rcpp::Rcout << "...tau.size(): \n" << tau.size() << "\n"; 
         }
 
 
@@ -301,11 +300,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         // Reorder parameters by weight
         reweight_idx = sort_indexes_eigen_vec(w0); 
         for (i = w0.size()-1; i >= 0; i--){
-            Rcpp::Rcout << "i=" << i <<",reweight_idx[i]=" << reweight_idx[i] << "\n";
             w1(i) = w0(reweight_idx[i]);
-            Rcpp::Rcout << "w1(i)=" << w1(i) << "\n";
-            Rcpp::Rcout << "preproposal_params.row(i): " << preproposal_params.row(i) << "\n"; 
-            Rcpp::Rcout << "param_matrix.row(reweight_idx[i]): " <<  param_matrix.row(reweight_idx[i]) << "\n";
             preproposal_params.row(i) = param_matrix.row(reweight_idx[i]);
         }
 
@@ -339,7 +334,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             // perturb parameters
             if (samplingControlInstance -> multivariatePerturbation)
             {
-                Rcpp::stop("Multivariate proposals are depricated")
+                Rcpp::stop("Multivariate proposals are depricated");
             }
             else
             {
@@ -352,13 +347,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                               this);     
             }
 
-
             // run simulations
             run_simulations(preproposal_params,
                             sim_atom,
                             &preproposal_results, 
                             &results_complete);
-
 
            //std::vector<size_t> preproposal_order = sort_indexes_eigen(preproposal_results); 
            for (i = 0; i < Nsim && currentIdx < Npart; i++)
@@ -379,7 +372,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
            }
            nBatches ++;
         }
-
         e0 = e1;
         w0 = w1;
         double wtTot = 0.0;
@@ -392,6 +384,9 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                     << Npart << " acceptances in " << nBatches << " batches of max " <<
                     maxBatches << "\n";
                 Rcpp::Rcout << "Returning last params\n";
+                proposed_param_matrix = param_matrix;
+                proposed_results_double = results_double;
+
             }
             terminate = 1;
         }
@@ -399,8 +394,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         {
             wtTot = 0.0;
             double newWt, tmpWt;
-            double tmpWeightComp;
-            Eigen::VectorXd tmpParams;
            
             for (i = 0; i < proposed_param_matrix.rows(); i++)
             {
@@ -429,7 +422,6 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             w1.array() /= wtTot;
         }
 
-
         w0 = w1;
         param_matrix = proposed_param_matrix;
         results_double = proposed_results_double;
@@ -451,7 +443,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         }
 
         // Calculating tau
-        tau = 2*(param_matrix.rowwise() - 
+        tau = 1.41421*(param_matrix.rowwise() - 
               (param_matrix.colwise()).mean()
                 ).colwise().norm()/std::sqrt((double) 
                         (param_matrix.rows())-1.0);
@@ -471,16 +463,11 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                 }
             }
         }
-    
-
-
 
         if (verbose > 2)
         {
             Rcpp::Rcout << "tau inverse: \n" << tau << "\n";
-            Rcpp::Rcout << "tau.size(): \n" << tau.size() << "\n"; 
         }
-
 
         // Back off the shrinkage
         e1 = e0/std::pow((samplingControlInstance -> shrinkage), 2);
@@ -527,12 +514,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
             // perturb parameters
             if (samplingControlInstance -> multivariatePerturbation)
             {
-                proposeParams_beaumont_multivariate(&preproposal_params, 
-                              &param_matrix,
-                              &cum_weights,
-                              &tau,
-                              generator,
-                              this);
+                Rcpp::stop("Multivariate perturbation depricated");
             }
             else
             {
@@ -584,11 +566,7 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         {
             if (verbose > 1)
             {
-                Rcpp::Rcout << "\n";
-                Rcpp::Rcout << "Maximum batches exceeded: " << currentIdx + 1 << "/" 
-                    << Npart << " acceptances in " << nBatches << " batches of max " <<
-                    maxBatches << "\n";
-                Rcpp::Rcout << "Returning last params\n";
+                Rcpp::stop("Maximum batches exceeded, which should not occur for complete results setting. ");
             }
             terminate = 1;
         }
@@ -596,63 +574,34 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
         {
             wtTot = 0.0;
             double newWt, tmpWt;
-            double tmpWeightComp;
-            Eigen::VectorXd tmpParams;
-            if (samplingControlInstance -> multivariatePerturbation)
-            {
-                // Column vector of difference
-                tmpWeightComp = (-nParams/2.0)*std::log(2.0*3.14159) 
-                    - 0.5*std::log((parameterICovDet));
-                Eigen::MatrixXd a = Eigen::MatrixXd::Zero(param_matrix.cols(), 1);
-                for (i = 0; i < proposed_param_matrix.rows(); i++)
-                {
-                   newWt = 0.0; 
-                   for (j = 0; j < param_matrix.rows(); j++)
-                   {
-                       a.col(0) = (proposed_param_matrix.row(i) - 
-                                   param_matrix.row(j));
-                       newWt += w0(j)*std::exp(tmpWeightComp - 
-                               0.5*((a.transpose()*parameterICov*a)(0)));
-                   }
 
-                   w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
-                   if (std::isnan(w1(i)))
-                   {
-                       Rcpp::stop("nan weights encountered.");
-                   }
-                   wtTot += w1(i);
-                }
-                w1.array() /= wtTot;
-           }
-            else
+            for (i = 0; i < proposed_param_matrix.rows(); i++)
             {
-                for (i = 0; i < proposed_param_matrix.rows(); i++)
-                {
-                   newWt = 0.0; 
+               newWt = 0.0; 
+               tmpWt = 0.0;
+               for (j = 0; j < param_matrix.rows(); j++)
+               {
                    tmpWt = 0.0;
-                   for (j = 0; j < param_matrix.rows(); j++)
+                   for (k = 0; k < proposed_param_matrix.cols(); k++)
                    {
-                       tmpWt = 0.0;
-                       for (k = 0; k < proposed_param_matrix.cols(); k++)
-                       {
-                          if (!fixed(k)){
-                              tmpWt += R::dnorm(proposed_param_matrix(i,k),
-                                            param_matrix(j,k),
-                                            tau(k), 1);
-                          }
-                       }
-                       newWt += w0(j)*std::exp(tmpWt);
+                      if (!fixed(k)){
+                          tmpWt += R::dnorm(proposed_param_matrix(i,k),
+                                        param_matrix(j,k),
+                                        tau(k), 1);
+                      }
                    }
-                   w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
-                   if (std::isnan(w1(i)))
-                   {
-                       Rcpp::stop("nan weights encountered.");
-                   }
-                   wtTot += w1(i);
-                }
-                w1.array() /= wtTot;
+                   newWt += w0(j)*std::exp(tmpWt);
+               }
+               w1(i) = evalPrior(proposed_param_matrix.row(i))/newWt;    
+               if (std::isnan(w1(i)))
+               {
+                   Rcpp::stop("nan weights encountered.");
+               }
+               wtTot += w1(i);
             }
+            w1.array() /= wtTot;
         }
+
 
         w0 = w1;
         param_matrix = proposed_param_matrix;

@@ -377,7 +377,21 @@ SpatialSEIRModel = function(data_model,
         {
             cnames <- c(cnames, "report_fraction")
         }
-        colnames(params) = cnames 
+        cnames <- c(cnames, 
+                    paste0("S0_", 1:length(initial_value_container$S0)),
+                    paste0("E0_", 1:length(initial_value_container$E0)),
+                    paste0("I0_", 1:length(initial_value_container$I0)),
+                    paste0("R0_", 1:length(initial_value_container$R0)))
+
+
+        if (length(cnames) == ncol(params)){
+            colnames(params) = cnames 
+        } else{
+            print(cnames)
+            print(dim(params))
+
+            warning("Parameters are of unexpected dimension! Failed to name")
+        }
         
         modelResults[["param.samples"]] = params
         modelResults[["epsilon"]] = epsilon

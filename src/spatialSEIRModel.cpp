@@ -152,7 +152,8 @@ spatialSEIRModel::spatialSEIRModel(dataModel& dataModel_,
                        (transitionMode == "weibull" ? 4 : 0));
     const int nReport = (dataModelInstance -> dataModelType == 2 ? 1 : 0);
 
-    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport;
+    const int nIVC = (initialValueContainerInstance -> S0).size()*4;
+    const int nParams = nBeta + nBetaRS + nRho + nTrans + nReport + nIVC;
 
     // Set up random number provider 
     std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed + 1);
@@ -249,6 +250,7 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
 
 
     Eigen::MatrixXd outParams = Eigen::MatrixXd::Zero(N, nParams);
+
 
     // Set up random samplers 
     // beta, beta_RS
@@ -375,17 +377,25 @@ Eigen::MatrixXd spatialSEIRModel::generateParamsPrior(int nParticles)
     if (estimateIVC){
         //const int nIVC = (estimateIVC ? (initialValueContainerInstance -> S0).size()*4 : 0);
         
+        auto N = (initialValueContainerInstance -> S0) + 
+                (initialValueContainerInstance -> E0) + 
+                (initialValueContainerInstance -> I0) + 
+                (initialValueContainerInstance -> R0); 
+
         for (i = 0; i < nParticles; i++)
         {
             for (j = 0; j < sz; j++){
-                // S
-                outParams(i,ivcstartcol+j) = rdunif(0, initialValueContainerInstance -> S0_max(j), generator);
                 // E
                 outParams(i,ivcstartcol+j+sz) = rdunif(0, initialValueContainerInstance -> E0_max(j), generator);
                 // I
                 outParams(i,ivcstartcol+j+2*sz) = rdunif(0, initialValueContainerInstance -> I0_max(j), generator);
                 // R
                 outParams(i,ivcstartcol+j+3*sz) = rdunif(0, initialValueContainerInstance -> R0_max(j), generator);
+                // S
+                outParams(i,ivcstartcol+j) = N(j) - 
+                    outParams(i,ivcstartcol+j+sz) - 
+                    outParams(i,ivcstartcol+j+2*sz) - 
+                    outParams(i,ivcstartcol+j+3*sz);
             }
         }
     } else {
@@ -437,10 +447,10 @@ Rcpp::List spatialSEIRModel::sample(SEXP nSample, SEXP returnComps, SEXP verbose
     }
     else 
     {
-	if (samplingControlInstance -> algorithm != ALG_Simulate)
-	{
+	    if (samplingControlInstance -> algorithm != ALG_Simulate)
+    	{
             Rcpp::stop("Unknown algorithm.");
-	}
+    	}
         if (!is_initialized)
         {
             Rcpp::stop("Model must be initialized before simulating.");
@@ -558,6 +568,7 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
         outPrior += R::dgamma(param_vector(paramIdx), 
                 (transitionPriorsInstance -> I_to_R_params)(0,0),
                 1.0/(transitionPriorsInstance -> I_to_R_params)(1,0), 1);
+        paramIdx++;
     }
     else if (transitionMode == "weibull")
     {
@@ -570,12 +581,34 @@ double spatialSEIRModel::evalPrior(Eigen::VectorXd param_vector)
     }
     if (dataModelInstance -> dataModelType == 2)
     {
-        outPrior += R::dbeta(param_vector(param_vector.size()-1), 
+        outPrior += R::dbeta(param_vector(paramIdx), 
                             rf_alpha,
                             rf_beta,
                             1);
+        paramIdx++;
     }
-    // IVC priors are flat, and cancel. 
+
+
+    auto N = (initialValueContainerInstance -> S0) + 
+            (initialValueContainerInstance -> E0) + 
+            (initialValueContainerInstance -> I0) + 
+            (initialValueContainerInstance -> R0); 
+    int sz = N.size();
+    for (int j = 0; j < sz; j++){
+        int S = param_vector(paramIdx+j);
+        int E = param_vector(paramIdx+j+sz);
+        int I = param_vector(paramIdx+j+2*sz);
+        int R = param_vector(paramIdx+j+3*sz);
+    
+        bool validIVC = ((S >= 0 && S <= initialValueContainerInstance -> S0_max(j)) &&
+                         (E >= 0 && E <= initialValueContainerInstance -> E0_max(j)) &&
+                         (I >= 0 && I <= initialValueContainerInstance -> I0_max(j)) &&
+                         (R >= 0 && R <= initialValueContainerInstance -> R0_max(j)));
+        if (!validIVC){
+            outPrior = -std::numeric_limits<double>::infinity();
+        }
+    }
+ 
     return(std::exp(outPrior));
 }
 
