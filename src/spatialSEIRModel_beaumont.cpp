@@ -409,10 +409,9 @@ Rcpp::List spatialSEIRModel::sample_Beaumont2009(int nSample, int vb,
                     << Npart << " acceptances in " << nBatches << " batches of max " <<
                     maxBatches << "\n";
                 Rcpp::Rcout << "Returning last params\n";
-                proposed_param_matrix = param_matrix;
-                proposed_results_double = results_double;
-
             }
+            proposed_param_matrix = param_matrix;
+            proposed_results_double = results_double;
             terminate = 1;
         }
         else
