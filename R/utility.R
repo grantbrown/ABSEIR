@@ -23,6 +23,16 @@ mustHaveMember <- function(name){
     }
 }
 
+
+mustBeOneOf <- function(elements){
+    function(arg){
+        if (!(arg[1] %in% elements))
+        {
+            return(paste("must be one of: ", paste0(elements, collapse = ", "), sep = ""))
+        }
+    }
+}
+
 mustBeLen <- function(len)
 {
     function(arg)
