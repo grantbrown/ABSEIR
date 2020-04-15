@@ -47,7 +47,7 @@ Rsim <- function(seed,
                  transition_priors,
                  initial_value_container)
 { 
-  if (initial_value_container$type != "identity"){
+  if (initial_value_container$type != 1){
     stop("RSim has not been updated for the IVC2 branch of ABSEIR.")
   }
   beta_SE <- params$beta_SE
