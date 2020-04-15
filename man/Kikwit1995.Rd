@@ -4,11 +4,13 @@
 \name{Kikwit1995}
 \alias{Kikwit1995}
 \title{Ebola Case Counts by Day - 1995 Outbreak in Kikwit}
-\format{A data frame with 197 rows and 2 variables
+\format{
+A data frame with 197 rows and 2 variables
 \describe{
     \item{Date}{case index date}
     \item{Count}{number of cases observed}
-}}
+}
+}
 \usage{
 Kikwit1995
 }

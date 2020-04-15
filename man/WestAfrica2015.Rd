@@ -4,7 +4,8 @@
 \name{WestAfrica2015}
 \alias{WestAfrica2015}
 \title{Ebola Case Count reports - 2014 and 2015 outbreak in West Africa (CDC/WHO)}
-\format{A data frame with 133 rows and 18 variables
+\format{
+A data frame with 133 rows and 18 variables
 \describe{
     \item{Date}{Case report date}
     \item{Day}{Day index}
@@ -24,7 +25,8 @@
     \item{Deaths_UnitedStates}{Cumulative deaths - United States }
     \item{Deaths_Spain}{Cumulative deaths - Spain }
     \item{Deaths_Mali}{Cumulative deaths - Mali }
-}}
+}
+}
 \source{
 \url{https://github.com/cmrivers/ebola}
 }
