@@ -43,10 +43,16 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
                   validateIf(type == "fractional",
                              mustHaveMember("report_fraction_ess")) 
                   )
+    if (class(Y) != "matrix")
+    {
+        Y = as.matrix(Y)
+    }
+
 
     phi <- ifelse("phi" %in% names(params), params$phi, -1)
     report_fraction <- ifelse("report_fraction" %in% names(params), params$report_fraction, -1)
     report_fraction_ess <- ifelse("report_fraction_ess" %in% names(params), params$report_fraction_ess, -1)
+    weights <- ifelse("weights" %in% names(params), params$weights, rep(1, ncol(Y)))
 
     checkArgument("report_fraction",
                   validateIf(type=="fractional",
@@ -64,10 +70,6 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
         stop("Numeric phi required for overdispersion models")
     }
 
-    if (class(Y) != "matrix")
-    {
-        Y = as.matrix(Y)
-    }
     if (length(phi) == 1 && is.na(phi) && type != "identity")
     {
         stop("Must specify overdispersion parameter (phi) for non-identity data model.")
@@ -84,6 +86,10 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
     {
         stop("The cumulative argument must be a logical value of length 1.")
     }
+    
+    if (length(weights) != ncol(Y) || any(!is.finite(weights))){
+        stop("weights, if specified, must be of length ncol(Y) and finite.")
+    }
     na_mask = is.na(Y)
     Y[na_mask] = -Inf
     structure(list("Y"=Y, 
@@ -93,6 +99,7 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
                    "phi"=phi,
                    "report_fraction"=report_fraction,
                    "report_fraction_ess"=report_fraction_ess,
-                   "na_mask" = na_mask), class = "DataModel")
+                   "na_mask" = na_mask,
+                   "weights" = weights), class = "DataModel")
 }
 
