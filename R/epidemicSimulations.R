@@ -56,8 +56,8 @@ epidemic.simulations = function(modelObject,
                                               dataModelInstance$report_fraction,
                                               dataModelInstance$report_fraction_ess),
                                             dataModelInstance$na_mask)
-        if (any(dataModelInstance$weights) != 1){
-            dataModelInstance$setWeights(modelCache[["dataModel"]]$weights)
+        if (any(dataModelInstance$weights != 1)){
+            modelCache[["dataModel"]]$setWeights(dataModelInstance$weights)
         }
 
         if (verbose) cat("...Building distance model\n")

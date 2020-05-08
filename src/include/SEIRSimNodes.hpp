@@ -47,6 +47,7 @@ class SEIR_sim_node {
                       Eigen::VectorXi R0,
                       Eigen::VectorXd offset,
                       Eigen::MatrixXi Y,
+                      Eigen::VectorXd loc_weights,
                       MatrixXb na_mask,
                       int dataModelType,
                       std::vector<Eigen::MatrixXd> DM_vec,
@@ -81,6 +82,7 @@ class SEIR_sim_node {
         Eigen::VectorXi R0;
         Eigen::VectorXd offset;
         Eigen::MatrixXi Y;
+        Eigen::VectorXd loc_weights;
         MatrixXb na_mask;
         int dataModelType;
         std::vector<Eigen::MatrixXd> DM_vec;
@@ -138,6 +140,7 @@ class NodeWorker{
                    Eigen::VectorXi R0,
                    Eigen::VectorXd offset,
                    Eigen::MatrixXi Y,
+                   Eigen::VectorXd loc_weights,
                    MatrixXb na_mask,
                    int dataModelType,
                    std::vector<Eigen::MatrixXd> DM_vec,
@@ -181,6 +184,7 @@ class NodePool{
                  Eigen::VectorXi R0,
                  Eigen::VectorXd offset,
                  Eigen::MatrixXi Y,
+                 Eigen::VectorXd loc_weights,
                  MatrixXb na_mask,
                  int dataModelType,
                  std::vector<Eigen::MatrixXd> DM_vec,

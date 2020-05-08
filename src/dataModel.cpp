@@ -64,8 +64,12 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment,
         dataModelCompartment = 0;
     }
     Y = Eigen::MatrixXi(nTpt, nLoc);
+    weights = Eigen::VectorXd(nLoc);
     na_mask = MatrixXb(nTpt, nLoc);
     int i,j;
+    for (j = 0; j < nLoc; j++){
+        weights(j) = 1;
+    }
     for (i = 0; i < (nTpt); i++)
     {
         for (j = 0; j < (nLoc); j++)
@@ -73,6 +77,16 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment,
             Y(i,j) = input(i, j); 
             na_mask(i, j) = (input_na_mask(i, j) == 1); 
         }
+    }
+}
+
+void dataModel::setWeights(Rcpp::NumericVector wts)
+{
+    if (wts.size() != weights.size()){
+        Rcpp::stop("Weight vector must be of same size as number of locations.");
+    }
+    for (int i = 0; i < wts.size(); i++){
+        weights(i) = wts(i);
     }
 }
 
@@ -117,6 +131,7 @@ void dataModel::summary()
     {
         Rcpp::Rcout << "Unknown\n";
     }
+    Rcpp::Rcout << "Weight vector: " << weights << "\n";
     Rcpp::Rcout << "\n";
 }
 dataModel::~dataModel()
@@ -131,7 +146,8 @@ RCPP_MODULE(mod_dataModel)
     using namespace Rcpp;
     class_<dataModel>( "dataModel" )
     .constructor<SEXP,SEXP,SEXP,SEXP,SEXP,SEXP>()
-    .method("summary", &dataModel::summary);
+    .method("summary", &dataModel::summary)
+    .method("setWeights", &dataModel::setWeights);
 }
 
 

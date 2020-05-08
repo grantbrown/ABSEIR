@@ -52,7 +52,11 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
     phi <- ifelse("phi" %in% names(params), params$phi, -1)
     report_fraction <- ifelse("report_fraction" %in% names(params), params$report_fraction, -1)
     report_fraction_ess <- ifelse("report_fraction_ess" %in% names(params), params$report_fraction_ess, -1)
-    weights <- ifelse("weights" %in% names(params), params$weights, rep(1, ncol(Y)))
+    if ("weights" %in% names(params)){
+        weights <- params$weights
+    } else {
+        weights <- rep(1, ncol(Y))
+    }
 
     checkArgument("report_fraction",
                   validateIf(type=="fractional",

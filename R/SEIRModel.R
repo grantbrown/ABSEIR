@@ -177,7 +177,7 @@ SpatialSEIRModel = function(data_model,
                                               data_model$report_fraction,
                                               data_model$report_fraction_ess),
                                             data_model$na_mask*1)
-        if (any(data_model$weights) != 1){
+        if (any(data_model$weights != 1)){
             modelComponents[["dataModel"]]$setWeights(data_model$weights)
         }
 

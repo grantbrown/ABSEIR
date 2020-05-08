@@ -19,6 +19,7 @@ class dataModel : public modelComponent
         dataModel(SEXP Y, SEXP type, SEXP compartment, SEXP cumulative, 
                   SEXP phi, SEXP na_mask);
         virtual void summary();
+        void setWeights(Rcpp::NumericVector wts);
         Rcpp::IntegerVector* compartmentDimensions;
         int getModelComponentType();
         int nLoc;
@@ -30,6 +31,7 @@ class dataModel : public modelComponent
         double report_fraction;
         double report_fraction_ess;
         Eigen::MatrixXi Y;
+        Eigen::VectorXd weights;
         MatrixXb na_mask;
         ~dataModel();
 };
