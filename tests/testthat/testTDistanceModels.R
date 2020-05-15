@@ -130,10 +130,15 @@ test_that("Spatial models with lagged contact produce correct sims",{
                                                     p_ei_ess = 100,
                                                     p_ir_ess = 100)
 
-    partMat <- matrix(c(trueBeta, trueRho, gamma_EI, gamma_IR), nrow = 1)
+    partMat <- matrix(c(trueBeta, trueRho, gamma_EI, gamma_IR,
+                        S0,E0,I0,R0), nrow = 1)
     colnames(partMat) <- c(paste("Beta_SE_", 1:length(trueBeta), sep = ""), 
                            paste("rho_", 1:length(trueRho), sep = ""),
-                           "gamma_EI", "gamma_IR")
+                           "gamma_EI", "gamma_IR", 
+                           paste0("S0_",1:length(S0)),
+                           paste0("E0_",1:length(E0)),
+                           paste0("I0_",1:length(I0)),
+                           paste0("R0_",1:length(R0)))
       
     sampling_control = SamplingControl(seed = 123123, 
                                        n_cores = 10,
