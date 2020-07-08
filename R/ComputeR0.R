@@ -94,11 +94,11 @@ ComputeR0 <- function(SimObject, cores = 1)
       gamma_EI <- NA
       gamma_IR <- NA
       
-      EI_shape <- paramvec[length(paramvec) - 3]
-      EI_scale <- paramvec[length(paramvec) - 2]
+      EI_shape <- paramvec[names(paramvec) == "latent_shape"]
+      EI_scale <- paramvec[names(paramvec) == "latent_scale"]
       
-      IR_shape <- paramvec[length(paramvec) - 1]
-      IR_scale <- paramvec[length(paramvec)]
+      IR_shape <- paramvec[names(paramvec) == "infectious_shape"]
+      IR_scale <- paramvec[names(paramvec) == "infectious_scale"]
       
       n <- ceiling(qweibull(1-1e-4, shape = IR_shape, scale = IR_scale))
       indices <- cbind(0:n, 1:(n+1))
@@ -116,10 +116,10 @@ ComputeR0 <- function(SimObject, cores = 1)
     }
     # Begin Calculation   
     
-    E0 = initial_value_container$E0 
-    I0 = initial_value_container$I0 
-    R0 = initial_value_container$R0
-    S0 = initial_value_container$S0
+    S0 = SimObject$simulationResults[[sim]]$S[1] 
+    E0 = SimObject$simulationResults[[sim]]$E[1] 
+    I0 = SimObject$simulationResults[[sim]]$I[1]
+    R0 = SimObject$simulationResults[[sim]]$R[1]
     N = E0 + I0 + R0 + S0
   
     S <- SimObject$simulationResults[[sim]]$S

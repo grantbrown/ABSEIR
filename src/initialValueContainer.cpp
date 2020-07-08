@@ -4,13 +4,16 @@
 
 using namespace Rcpp;
 
-initialValueContainer::initialValueContainer()
+initialValueContainer::initialValueContainer(int ivc_type)
 {
-    // Do nothing
+    type = ivc_type;
 }
 
 initialValueContainer::initialValueContainer(initialValueContainer* tocopy)
 {
+
+    type = tocopy -> type; 
+
     Eigen::VectorXi S0c = tocopy -> S0;
     S0 = S0c;
 
@@ -22,6 +25,19 @@ initialValueContainer::initialValueContainer(initialValueContainer* tocopy)
 
     Eigen::VectorXi R0c = tocopy -> R0;
     R0 = R0c;
+
+    Eigen::VectorXi S0_maxc = tocopy -> S0_max;
+    S0_max = S0_maxc;
+
+    Eigen::VectorXi E0_maxc = tocopy -> E0_max;
+    E0_max = E0_maxc;
+
+    Eigen::VectorXi I0_maxc = tocopy -> I0_max;
+    I0_max = I0_maxc;
+
+    Eigen::VectorXi R0_maxc = tocopy -> R0_max;
+    R0_max = R0_maxc;
+
 }
 
 int initialValueContainer::getModelComponentType()
@@ -47,16 +63,26 @@ void initialValueContainer::summary()
     Rcpp::Rcout << "\n";
 }
 
-void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP R0_)
+void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP R0_,
+                                             SEXP MS0_, SEXP ME0_, SEXP MI0_, SEXP MR0_)
 {
-
+    // GB Note 3/30/2020 This code is about 700% longer than it 
+    // needs to be, should use RcppEigen to simplify
     Rcpp::IntegerVector S0_vec(S0_);
     Rcpp::IntegerVector E0_vec(E0_);
     Rcpp::IntegerVector I0_vec(I0_);
     Rcpp::IntegerVector R0_vec(R0_);
+    Rcpp::IntegerVector MS0_vec(MS0_);
+    Rcpp::IntegerVector ME0_vec(ME0_);
+    Rcpp::IntegerVector MI0_vec(MI0_);
+    Rcpp::IntegerVector MR0_vec(MR0_);
     if (S0_vec.length() != E0_vec.length() || 
         E0_vec.length() != I0_vec.length() ||
-        I0_vec.length() != R0_vec.length())
+        I0_vec.length() != R0_vec.length() || 
+        R0_vec.length() != MS0_vec.length() ||
+        MS0_vec.length() != ME0_vec.length() || 
+        ME0_vec.length() != MI0_vec.length() || 
+        MI0_vec.length() != MR0_vec.length())
     {
         Rcpp::stop("Init compartment lengths do not match\n");
     }
@@ -65,12 +91,21 @@ void initialValueContainer::setInitialValues(SEXP S0_, SEXP E0_, SEXP I0_, SEXP 
     E0 = Eigen::VectorXi(E0_vec.length());
     I0 = Eigen::VectorXi(E0_vec.length());
     R0 = Eigen::VectorXi(E0_vec.length());
+    
+    S0_max = Eigen::VectorXi(MS0_vec.length());
+    E0_max = Eigen::VectorXi(ME0_vec.length());
+    I0_max = Eigen::VectorXi(MI0_vec.length());
+    R0_max = Eigen::VectorXi(MR0_vec.length());
 
     for (i = 0; i < S0_vec.length(); i++){
         S0(i) = S0_vec(i);
         E0(i) = E0_vec(i);
         I0(i) = I0_vec(i);
         R0(i) = R0_vec(i);
+        S0_max(i) = MS0_vec(i);
+        E0_max(i) = ME0_vec(i);
+        I0_max(i) = MI0_vec(i);
+        R0_max(i) = MR0_vec(i);
     }
 }
 
@@ -86,7 +121,7 @@ RCPP_MODULE(mod_initialValueContainer)
 {
     using namespace Rcpp;
     class_<initialValueContainer>( "initialValueContainer" )
-    .constructor()
+    .constructor<int>()
     .method("setInitialValues", &initialValueContainer::setInitialValues);
 }
 

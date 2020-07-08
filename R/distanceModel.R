@@ -43,7 +43,7 @@ DistanceModel = function(distanceList,
 
 
     # Check if we've got a single matrix
-    if (class(distanceList) == "matrix")
+    if ("matrix" %in% class(distanceList))
     {
         distanceList = list(distanceList)
     }
@@ -58,7 +58,7 @@ DistanceModel = function(distanceList,
     distanceDim = NA
     for (i in 1:length(distanceList))
     {
-        if (class(distanceList[[i]]) != "matrix")
+        if (!("matrix" %in% class(distanceList[[i]])))
         {
             stop("Distance metrics must be matrices.")
         }

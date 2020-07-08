@@ -136,13 +136,18 @@ test_that("Spatial models with reinfection produce correct sims",{
   
   transition_priors = WeibullTransitionPriors(10,10,10,10,10,10,10,10)
       
-  
-  partMat <- matrix(c(trueBeta, trueBeta_RS,trueRho, latent_shape, latent_scale, infectious_shape, infectious_scale), nrow = 1)
+  partMat <- matrix(c(trueBeta, trueBeta_RS,trueRho, latent_shape, 
+                      latent_scale, infectious_shape, infectious_scale,
+                      S0,E0,I0,R0), nrow = 1)
   colnames(partMat) <- c(paste("Beta_SE_", 1:length(trueBeta), sep = ""), 
                          paste("Beta_RS_", 1:length(paste("Beta_SE_", 1:length(trueBeta), sep = "")), sep = ""), 
                          paste("rho_", 1:length(trueRho), sep = ""),
                          "latent_shape", "latent_scale", 
-                         "infectious_shape", "infectious_scale")
+                         "infectious_shape", "infectious_scale", 
+                         paste0("S0_",1:length(S0)),
+                         paste0("E0_",1:length(E0)),
+                         paste0("I0_",1:length(I0)),
+                         paste0("R0_",1:length(R0)))
   
   sampling_control = SamplingControl(seed = 123123, 
                                      n_cores = 1,

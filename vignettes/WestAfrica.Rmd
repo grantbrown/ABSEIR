@@ -58,7 +58,7 @@ I_star <- I_star[seq(2,nrow(I_star),7),]
 data_model = DataModel(Y = I_star,
                        type = "identity",
                        compartment = "I_star",
-                       cumulative = TRUE)
+                       cumulative = TRUE)#, params = list(weights = c(1,1,5)))
 
 intercepts = diag(3)[rep(1:ncol(I_star), each = nrow(I_star)),]
 #intercepts = 1
@@ -92,17 +92,21 @@ transition_priors1 = ExponentialTransitionPriors(p_ei = 1-exp(-1/5),
 
 
 sampling_control = SamplingControl(seed = 123124, 
-                                   n_cores = 14,
+                                   n_cores = 7,
                                    algorithm="Beaumont2009",
-                                   list(batch_size = 2500,
+                                   list(init_batch_size=25000,
+                                        batch_size = 3000,
                                            epochs = 1e6,
                                            #max_batches = 2000,
                                            max_batches = 100,
-                                           shrinkage = 0.99,
+                                           shrinkage = 0.95,
                                            multivariate_perturbation=FALSE
                                          )
                                    )
 
+```
+
+```{r}
 ## Exponential Results:
 system.time(result <- SpatialSEIRModel(data_model,
                           exposure_model,
@@ -111,10 +115,12 @@ system.time(result <- SpatialSEIRModel(data_model,
                           transition_priors1,
                           initial_value_container,
                           sampling_control,
-                          samples = 50,
+                          samples = 200,
                           verbose = 2))
+sims <- structure(list(modelObject = result, simulationResults = result$simulationResults, 
+                        params = result$param.samples), class = "PosteriorSimulation")
 
-sims = epidemic.simulations(result, replicates = 25)
+#sims = epidemic.simulations(result, replicates = 2)
 sim_I_star = lapply(sims$simulationResults, function(x){apply(x$I_star, 2, cumsum)})
 ism = array(Reduce(c, sim_I_star), dim = c(nrow(sim_I_star[[1]]),
                                            ncol(sim_I_star[[2]]),
@@ -137,28 +143,12 @@ casePlot(2, "Liberia - Exponential ")
 casePlot(3, "Sierra Leone - Exponential ")
 #legend(x = 25, y = 40000, lty = c(NA, 3,2,3), pch = c(1, NA,NA,NA), col = c("black", rep("blue", 3)), 
 #       legend = c("Observed", "90% UB", "Mean", "90% LB"), lwd = c(NA, 1, 2, 1), cex = 0.8)
-R0.result <- ComputeR0(sims)
+#R0.result <- ComputeR0(sims)
 
 
-sim_EAR0 = lapply(R0.result$simulationResults, function(x){x$R_EA})
-eaR0ar = array(Reduce(c, sim_EAR0), dim = c(nrow(sim_I_star[[1]]),
-                                           ncol(sim_I_star[[2]]),
-                                           length(sim_I_star)))
+#sim_EAR0 = lapply(R0.result$simulationResults, function(x){x$R_EA})
+#eaR0ar = array(Reduce(c, sim_EAR0), dim = c(nrow(sim_I_star[[1]]),
+#                                           ncol(sim_I_star[[2]]),
+#                                           length(sim_I_star)))
 
-EAR0_mean = apply(eaR0ar,1:2,mean)
-EAR0_LB = apply(eaR0ar,1:2,quantile, probs = 0.025)
-EAR0_UB = apply(eaR0ar,1:2,quantile, probs = 0.975)
-plotRepNum <- function(idx, lbl){
-  plot(EAR0_mean[,idx], type = "l", ylim = c(0, max(EAR0_UB[,idx])), col = "blue", lwd = 2,
-       ylab = "Empirically Adjusted R0",
-       xlab = "Time Index", main = lbl)
-  lines(EAR0_UB[,idx], col = "blue", lty = 2)
-  lines(EAR0_LB[,idx], col = "blue", lty = 2)
-  abline(h = seq(0,100,0.5), lty = 2, col = "lightgrey")
-  abline(h = 1, lty = 2)
-}
-
-plotRepNum(1, "Guinea")
-plotRepNum(2, "Liberia")
-plotRepNum(3, "Sierra Leone")
 ```

@@ -112,12 +112,18 @@ epidemic.simulations = function(modelObject,
         }
 
         if (verbose) cat("...Building initial value container\n")
-        modelCache[["initialValueContainer"]] = new(initialValueContainer)
+        modelCache[["initialValueContainer"]] = new(initialValueContainer,
+            initialValueContainerInstance$type)
         modelCache[["initialValueContainer"]]$setInitialValues(
             initialValueContainerInstance$S0,
             initialValueContainerInstance$E0,
             initialValueContainerInstance$I0,
-            initialValueContainerInstance$R0
+            initialValueContainerInstance$R0,
+
+            initialValueContainerInstance$max_S0,
+            initialValueContainerInstance$max_E0,
+            initialValueContainerInstance$max_I0,
+            initialValueContainerInstance$max_R0
         )
 
         if (verbose) cat("...Building reinfection model\n") 

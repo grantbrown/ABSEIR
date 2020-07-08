@@ -28,10 +28,8 @@ ExposureModel = function(X,nTpt, nLoc,betaPriorPrecision=NA,
                               betaPriorMean=NA,offset=NA)
 {
     nBeta = ncol(X)
-    if (class(X) != "matrix")
-    {
-        print("Warning: X should be a matrix.")
-    }
+    checkArgument("X", mustHaveClass("matrix"))
+
     if (nrow(X) != nTpt * nLoc){
         stop("Invalid data dimensions: X should be a matrix composed of nLoc row-wise blocks of dimension nTpt*p.") 
     } 

@@ -1,32 +1,33 @@
-language: r
+language: R
+cache: packages
 sudo: required
 warnings_are_errors: true
+dist: xenial
 
 # whitelist
 branches:
   only:
     - master
+    - IVC2
 
 env:
   global:
     - NOT_CRAN=true
 
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq -y
-  - sudo apt-get install -y gcc-4.8
-  - sudo apt-get install -y g++-4.8
-  - sudo apt-get install -y gfortran-4.8
-  - ls /usr/bin
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 50
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 50
-  - export CXX="g++-4.8" CC="gcc-4.8"
+  - sudo apt-get install -y gcc
+  - sudo apt-get install -y g++
+  - sudo apt-get install -y gfortran
   - echo "options(repos = c(CRAN='http://cran.rstudio.com'))" > ~/.Rprofile
 
-r_github_packages:
-     - rstudio/rmarkdown
+r_packages:
+     - rmarkdown
+     - testthat
+     - Rcpp
+     - RcppEigen
 
 script:
     - travis_wait 40 R CMD build --no-build-vignettes --no-manual . 
-    - travis_wait 40 R CMD check  --no-build-vignettes --no-manual ABSEIR*tar.gz
+    - travis_wait 40 R CMD check --no-build-vignettes --no-manual ABSEIR*tar.gz
 

@@ -22,12 +22,18 @@
 #'  \item{report_fraction}{The (scalar) estimated reporting fraction for the epidemic. 
 #'  Required for the 'fractional' data model.}
 #'  \item{report_fraction_ess}{The effective sample size associated with the required reporting fraction
-#'   in the 'fractional' data model.}}
+#'   in the 'fractional' data model.}
+#'  \item{exposure_model}{The covariate structure for the logistic data model type, 
+#'    implemented through an abuse of the ExposureModel type.}
+#'   }
 #'
 #'
 #' @examples dataModel = DataModel(rpois(100, 10)) 
 #' @export
-DataModel = function(Y, type = c("identity", "overdispersion"), 
+DataModel = function(Y, type = c("identity", 
+                                 "overdispersion",
+                                 "report_fraction",
+                                 "logistic"), 
                      compartment = c("I_star", "R_star", "I"), 
                      cumulative=FALSE,
                      params=list())
@@ -41,7 +47,9 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
                   validateIf(type == "fractional",
                              mustHaveMember("report_fraction")),
                   validateIf(type == "fractional",
-                             mustHaveMember("report_fraction_ess")) 
+                             mustHaveMember("report_fraction_ess")),
+                  validateIf(type == "logistic", 
+                             mustHaveMember("exposure_model"))
                   )
     if (class(Y) != "matrix")
     {
@@ -52,6 +60,7 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
     phi <- ifelse("phi" %in% names(params), params$phi, -1)
     report_fraction <- ifelse("report_fraction" %in% names(params), params$report_fraction, -1)
     report_fraction_ess <- ifelse("report_fraction_ess" %in% names(params), params$report_fraction_ess, -1)
+    exposure_model <- ifelse("exposure_model" %in% names(params), params$exposure_model, NA)
     if ("weights" %in% names(params)){
         weights <- params$weights
     } else {
@@ -66,6 +75,9 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
                   validateIf(type=="fractional",
                              mustBeInRange(lower=1)
                  ))
+    checkArgument("exposure_model", 
+                  validateIf(type=="logistic", 
+                             mustHaveClass("ExposureModel")))
 
 
     if (type == "overdispersion" && (!("phi" %in% names(params)) 
@@ -94,6 +106,10 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
     if (length(weights) != ncol(Y) || any(!is.finite(weights))){
         stop("weights, if specified, must be of length ncol(Y) and finite.")
     }
+
+    if (type == "logistic" && nrow(exposure_model$X != length(Y))){
+        stop("There's a mismatch between the data-model logistic basis and the data adimension")
+    }
     na_mask = is.na(Y)
     Y[na_mask] = -Inf
     structure(list("Y"=Y, 
@@ -104,6 +120,8 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
                    "report_fraction"=report_fraction,
                    "report_fraction_ess"=report_fraction_ess,
                    "na_mask" = na_mask,
-                   "weights" = weights), class = "DataModel")
+                   "weights" = weights,
+                   "exposure_model"=exposure_model), 
+              class = "DataModel")
 }
 
