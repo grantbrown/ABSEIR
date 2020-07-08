@@ -125,40 +125,24 @@ void printIVector(Eigen::VectorXi inVec, std::string name)
 
 
 NodeWorker::NodeWorker(NodePool* pl,
-                       int sd,
-                       Eigen::VectorXi s,
-                       Eigen::VectorXi e,
-                       Eigen::VectorXi i,
-                       Eigen::VectorXi r,
-                       Eigen::VectorXd offs,
-                       Eigen::MatrixXi y,
-                       Eigen::VectorXd l_wts,
-                       MatrixXb nm,
-                       int dmt,
-                       std::vector<Eigen::MatrixXd> dmv,
-                       std::vector<std::vector<Eigen::MatrixXd> > tdmv,
-                       std::vector<int> tdme,
-                       Eigen::MatrixXd x,
-                       Eigen::MatrixXd x_rs,
-                       std::string mode,
-                       Eigen::MatrixXd ei_prior,
-                       Eigen::MatrixXd ir_prior,
-                       double avgI,
-                       Eigen::VectorXd sp_prior,
-                       Eigen::VectorXd se_prec,
-                       Eigen::VectorXd rs_prec,
-                       Eigen::VectorXd se_mean,
-                       Eigen::VectorXd rs_mean,
-                       double ph,
-                       int dmc,
-                       bool cmltv,
-                       int m,
-					   double lp)
+                       size_t sd,
+                       dataModel* dataModelPtr,
+                       exposureModel* exposureModelPtr, 
+                       reinfectionModel* reinfectionModelPtr,
+                       distanceModel* distanceModelPtr,
+                       transitionPriors* transitionPriorsPtr, 
+                       initialValueContainer* initialValueContainerPtr,
+                       samplingControl* samplingControlPtr)
 {
     pool = pl;
-    node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,s,e,i,
-                         r,offs,y,l_wts,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean, ph,dmc,cmltv, m, lp));
+    node = std::unique_ptr<SEIR_sim_node>(new SEIR_sim_node(this, sd,
+                dataModelPtr,
+                exposureModelPtr,
+                reinfectionModelPtr,
+                distanceModelPtr,
+                transitionPriorsPtr,
+                initialValueContainerPtr,
+                samplingControlPtr));
 }
 
 void NodeWorker::operator()()
@@ -242,36 +226,13 @@ void NodeWorker::operator()()
 NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
                    std::vector<simulationResultSet>* rslt_c_ptr,
                    std::vector<int>* idx_ptr,
-                       int threads,
-                       int sd,
-                       Eigen::VectorXi s,
-                       Eigen::VectorXi e,
-                       Eigen::VectorXi i,
-                       Eigen::VectorXi r,
-                       Eigen::VectorXd offs,
-                       Eigen::MatrixXi y,
-                       Eigen::VectorXd l_wts,
-                       MatrixXb nm,
-                       int dmt,
-                       std::vector<Eigen::MatrixXd> dmv,
-                       std::vector<std::vector<Eigen::MatrixXd> > tdmv,
-                       std::vector<int> tdme,
-                       Eigen::MatrixXd x,
-                       Eigen::MatrixXd x_rs,
-                       std::string mode,
-                       Eigen::MatrixXd ei_prior,
-                       Eigen::MatrixXd ir_prior,
-                       double avgI,
-                       Eigen::VectorXd sp_prior,
-                       Eigen::VectorXd se_prec,
-                       Eigen::VectorXd rs_prec,
-                       Eigen::VectorXd se_mean,
-                       Eigen::VectorXd rs_mean,
-                       double ph,
-                       int dmc,
-                       bool cmltv,
-                       int m,
-                       double lp)
+                   dataModel* dataModelPtr,
+                   exposureModel* exposureModelPtr, 
+                   reinfectionModel* reinfectionModelPtr,
+                   distanceModel* distanceModelPtr,
+                   transitionPriors* transitionPriorsPtr, 
+                   initialValueContainer* initialValueContainerPtr,
+                   samplingControl* samplingControlPtr)
 {
     result_pointer = rslt_ptr;
     result_complete_pointer = rslt_c_ptr;
@@ -281,17 +242,26 @@ NodePool::NodePool(Eigen::MatrixXd* rslt_ptr,
 #ifdef SPATIALSEIR_SINGLETHREAD
     // Single threaded mode only needs single worker
     nodes.push_back(NodeWorker(this,
-                                           sd + 1000*(1),s,e,i,
-                     r,offs,y,l_wts,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                     sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m, lp
-                    ));
+                               1,
+                               dataModelPtr,
+                               exposureModelPtr,
+                               reinfectionModelPtr,
+                               distanceModelPtr,
+                               transitionPriorsPtr,
+                               initialValueContainerPtr,
+                               samplingControlPtr));
 #else
-    for (int itr = 0; itr < threads; itr++)
+    for (int itr = 0; itr < samplingControlPtr -> CPU_cores; itr++)
     {
         nodes.push_back(std::thread(NodeWorker(this,
-                                               sd + 1000*(itr+1),s,e,i,
-                         r,offs,y,l_wts,nm,dmt,dmv,tdmv,tdme,x,x_rs,mode,ei_prior,ir_prior,avgI,
-                         sp_prior,se_prec,rs_prec,se_mean,rs_mean,ph,dmc,cmltv, m, lp
+                                               itr, 
+                                               dataModelPtr, 
+                                               exposureModelPtr,
+                                               reinfectionModelPtr,
+                                               distanceModelPtr,
+                                               transitionPriorsPtr,
+                                               initialValueContainerPtr,
+                                               samplingControlPtr
                         )));
     }
 #endif
@@ -320,7 +290,7 @@ void NodePool::awaitFinished()
 
 void NodePool::resolveMessages()
 {    
-	// 2020-02-27: Changed to only be called in master thread, avoid synchronization issues. 
+	// 2020-02-27: Changed to only be called in main thread, avoid synchronization issues. 
 	while (!(messages.empty())) 
 	{
 		Rcpp::Rcout << messages.front() << "\n"; 
@@ -361,74 +331,67 @@ NodePool::~NodePool()
 
 
 SEIR_sim_node::SEIR_sim_node(NodeWorker* worker,
-                             int sd,
-                             Eigen::VectorXi s,
-                             Eigen::VectorXi e,
-                             Eigen::VectorXi i,
-                             Eigen::VectorXi r,
-                             Eigen::VectorXd offs,
-                             Eigen::MatrixXi y,
-                             Eigen::VectorXd l_wts,
-                             MatrixXb nm,
-                             int dmt,
-                             std::vector<Eigen::MatrixXd> dmv,
-                             std::vector<std::vector<Eigen::MatrixXd> > tdmv,
-                             std::vector<int> tdme,
-                             Eigen::MatrixXd x,
-                             Eigen::MatrixXd x_rs,
-                             std::string mode,
-                             Eigen::MatrixXd ei_prior,
-                             Eigen::MatrixXd ir_prior,
-                             double avgI,
-                             Eigen::VectorXd sp_prior,
-                             Eigen::VectorXd se_prec,
-                             Eigen::VectorXd rs_prec,
-                             Eigen::VectorXd se_mean,
-                             Eigen::VectorXd rs_mean,
-                             double ph,
-                             int dmc,
-                             bool cmltv,
-                             int m_,
-							 double lp
-                             ) : parent(worker),
-                                 random_seed(sd),
-                                 S0(s),
-                                 E0(e),
-                                 I0(i),
-                                 R0(r),
-                                 offset(offs),
-                                 Y(y),
-                                 loc_weights(l_wts),
-                                 na_mask(nm),
-                                 dataModelType(dmt),
-                                 DM_vec(dmv),
-                                 TDM_vec(tdmv),
-                                 TDM_empty(tdme),
-                                 X(x),
-                                 X_rs(x_rs),
-                                 transitionMode(mode),
-                                 E_to_I_prior(ei_prior),
-                                 I_to_R_prior(ir_prior),
-                                 inf_mean(avgI),
-                                 spatial_prior(sp_prior),
-                                 exposure_precision(se_prec),
-                                 reinfection_precision(rs_prec),
-                                 exposure_mean(se_mean),
-                                 reinfection_mean(rs_mean),
-                                 phi(ph),
-                                 data_compartment(dmc),
-                                 cumulative(cmltv),
-                                 m(m_),
-								 lpow(lp)
+                             size_t seed_offs,
+                             dataModel* dataModelPtr,
+                             exposureModel* exposureModelPtr, 
+                             reinfectionModel* reinfectionModelPtr,
+                             distanceModel* distanceModelPtr,
+                             transitionPriors* transitionPriorsPtr, 
+                             initialValueContainer* initialValueContainerPtr,
+                             samplingControl* samplingControlPtr)
 {
     try
     {
-        std::minstd_rand0 lc_generator(sd);
+        dataModelInstance = new dataModel(dataModelPtr);
+        exposureModelInstance = new exposureModel(exposureModelPtr);
+        reinfectionModelInstance = new reinfectionModel(reinfectionModelPtr);
+        distanceModelInstance = new distanceModel(distanceModelPtr);
+        transitionPriorsInstance = new transitionPriors(transitionPriorsPtr);
+        initialValueContainerInstance = new initialValueContainer(initialValueContainerPtr);
+        samplingControlInstance = new samplingControl(samplingControlPtr, seed_offs);
+
+
+        std::minstd_rand0 lc_generator(samplingControlInstance -> random_seed);
         std::uint_least32_t seed_data[std::mt19937::state_size];
         std::generate_n(seed_data, std::mt19937::state_size, std::ref(lc_generator));
         std::seed_seq q(std::begin(seed_data), std::end(seed_data));
         generator = new mt19937{q};   
         int i;
+
+        // Begin redundant assignments for compatibility with rest of codebase
+        // ... to be removed per comment in header. 2020-07-08
+        parent = worker;
+        random_seed = samplingControlInstance -> random_seed; 
+        S0 = initialValueContainerInstance -> S0;
+        E0 = initialValueContainerInstance -> E0;
+        I0 = initialValueContainerInstance -> I0;
+        R0 = initialValueContainerInstance -> R0;
+        offset = exposureModelInstance -> offset;
+        Y = dataModelInstance -> Y;
+        loc_weights = dataModelInstance -> weights;
+        na_mask = dataModelInstance -> na_mask;
+        dataModelType = dataModelInstance -> dataModelType;
+        DM_vec = distanceModelInstance -> dm_list;
+        TDM_vec = distanceModelInstance -> tdm_list;
+        TDM_empty = distanceModelInstance -> tdm_empty;
+        X = exposureModelInstance -> X;
+        X_rs = reinfectionModelInstance -> X_rs;
+        transitionMode = transitionPriorsInstance -> mode;
+        E_to_I_prior = transitionPriorsInstance -> E_to_I_params;
+        I_to_R_prior = transitionPriorsInstance -> I_to_R_params;
+        inf_mean = transitionPriorsInstance -> inf_mean;
+        spatial_prior = distanceModelInstance -> spatial_prior;
+        exposure_precision = exposureModelInstance -> betaPriorPrecision;
+        reinfection_precision = reinfectionModelInstance -> betaPriorPrecision;
+        exposure_mean = exposureModelInstance -> betaPriorMean;
+        reinfection_mean = reinfectionModelInstance -> betaPriorMean;
+        phi = dataModelInstance -> phi;
+        data_compartment = dataModelInstance -> dataModelCompartment;
+        cumulative = dataModelInstance -> cumulative;
+        m = samplingControlInstance -> m;
+        lpow = samplingControlInstance -> lpow;
+
+        // End Revisions 
  
         E_paths = std::vector<Eigen::MatrixXi>();
         I_paths = std::vector<Eigen::MatrixXi>();
@@ -1170,5 +1133,12 @@ void SEIR_sim_node::nodeMessage(std::string msg)
 SEIR_sim_node::~SEIR_sim_node()
 {
     delete generator;
+    delete dataModelInstance;
+    delete exposureModelInstance;
+    delete reinfectionModelInstance;
+    delete distanceModelInstance;
+    delete transitionPriorsInstance;
+    delete initialValueContainerInstance;
+    delete samplingControlInstance;
 }
 

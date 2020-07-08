@@ -8,8 +8,15 @@
 #include <iostream>
 #include <Eigen/Core>
 #include <ABSEIR_constants.hpp>
-#include <samplingControl.hpp>
-#include <dataModel.hpp>
+#include "./dataModel.hpp"
+#include "./distanceModel.hpp"
+#include "./exposureModel.hpp"
+#include "./initialValueContainer.hpp"
+#include "./reinfectionModel.hpp"
+#include "./samplingControl.hpp"
+#include "./SEIRSimNodes.hpp"
+#include "./transitionPriors.hpp"
+#include "./transitionDistribution.hpp"
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -40,35 +47,15 @@ struct instruction{
 class SEIR_sim_node {
     public:
         SEIR_sim_node(NodeWorker* worker,
-                      int random_seed,
-                      Eigen::VectorXi S0,
-                      Eigen::VectorXi E0,
-                      Eigen::VectorXi I0,
-                      Eigen::VectorXi R0,
-                      Eigen::VectorXd offset,
-                      Eigen::MatrixXi Y,
-                      Eigen::VectorXd loc_weights,
-                      MatrixXb na_mask,
-                      int dataModelType,
-                      std::vector<Eigen::MatrixXd> DM_vec,
-                      std::vector<std::vector<Eigen::MatrixXd> > tdm_vec,
-                      std::vector<int> tdm_empty,
-                      Eigen::MatrixXd X, 
-                      Eigen::MatrixXd X_rs,
-                      std::string transitionMode,
-                      Eigen::MatrixXd ei_prior,
-                      Eigen::MatrixXd ir_prior,
-                      double avgI,
-                      Eigen::VectorXd sp_prior,
-                      Eigen::VectorXd se_prec,
-                      Eigen::VectorXd rs_prec,
-                      Eigen::VectorXd se_mean,
-                      Eigen::VectorXd rs_mean,
-                      double phi,
-                      int data_compartment,
-                      bool cumulative,
-                      int m, 
-					  double lpow);
+                      size_t seed_offs,
+                      dataModel* dataModelPtr,
+                      exposureModel* exposureModelPtr, 
+                      reinfectionModel* reinfectionModelPtr,
+                      distanceModel* distanceModelPtr,
+                      transitionPriors* transitionPriorsPtr, 
+                      initialValueContainer* initialValueContainerPtr,
+                      samplingControl* samplingControlPtr
+                );
         ~SEIR_sim_node();
         std::deque<std::string> messages;
         simulationResultSet simulate(Eigen::VectorXd param_vals, bool keepCompartments);
@@ -76,6 +63,23 @@ class SEIR_sim_node {
     private: 
         NodeWorker* parent;
         unsigned int random_seed;
+        /* GB Notes, 2020-07-08
+         *
+         * Since we're moving to having a thread specific copy of model 
+         * components, we should get rid of all the duplicate stuff stored 
+         * in this class. Leaving it for now during the transition. 
+         *
+         */
+
+        
+        dataModel* dataModelInstance;
+        exposureModel* exposureModelInstance; 
+        reinfectionModel* reinfectionModelInstance;
+        distanceModel* distanceModelInstance;
+        transitionPriors* transitionPriorsInstance; 
+        initialValueContainer* initialValueContainerInstance;
+        samplingControl* samplingControlInstance;
+
         Eigen::VectorXi S0;
         Eigen::VectorXi E0;
         Eigen::VectorXi I0;
@@ -133,35 +137,16 @@ class SEIR_sim_node {
 class NodeWorker{
     public:
         NodeWorker(NodePool* pl, 
-                   int random_seed,
-                   Eigen::VectorXi S0,
-                   Eigen::VectorXi E0,
-                   Eigen::VectorXi I0,
-                   Eigen::VectorXi R0,
-                   Eigen::VectorXd offset,
-                   Eigen::MatrixXi Y,
-                   Eigen::VectorXd loc_weights,
-                   MatrixXb na_mask,
-                   int dataModelType,
-                   std::vector<Eigen::MatrixXd> DM_vec,
-                   std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
-                   std::vector<int> TDM_empty,
-                   Eigen::MatrixXd X, 
-                   Eigen::MatrixXd X_rs,
-                   std::string transitionMode,
-                   Eigen::MatrixXd ei_prior,
-                   Eigen::MatrixXd ir_prior,
-                   double avgI,
-                   Eigen::VectorXd sp_prior,
-                   Eigen::VectorXd se_prec,
-                   Eigen::VectorXd rs_prec,
-                   Eigen::VectorXd se_mean,
-                   Eigen::VectorXd rs_mean,
-                   double phi,
-                   int data_compartment,
-                   bool cumulative,
-                   int m, 
-				   double lpow);
+                   size_t seed_offs,
+                   dataModel* dataModel,
+                   exposureModel* exposureModel, 
+                   reinfectionModel* reinfectionModel,
+                   distanceModel* distanceModel,
+                   transitionPriors* transitionPriors, 
+                   initialValueContainer* initialValueContainer,
+                   samplingControl* samplingControl
+                   );
+
         void operator()();
         void addMessage(std::string);
 
@@ -176,37 +161,15 @@ class NodePool{
         NodePool(Eigen::MatrixXd* result_pointer,
                  std::vector<simulationResultSet>* result_complete_pointer,
                  std::vector<int>* index_pointer,
-                 int threads,
-                 int random_seed,
-                 Eigen::VectorXi S0,
-                 Eigen::VectorXi E0,
-                 Eigen::VectorXi I0,
-                 Eigen::VectorXi R0,
-                 Eigen::VectorXd offset,
-                 Eigen::MatrixXi Y,
-                 Eigen::VectorXd loc_weights,
-                 MatrixXb na_mask,
-                 int dataModelType,
-                 std::vector<Eigen::MatrixXd> DM_vec,
-                 std::vector<std::vector<Eigen::MatrixXd> > TDM_vec,
-                 std::vector<int> TDM_empty,
-                 Eigen::MatrixXd X, 
-                 Eigen::MatrixXd X_rs,
-                 std::string transitionMode,
-                 Eigen::MatrixXd ei_prior,
-                 Eigen::MatrixXd ir_prior,
-                 double avgI,
-                 Eigen::VectorXd sp_prior,
-                 Eigen::VectorXd se_prec,
-                 Eigen::VectorXd rs_prec,
-                 Eigen::VectorXd se_mean,
-                 Eigen::VectorXd rs_mean,
-                 double phi,
-                 int data_compartment,
-                 bool cumulative,
-                 int m, 
-				 double lpow
-              );
+                 dataModel* dataModel,
+                 exposureModel* exposureModel, 
+                 reinfectionModel* reinfectionModel,
+                 distanceModel* distanceModel,
+                 transitionPriors* transitionPriors, 
+                 initialValueContainer* initialValueContainer,
+                 samplingControl* samplingControl
+                 );
+
         void setResultsDest(Eigen::MatrixXd* result_pointer,
                             std::vector<simulationResultSet>* result_complete_pointer);
         void awaitFinished();
