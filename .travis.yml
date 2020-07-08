@@ -8,7 +8,7 @@ dist: xenial
 branches:
   only:
     - master
-    - IVC2
+    - datamodels
 
 env:
   global:
