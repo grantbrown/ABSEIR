@@ -11,6 +11,7 @@ class exposureModel : public modelComponent
 {
     public:
         exposureModel(SEXP X, SEXP ntpt, SEXP nloc,SEXP priorMean, SEXP precision);
+        exposureModel(exposureModel* tocopy);
         int getModelComponentType();
         virtual Rcpp::NumericVector getOffset();
         virtual void setOffset(Rcpp::NumericVector offs);

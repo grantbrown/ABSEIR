@@ -10,6 +10,7 @@ class transitionPriors : public modelComponent
 {
     public:
         transitionPriors(SEXP mode);
+        transitionPriors(transitionPriors* tocopy);
         void setPriorsFromProbabilities(SEXP p_ei, SEXP p_ir, SEXP p_ei_ess, SEXP p_ir_ess);
         void setPathSpecificPriors(SEXP Zmat1, SEXP Zmat2, SEXP inf_mean);
         void setPriorsForWeibull(SEXP E_to_I_params,

@@ -20,6 +20,7 @@ class samplingControl : public modelComponent
     public:
         samplingControl(SEXP integerParameters,
                         SEXP numericParameters);
+        samplingControl(samplingControl* tocopy, int seed_offs);
         ~samplingControl();
     void summary();
     int getModelComponentType();

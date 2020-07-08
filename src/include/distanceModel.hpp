@@ -9,6 +9,7 @@ class distanceModel : public modelComponent
 {
     public:
         distanceModel();
+        distanceModel(distanceModel* tocopy);
         virtual void addDistanceMatrix(NumericMatrix distMat);
         virtual void setupTemporalDistanceMatrices(int nTpt);
         virtual void addTDistanceMatrix(int tpt, NumericMatrix distMat);
@@ -23,7 +24,6 @@ class distanceModel : public modelComponent
         std::vector<Eigen::MatrixXd> dm_list;
         std::vector<int> tdm_empty; 
         std::vector<std::vector<Eigen::MatrixXd> > tdm_list;
-
 
         ~distanceModel();
 };

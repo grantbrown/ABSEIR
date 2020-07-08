@@ -14,6 +14,36 @@ distanceModel::distanceModel()
     currentTDistIdx = 0;
 }
 
+distanceModel::distanceModel(distanceModel* tocopy){
+    numLocations = tocopy -> numLocations;
+    currentTDistIdx = tocopy -> currentTDistIdx;
+
+    Eigen::VectorXd spatial_priorc = tocopy -> spatial_prior;
+    spatial_prior = spatial_priorc;
+
+    dm_list = std::vector<Eigen::MatrixXd>();
+    Eigen::MatrixXd dmlcpy;
+    for (size_t i = 0; i < (tocopy -> dm_list).size(); i++){
+        dmlcpy = (tocopy -> dm_list)[i];
+        dm_list.push_back(dmlcpy);
+    }
+
+    tdm_empty = std::vector<int>();
+    for (size_t i = 0; i < (tocopy -> tdm_empty).size(); i++){
+        tdm_empty.push_back((tocopy -> tdm_empty)[i]);
+    }
+    
+    tdm_list = std::vector<std::vector<Eigen::MatrixXd> >();
+    Eigen::MatrixXd tdmcpy; 
+    for (size_t i = 0; i < (tocopy -> tdm_list).size(); i++){
+        tdm_list.push_back(std::vector<Eigen::MatrixXd>());
+        for (size_t j = 0; j < (tocopy -> tdm_list)[i].size(); j++){
+           tdmcpy = (tocopy -> tdm_list)[i][j];
+           tdm_list[i].push_back(tdmcpy); 
+        }
+    }
+}
+
 int distanceModel::getModelComponentType()
 {
     return(LSS_DISTANCE_MODEL_TYPE);

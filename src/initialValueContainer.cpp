@@ -9,6 +9,21 @@ initialValueContainer::initialValueContainer()
     // Do nothing
 }
 
+initialValueContainer::initialValueContainer(initialValueContainer* tocopy)
+{
+    Eigen::VectorXi S0c = tocopy -> S0;
+    S0 = S0c;
+
+    Eigen::VectorXi E0c = tocopy -> E0;
+    E0 = E0c;
+
+    Eigen::VectorXi I0c = tocopy -> I0;
+    I0 = I0c;
+
+    Eigen::VectorXi R0c = tocopy -> R0;
+    R0 = R0c;
+}
+
 int initialValueContainer::getModelComponentType()
 {
     return(LSS_INIT_CONTAINER_TYPE);

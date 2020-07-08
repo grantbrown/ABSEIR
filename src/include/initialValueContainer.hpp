@@ -11,6 +11,7 @@ class initialValueContainer : public modelComponent
 {
     public:
         initialValueContainer();
+        initialValueContainer(initialValueContainer* tocopy);
         void setInitialValues(SEXP S0, SEXP E0, SEXP I0, SEXP R0);
         virtual void summary();
         int getModelComponentType();

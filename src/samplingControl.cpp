@@ -53,6 +53,24 @@ samplingControl::samplingControl(SEXP integerParameters,
     }
 }
 
+samplingControl::samplingControl(samplingControl* tocopy, int seed_offs)
+{
+    simulation_width = tocopy -> simulation_width;
+    random_seed = (tocopy -> random_seed) + seed_offs;
+    algorithm = (tocopy -> algorithm);
+    target_eps = (tocopy -> target_eps);
+    accept_fraction = (tocopy -> accept_fraction);
+    shrinkage = (tocopy -> shrinkage);
+    batch_size = (tocopy -> batch_size);
+    init_batch_size = (tocopy -> init_batch_size); 
+    max_batches = (tocopy -> max_batches);
+    CPU_cores = (tocopy -> CPU_cores);
+    epochs = (tocopy -> epochs);
+    m = (tocopy -> m);
+    lpow = (tocopy -> lpow);
+    multivariatePerturbation = (tocopy -> multivariatePerturbation);
+}
+
 void samplingControl::summary()
 {
     Rcpp::Rcout << "Sampling Control Summary\n";

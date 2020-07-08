@@ -28,6 +28,20 @@ transitionPriors::transitionPriors(SEXP _mode)
     }
 }
 
+transitionPriors::transitionPriors(transitionPriors* tocopy)
+{
+    Eigen::MatrixXd E_to_I_paramsc = (tocopy -> E_to_I_params);
+    E_to_I_params = E_to_I_paramsc;
+
+    Eigen::MatrixXd I_to_R_paramsc = (tocopy -> I_to_R_params);
+    I_to_R_params = I_to_R_paramsc;
+
+    mode = (tocopy -> mode);
+    max_latent = (tocopy -> max_latent);
+    max_infectious = (tocopy -> max_infectious);
+    inf_mean = (tocopy -> inf_mean);
+}
+
 int transitionPriors::getModelComponentType()
 {
     return(LSS_TRANSITION_MODEL_TYPE);

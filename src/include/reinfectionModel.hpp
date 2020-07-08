@@ -11,6 +11,7 @@ class reinfectionModel : public modelComponent
 {
     public:
         reinfectionModel(SEXP reinfectionMode);
+        reinfectionModel(reinfectionModel* tocopy);
         int getModelComponentType();
         virtual void summary();
         virtual void buildReinfectionModel(SEXP _X, SEXP _priorMean, SEXP _prec);

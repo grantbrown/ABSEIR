@@ -53,6 +53,24 @@ exposureModel::exposureModel(SEXP _X, SEXP _ntpt, SEXP _nloc, SEXP _priorMean, S
     }
 }
 
+exposureModel::exposureModel(exposureModel* tocopy)
+{
+    nTpt = (tocopy -> nTpt);
+    nLoc = (tocopy -> nLoc);
+
+    Eigen::MatrixXd Xc = (tocopy -> X);
+    X = Xc;
+
+    Eigen::VectorXd betaPriorPrecisionc = (tocopy -> betaPriorPrecision);
+    betaPriorPrecision = betaPriorPrecisionc;
+
+    Eigen::VectorXd betaPriorMeanc = (tocopy -> betaPriorMean);
+    betaPriorMean = betaPriorMeanc;
+
+    Eigen::VectorXd offsetc = (tocopy -> offset);
+    offset = offsetc; 
+}
+
 int exposureModel::getModelComponentType()
 {
     return(LSS_EXPOSURE_MODEL_TYPE);

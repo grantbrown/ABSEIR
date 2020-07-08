@@ -18,9 +18,9 @@ class dataModel : public modelComponent
     public:
         dataModel(SEXP Y, SEXP type, SEXP compartment, SEXP cumulative, 
                   SEXP phi, SEXP na_mask);
+        dataModel(dataModel* tocopy);
         virtual void summary();
         void setWeights(Rcpp::NumericVector wts);
-        Rcpp::IntegerVector* compartmentDimensions;
         int getModelComponentType();
         int nLoc;
         int nTpt;

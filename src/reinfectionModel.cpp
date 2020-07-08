@@ -18,6 +18,19 @@ reinfectionModel::reinfectionModel(SEXP reinfectMode)
      betaPriorPrecision(1) = -1;
 }
 
+reinfectionModel::reinfectionModel(reinfectionModel* tocopy){
+    reinfectionMode = (tocopy -> reinfectionMode);
+
+    Eigen::MatrixXd X_rsc = (tocopy -> X_rs); 
+    X_rs = X_rsc;
+
+    Eigen::VectorXd betaPriorPrecisionc = (tocopy -> betaPriorPrecision);
+    betaPriorPrecision = betaPriorPrecisionc;
+
+    Eigen::VectorXd betaPriorMeanc = (tocopy -> betaPriorMean);
+    betaPriorMean = betaPriorMeanc;
+}
+
 int reinfectionModel::getModelComponentType()
 {
     return(LSS_REINFECTION_MODEL_TYPE);

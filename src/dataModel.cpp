@@ -80,6 +80,28 @@ dataModel::dataModel(SEXP _Y, SEXP type, SEXP compartment,
     }
 }
 
+dataModel::dataModel(dataModel* tocopy)
+{
+    nLoc = tocopy -> nLoc;
+    nTpt = tocopy -> nTpt;
+    dataModelType = tocopy -> dataModelType;
+    dataModelCompartment = tocopy -> dataModelCompartment;
+    cumulative = tocopy -> cumulative;
+    phi = tocopy -> phi; 
+    report_fraction = tocopy -> report_fraction;
+    report_fraction_ess = tocopy -> report_fraction_ess;
+    
+    Eigen::MatrixXi Yc = tocopy -> Y;
+    Y = Yc;
+
+    Eigen::VectorXd weightsc = tocopy -> weights;
+    weights = weightsc;
+
+    MatrixXb na_maskc = tocopy -> na_mask;
+    na_mask = na_maskc;
+     
+}
+
 void dataModel::setWeights(Rcpp::NumericVector wts)
 {
     if (wts.size() != weights.size()){
