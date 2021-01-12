@@ -6,7 +6,7 @@
 \usage{
 DataModel(
   Y,
-  type = c("identity", "overdispersion"),
+  type = c("identity", "overdispersion", "report_fraction", "logistic"),
   compartment = c("I_star", "R_star", "I"),
   cumulative = FALSE,
   params = list()
@@ -43,7 +43,10 @@ A fundamental task in building hierarchical models is to describe the way in whi
  \item{report_fraction}{The (scalar) estimated reporting fraction for the epidemic. 
  Required for the 'fractional' data model.}
  \item{report_fraction_ess}{The effective sample size associated with the required reporting fraction
-  in the 'fractional' data model.}}
+  in the 'fractional' data model.}
+ \item{exposure_model}{The covariate structure for the logistic data model type, 
+   implemented through an abuse of the ExposureModel type.}
+  }
 }
 \examples{
 dataModel = DataModel(rpois(100, 10)) 

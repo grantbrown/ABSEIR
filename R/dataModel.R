@@ -51,7 +51,7 @@ DataModel = function(Y, type = c("identity",
                   validateIf(type == "logistic", 
                              mustHaveMember("exposure_model"))
                   )
-    if (class(Y) != "matrix")
+    if (!("matrix" %in% class(Y)))
     {
         Y = as.matrix(Y)
     }
