@@ -1,24 +1,24 @@
 #'  Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
-#' 
-#' @param  SimObject a PosteriorSimulation object, as created by the \code{\link{epidemic.simulations}} function. 
+#'
+#' @param  SimObject a PosteriorSimulation object, as created by the \code{\link{epidemic.simulations}} function.
 #' @param cores  Optional argument - use multiple cores?
 #'
-#' @details  The main SpatialSEIRModel functon performs many simulations, but for the sake of 
+#' @details  The main SpatialSEIRModel functon performs many simulations, but for the sake of
 #'    memory efficiency and runtime does not return the simulated compartment values
 #'    to the user. If simulated epidemics are desired, they may be quickly and
-#'    easily generated using the \code{\link{epidemic.simulations}} function. 
-#'    Reproductive number estimation is performed using this function, as the 
+#'    easily generated using the \code{\link{epidemic.simulations}} function.
+#'    Reproductive number estimation is performed using this function, as the
 #'    calculations are somewhat computationally intensive and may not be required by
-#'    all users. 
-#' 
-#' @examples \dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10, 
-#'                                                  verbose = TRUE))} 
-#' 
+#'    all users.
+#'
+#' @examples \dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10,
+#'                                                  verbose = TRUE))}
+#'
 #' @import parallel
 #' @importFrom compiler cmpfun
 #' @export
 ComputeR0 <- function(SimObject, cores = 1)
-{ 
+{
   checkArgument("SimObject", mustHaveClass("PosteriorSimulation"))
   #cores <- SimObject$modelObject$modelComponents$sampling_control$n_cores
   cl <- makeCluster(cores)
@@ -32,7 +32,7 @@ ComputeR0 <- function(SimObject, cores = 1)
       distance_model <<- MO$distance_model
       transition_priors <<- MO$transition_priors
       initial_value_container <<- MO$initial_value_container
-      
+
       hasSpatial <<- ncol(distance_model$distanceList[[1]]) > 1
       nLags <<- length(distance_model$laggedDistanceList[[1]])
       hasTSSpatial <<- nLags > 0
@@ -43,12 +43,12 @@ ComputeR0 <- function(SimObject, cores = 1)
       nBetaSE <<- ncol(X_SE)
       nRho <<- ifelse(hasSpatial, length(distance_model$distanceList), 0)
       nLRho <<- ifelse(hasTSSpatial, nLags, 0)
-      
+
       DMlist <<- distance_model$distanceList
       lDMlist <<- distance_model$laggedDistanceList
   }
   parLapply(cl, 1:cores, setupR0)
-  
+
   MO <- SimObject$modelObject$modelComponents
   exposure_model <- MO$exposure_model
   nTpt <- exposure_model$nTpt
@@ -57,7 +57,7 @@ ComputeR0 <- function(SimObject, cores = 1)
   distance_model <- MO$distance_model
   transition_priors <- MO$transition_priors
   initial_value_container <- MO$initial_value_container
-  
+
   hasSpatial <- ncol(distance_model$distanceList[[1]]) > 1
   nLags <- length(distance_model$laggedDistanceList[[1]])
   hasTSSpatial <- nLags > 0
@@ -68,42 +68,42 @@ ComputeR0 <- function(SimObject, cores = 1)
   nBetaSE <- ncol(X_SE)
   nRho <- ifelse(hasSpatial, length(distance_model$distanceList), 0)
   nLRho <- ifelse(hasTSSpatial, nLags, 0)
-  
+
   DMlist <- distance_model$distanceList
   lDMlist <- distance_model$laggedDistanceList
 
   r0Func <- function(sim){
     paramvec <- SimObject$params[sim,]
-    beta_SE <- paramvec[1:nBetaSE]
+    beta_SE <- paramvec[grepl("Beta_SE", names(paramvec), fixed = TRUE)]
     if (hasReinfection){
-      beta_RS <- paramvec[(nBetaSE + 1):(nBetaSE + nBetaRS)]
+      beta_RS <- paramvec[grepl("Beta_RS", names(paramvec), fixed = TRUE)]
     }
     else{
       beta_RS <- c()
     }
-    rho <- paramvec[(nBetaSE + nBetaRS + 1):(nBetaSE + nBetaRS + nRho + nLRho)]
-    
+    rho <- paramvec[grepl("rho", names(paramvec), fixed = TRUE)]
+
     if (transition_priors$mode == "exponential"){
-        gamma_EI <- paramvec[length(paramvec) - 1]
-        gamma_IR <- paramvec[length(paramvec)]
-        
-        p_EI <- 1-exp(-gamma_EI) 
-        p_IR <- 1-exp(-gamma_IR) 
+        gamma_EI <- paramvec[grepl("gamma_EI", names(paramvec), fixed = TRUE)]
+        gamma_IR <- paramvec[grepl("gamma_IR", names(paramvec), fixed = TRUE)]
+
+        p_EI <- 1-exp(-gamma_EI)
+        p_IR <- 1-exp(-gamma_IR)
     }
     else if (transition_priors$mode == "weibull"){
       gamma_EI <- NA
       gamma_IR <- NA
-      
+
       EI_shape <- paramvec[names(paramvec) == "latent_shape"]
       EI_scale <- paramvec[names(paramvec) == "latent_scale"]
-      
+
       IR_shape <- paramvec[names(paramvec) == "infectious_shape"]
       IR_scale <- paramvec[names(paramvec) == "infectious_scale"]
-      
+
       n <- ceiling(qweibull(1-1e-4, shape = IR_shape, scale = IR_scale))
       indices <- cbind(0:n, 1:(n+1))
       p_IR_path <- c(apply(indices, 1, function(x){
-        a <- pweibull(x[1], IR_shape, IR_scale) 
+        a <- pweibull(x[1], IR_shape, IR_scale)
         b <- pweibull(x[2], IR_shape, IR_scale)
         (b-a)/(1-a)
       }))
@@ -114,14 +114,14 @@ ComputeR0 <- function(SimObject, cores = 1)
       warning("Reproductive number estimation for general path-specific models unfinished")
       return(SimObject)
     }
-    # Begin Calculation   
-    
-    S0 = SimObject$simulationResults[[sim]]$S[1] 
-    E0 = SimObject$simulationResults[[sim]]$E[1] 
+    # Begin Calculation
+
+    S0 = SimObject$simulationResults[[sim]]$S[1]
+    E0 = SimObject$simulationResults[[sim]]$E[1]
     I0 = SimObject$simulationResults[[sim]]$I[1]
     R0 = SimObject$simulationResults[[sim]]$R[1]
     N = E0 + I0 + R0 + S0
-  
+
     S <- SimObject$simulationResults[[sim]]$S
     E <- SimObject$simulationResults[[sim]]$E
     I <- SimObject$simulationResults[[sim]]$I
@@ -130,7 +130,7 @@ ComputeR0 <- function(SimObject, cores = 1)
     E_star <- SimObject$simulationResults[[sim]]$E_star
     I_star <- SimObject$simulationResults[[sim]]$I_star
     R_star <- SimObject$simulationResults[[sim]]$R_star
-    
+
     if (hasReinfection)
     {
       eta_RS <- exp(X_RS %*% beta_RS)
@@ -142,34 +142,34 @@ ComputeR0 <- function(SimObject, cores = 1)
     {
       # Non-spatial Component
       nonSpatialExpectation <- ifelse(I[i,] == 0, 0, S[i,]*(1-exp(-I[i,]/N * eta_SE[i,]))/I[i,])
-      
+
       # Spatial Component
       k <- 1
       if (hasSpatial){
-        spatialExpectation <- ifelse(I[i,] == 0, 0, 
+        spatialExpectation <- ifelse(I[i,] == 0, 0,
              apply(S[i,]*(1-exp(-t(rho[k]*(I[i,]/N * eta_SE[i,]) * t(DMlist[[k]])))),2,sum)/I[i,])
       }
       else{
         spatialExpectation <- rep(0, length(nonSpatialExpectation))
       }
-      
+
       # Lagged component
       if (hasTSSpatial){
         laggedSpatialExpectation <- apply(sapply(1:length(lDMlist[[i]]), function(lag){
           if (lag + i > nTpt){
             return((ifelse(I[i,] == 0, 0,
-                    apply(S[nTpt,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) * 
-                                               t(lDMlist[[i]][[lag]])))),2,sum)/I[i,])))  
+                    apply(S[nTpt,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) *
+                                               t(lDMlist[[i]][[lag]])))),2,sum)/I[i,])))
           }
           (ifelse(I[i,] == 0, 0,
-                  apply(S[i+lag,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) * 
+                  apply(S[i+lag,]*(1-exp(-t(rho[nRho + lag]*(I[i,]/N * eta_SE[i,]) *
                                               t(lDMlist[[i]][[lag]])))),2,sum)/I[i,]))
         }),1,sum)
       }
       else{
         laggedSpatialExpectation <- rep(0, length(nonSpatialExpectation))
       }
-        
+
       instantaneousExpectation[i,] <- nonSpatialExpectation + spatialExpectation + laggedSpatialExpectation
     }
     r_EA <- instantaneousExpectation
@@ -210,8 +210,8 @@ ComputeR0 <- function(SimObject, cores = 1)
   }
 
   r0FuncC <- cmpfun(r0Func)
-  repNums <- parLapply(cl, 
-            1:length(SimObject$simulationResults), 
+  repNums <- parLapply(cl,
+            1:length(SimObject$simulationResults),
             r0FuncC)
 
   stopCluster(cl)
@@ -221,5 +221,5 @@ ComputeR0 <- function(SimObject, cores = 1)
   }
   return(SimObject)
 
-} 
+}
 
