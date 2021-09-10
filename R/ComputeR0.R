@@ -146,6 +146,9 @@ ComputeR0 <- function(SimObject, cores = 1)
       # Spatial Component
       k <- 1
       if (hasSpatial){
+        if (length(DMlist) > 1){
+          stop("R0 Code needs to be generalized for more spatial locations")
+        }
         spatialExpectation <- ifelse(I[i,] == 0, 0,
              apply(S[i,]*(1-exp(-t(rho[k]*(I[i,]/N * eta_SE[i,]) * t(DMlist[[k]])))),2,sum)/I[i,])
       }
@@ -174,7 +177,7 @@ ComputeR0 <- function(SimObject, cores = 1)
     }
     r_EA <- instantaneousExpectation
     if (transition_priors$mode == "exponential"){
-      p_IR <- 1-exp(-gamma_EI)
+      p_IR <- 1-exp(-gamma_IR)
       for (i in 1:nrow(r_EA))
       {
         pI <- 1
@@ -186,8 +189,7 @@ ComputeR0 <- function(SimObject, cores = 1)
           r_EA[i,] <- r_EA[i,] + instantaneousExpectation[idx,]*pI
         }
       }
-    }
-    else if (transition_priors$mode == "weibull"){
+    } else if (transition_priors$mode == "weibull"){
       for (i in 1:nrow(r_EA))
       {
         pI <- 1
@@ -201,8 +203,7 @@ ComputeR0 <- function(SimObject, cores = 1)
           r_EA[i,] <- r_EA[i,] + instantaneousExpectation[idx,]*pI
         }
       }
-    }
-    else if (transition_priors$mode == "path_specific"){
+    } else if (transition_priors$mode == "path_specific"){
       # To-do
     }
     colnames(r_EA) <- paste("location_", 1:ncol(r_EA), sep = "")
