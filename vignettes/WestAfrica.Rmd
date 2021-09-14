@@ -112,7 +112,7 @@ system.time(result <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 50,
-                          verbose = 2))
+                          verbose = 0))
 
 sims = epidemic.simulations(result, replicates = 25)
 sim_I_star = lapply(sims$simulationResults, function(x){apply(x$I_star, 2, cumsum)})
@@ -135,9 +135,8 @@ casePlot = function(idx, main){
 casePlot(1, "Guinea - Exponential ")
 casePlot(2, "Liberia - Exponential ")
 casePlot(3, "Sierra Leone - Exponential ")
-#legend(x = 25, y = 40000, lty = c(NA, 3,2,3), pch = c(1, NA,NA,NA), col = c("black", rep("blue", 3)), 
-#       legend = c("Observed", "90% UB", "Mean", "90% LB"), lwd = c(NA, 1, 2, 1), cex = 0.8)
-R0.result <- ComputeR0(sims)
+
+R0.result <- ComputeR0(sims, cores = 8)
 
 
 sim_EAR0 = lapply(R0.result$simulationResults, function(x){x$R_EA})

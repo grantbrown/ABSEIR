@@ -11,7 +11,7 @@ output: html_document
 
 **Note:** This tutorial assumes that you have successfully installed ABSEIR, and are 
 at least passingly familiar with compartmental models. Some introductory information is available
-in [this vignette](./Kikwit.html).
+in [this vignette](./Introduction.html).
 
 
 
@@ -244,7 +244,7 @@ runtime1 = system.time(result1 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = 2))
+                          verbose = 0))
 #     user   system  elapsed 
 # 2258.391   17.449  294.584
 
@@ -257,7 +257,7 @@ runtime2 = system.time(result2 <- SpatialSEIRModel(data_model,
                           initial_value_container,
                           sampling_control,
                           samples = 100,
-                          verbose = 2))
+                          verbose = 0))
 ```
 
 
@@ -338,19 +338,20 @@ reproductive number. A more complete discussion of these quantities is available
 
 ```{r}
 
+simulations1.R0 <- ComputeR0(simulations1, cores = 8)
+simulations2.R0 <- ComputeR0(simulations2, cores = 8)
+
 plotR0 = function(simulations, main)
 {
-  #allSimulatedR0 = sapply(simulations$simulationResults, function(x){x$R0t})
   allSimulatedEA_R0 = sapply(simulations$simulationResults, function(x){x$R_EA})
-
   plot(apply(allSimulatedEA_R0, 1, mean), type = "l", ylim = c(0, 3), lwd =2,
        ylab = "Reproductive Number", main = main)
   lines(apply(allSimulatedEA_R0, 1, mean), lwd = 2, lty = 2, col = "blue")
   lines(apply(allSimulatedEA_R0, 1, quantile, probs = c(0.1)), lwd = 2, lty = 2, col = "blue")
   lines(apply(allSimulatedEA_R0, 1,  quantile, probs = c(0.9)), lwd = 2, lty = 2, col = "blue")
 }
-plotR0(simulations1, "Model 1: R0(t) and EA-R(t)")
-plotR0(simulations2, "Model 2: R0(t) and EA-R(t)")
+plotR0(simulations1.R0, "Model 1: EA-R(t)")
+plotR0(simulations2.R0, "Model 2: EA-R(t)")
 
 ```
 
@@ -358,6 +359,18 @@ Here, we also observe that model 2 provides much more reasonable reproductive nu
 choices are possible. In particular, we did not explore different potential transition models. This can be easily accomplished, 
 in much the same way that we examined two potential exposure models in this example. 
 introduction to working with ABSEIR. 
+
+We can also calculate the basic reproductive number in each of these models, though this requires us to be clear about
+how that should be defined, and what condition should be used to calculate it. 
+
+```{r}
+p1 <- as.data.frame(result1$param.samples)
+p2 <- as.data.frame(result2$param.samples)
+
+hist(exp(p1$Beta_SE_1)/p1$gamma_IR, main= "Model 1 R0 - Posterior Samples")
+hist(exp(p2$Beta_SE_1)/p2$gamma_IR, main= "Model 2 R0 Posterior Samples")
+
+```
 
 <h4><ul> Questions? </ul></h4>
 Questions and suggestions can be directed to the [issue page](https://github.com/grantbrown/ABSEIR/issues) of the ABSEIR repository. 

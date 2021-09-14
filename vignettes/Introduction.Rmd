@@ -16,7 +16,7 @@ Introduction
 ABSEIR is an R package designed to efficiently implement a class of spatial 
 epidemic models known as spatial SEIR(S) models. This family of analytical 
 techniques is more completely described in 
-[this recently accepted manuscript](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf),
+[this manuscript](https://github.com/grantbrown/EARNMC/blob/master/manuscript-preprint/r0Methods.pdf),
 as well as in [my thesis work](http://ir.uiowa.edu/etd/1554), though a brief practical introduction
 is also given here. Installation instructions for ABSEIR are available on the [wiki](https://github.com/grantbrown/ABSEIR/wiki/Installation), and any problems with the library or this series of tutorials can be directed to the [issues](https://github.com/grantbrown/ABSEIR/issues) page. 
 
@@ -53,12 +53,12 @@ the susceptible population. More generally, we often want to distinguish between
 types of infectious state, different removal states (with different probabilities of 
 reentry into the susceptible population), work with multiple species or make any number
 of other generalizations to the compartmental framework. Work in this area is ongoing, 
-though the ABSEIR package itself is likely to retain a broadly similer feature set
-to that it currently posesses. There are certainly a lot of exciting opportunities 
+though the ABSEIR package itself is likely to retain a broadly similar feature set
+to that it currently possesses. There are certainly a lot of exciting opportunities 
 for the development of more general epidemic modeling software. Even so, you might be 
 very surprised at the wide range of analyses which can be performed using the 
 spatial SEIR(S) model class as implemented by ABSEIR. We're capable of working with
-a variety of spatial and nonspatial models for a wide variety of disease processes. 
+a variety of spatial and non-spatial models for a wide variety of disease processes. 
 As we'll see in later tutorials, the 'spatial' structure as described in the above
 manuscripts can be adapted to describe structured multi-host populations. 
 

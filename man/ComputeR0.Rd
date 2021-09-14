@@ -15,16 +15,16 @@ ComputeR0(SimObject, cores = 1)
 Compute empirically adjusted reproductive number curves for a PosteriorSimulation object
 }
 \details{
-The main SpatialSEIRModel functon performs many simulations, but for the sake of 
+The main SpatialSEIRModel functon performs many simulations, but for the sake of
    memory efficiency and runtime does not return the simulated compartment values
    to the user. If simulated epidemics are desired, they may be quickly and
-   easily generated using the \code{\link{epidemic.simulations}} function. 
-   Reproductive number estimation is performed using this function, as the 
+   easily generated using the \code{\link{epidemic.simulations}} function.
+   Reproductive number estimation is performed using this function, as the
    calculations are somewhat computationally intensive and may not be required by
    all users.
 }
 \examples{
-\dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10, 
-                                                 verbose = TRUE))} 
+\dontrun{r0 <- ComputeR0(epidemic.simulations(modelObject, replicates = 10,
+                                                 verbose = TRUE))}
 
 }
