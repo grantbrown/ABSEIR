@@ -64,7 +64,7 @@ DataModel = function(Y, type = c("identity", "overdispersion"),
         stop("Numeric phi required for overdispersion models")
     }
 
-    if (class(Y) != "matrix")
+    if (!("matrix" %in% class(Y)))
     {
         Y = as.matrix(Y)
     }
